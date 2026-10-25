@@ -58,7 +58,7 @@ with niri picking the fastest refresh rate for it. On a desktop (no battery) the
 | Desktops only (no battery): OBS starts hidden in the tray at login with a 30-second replay buffer, and `Alt+F10` saves a clip plus a copy under Discord's 10 MB limit (`obs-clip`, `discord-compress`). Recordings go to `~/Videos/OBS/` as 1080p60 H.264 MP4 | packages `obs-studio`, `python-websockets`; OBS's `Discord` profile in `~/.config/obs-studio/` (written once), the key and autostart in `~/.config/niri/local.kdl` |
 | git commit name and email (GitHub noreply address) | `~/.gitconfig` (only `user.name` and `user.email`) |
 | Tailscale, and `ssh arch-server` over it (no browser login; run `sudo tailscale up` once per machine) | `~/.ssh/config.d/`, `~/.ssh/known_hosts.d/`, plus an `Include` line at the top of your own `~/.ssh/config` |
-| Claude Code: ponytail + caveman plugins, caveman proxy started with every session (only if `claude` is installed; undo with `caveman disable claude`) | `~/.claude/settings.json`, `~/.claude.json`, `~/.caveman/` |
+| Claude Code: ponytail + caveman plugins and caveman hooks; requests go straight to Anthropic, not through the caveman proxy, so Remote Control works (only if `claude` is installed; undo with `caveman disable claude`) | `~/.claude/settings.json`, `~/.claude.json`, `~/.caveman/` |
 
 Packages are listed in `packages.txt`.
 

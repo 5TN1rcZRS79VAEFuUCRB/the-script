@@ -406,9 +406,11 @@ git config --global user.name 5TN1rcZRS79VAEFuUCRB
 git config --global user.email 327155685+5TN1rcZRS79VAEFuUCRB@users.noreply.github.com
 
 # ---------------------------------------------------------------- Claude Code add-ons
-# ponytail + caveman plugins, and the caveman proxy routed in front of Claude Code
-# (caveman's SessionStart hook starts the proxy each session). Undo: caveman disable claude
-say "Claude Code: ponytail and caveman plugins, caveman proxy"
+# ponytail + caveman plugins and caveman's hooks. `caveman enable claude` also routes Claude
+# Code through its local proxy (ANTHROPIC_BASE_URL), which turns off Remote Control, so that
+# route is taken back out and Claude Code talks to api.anthropic.com directly. Enable runs only
+# while its hooks are missing: without the route it calls the setup degraded and exits 1. Undo: caveman disable claude
+say "Claude Code: ponytail and caveman plugins, caveman hooks"
 if command -v claude >/dev/null; then
 	{
 		claude plugin marketplace add DietrichGebert/ponytail \
@@ -417,7 +419,11 @@ if command -v claude >/dev/null; then
 			&& claude plugin install caveman@caveman \
 			&& npm install -g --prefix "$HOME/.local" @caveman-ai/cli \
 			&& "$HOME/.local/bin/caveman" setup --install \
-			&& "$HOME/.local/bin/caveman" enable claude
+			&& { grep -qs caveman-proxy "$HOME/.claude/settings.json" || "$HOME/.local/bin/caveman" enable claude; } \
+			&& python3 -c 'import json, sys
+p = sys.argv[1]; s = json.load(open(p))
+for k in ("ANTHROPIC_BASE_URL", "_CLAUDE_CODE_ASSUME_FIRST_PARTY_BASE_URL"): s.get("env", {}).pop(k, None)
+json.dump(s, open(p, "w"), indent=2)' "$HOME/.claude/settings.json"
 	} || warn "Claude add-ons failed (often a download hiccup); rerun: ./install.sh --no-packages"
 else
 	warn "Claude Code is not installed; skipping. Install it (curl -fsSL https://claude.ai/install.sh | bash), then rerun"

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Update the-script
+Comment=Pull the latest the-script and install it now instead of waiting for the 5-minute timer
+# Runs the timer's own service, so it never races a timer run. Failures notify from the-script-update.
+Exec=sh -c "notify-send -i system-software-update 'the-script' 'Checking for updates…'; systemctl --user start the-script-update.service && notify-send -i system-software-update 'the-script' 'Up to date'"
+Icon=system-software-update
+Categories=System;

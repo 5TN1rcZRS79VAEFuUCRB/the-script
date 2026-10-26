@@ -541,6 +541,14 @@ say "Syncthing: start now and at every login"
 if command -v syncthing >/dev/null; then
 	systemctl --user enable --now syncthing \
 		|| warn "could not start syncthing; after logging in run: systemctl --user enable --now syncthing"
+	# The todo folder (ID dwm-school) still pointed at ~/.local/share/dwm-school on machines from before
+	# the rename to dwm-todo, so their todo state stopped syncing. Wait for Syncthing's API, then repoint it.
+	for _ in 1 2 3 4 5 6 7 8 9 10; do folders=$(syncthing cli config folders list 2>/dev/null) && break; sleep 1; done
+	if grep -qx dwm-school <<<"${folders:-}" \
+		&& [ "$(syncthing cli config folders dwm-school path get)" != "$HOME/.local/share/dwm-todo" ]; then
+		syncthing cli config folders dwm-school path set "$HOME/.local/share/dwm-todo" \
+			|| warn "could not point Syncthing's dwm-school folder at ~/.local/share/dwm-todo"
+	fi
 else
 	warn "syncthing is not installed; skipping"
 fi

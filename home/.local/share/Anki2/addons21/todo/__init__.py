@@ -1,6 +1,6 @@
-# niri-todo: after every answered card, count today's due cards here (instant: Anki already has
-# them in memory), write the number where niri-todo reads it, and wake the niri-todo daemon, so
-# the bar's "Anki: N cards" drops the moment you answer.
+# todo: after every answered card, count today's due cards here (instant: Anki already has
+# them in memory), write the number where the todo daemon reads it, and wake the daemon, so
+# the taskbar's "Anki: N cards" drops the moment you answer.
 import os
 import signal
 from datetime import date
@@ -8,8 +8,8 @@ from datetime import date
 from aqt import gui_hooks, mw
 
 RUN = os.environ.get("XDG_RUNTIME_DIR", os.path.expanduser("~/.cache"))
-COUNT = os.path.join(RUN, "niri-todo-anki")
-PIDFILE = os.path.join(RUN, "niri-todo.pid")
+COUNT = os.path.join(RUN, "todo-anki")
+PIDFILE = os.path.join(RUN, "todo.pid")
 
 
 def answered(*_):

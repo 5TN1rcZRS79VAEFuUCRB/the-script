@@ -1,8 +1,0 @@
-# Run by niri-steam-overlay.path when Steam rewrites its overlay library. niri also runs the script
-# at login (config.kdl), when its scale can be read.
-[Unit]
-Description=Make Steam's in-game overlay follow niri's display scale
-
-[Service]
-Type=oneshot
-ExecStart=%h/.local/bin/niri-steam-overlay

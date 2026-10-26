@@ -1,4 +1,4 @@
-# Steam replaces its overlay library on updates, which would undo niri-steam-overlay's patch.
+# Steam replaces its overlay library on updates, which would undo steam-overlay-scale's patch.
 [Unit]
 Description=Re-apply the Steam overlay scale when Steam updates its overlay library
 

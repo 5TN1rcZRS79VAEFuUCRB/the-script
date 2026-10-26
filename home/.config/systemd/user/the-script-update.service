@@ -1,10 +1,10 @@
-# Started by niri-update.timer: applies newly pushed commits of this repo.
+# Started by the-script-update.timer: applies newly pushed commits of this repo.
 [Unit]
-Description=Pull niri-script and re-run install.sh on new commits
+Description=Pull the-script and re-run install.sh on new commits
 After=network-online.target
 
 [Service]
 Type=oneshot
 # The user manager's PATH lacks ~/.local/bin, so install.sh would not find claude and skip its add-ons.
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin
-ExecStart=%h/.local/bin/niri-update
+ExecStart=%h/.local/bin/the-script-update

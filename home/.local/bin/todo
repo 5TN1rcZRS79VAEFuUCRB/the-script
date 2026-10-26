@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """
-niri-todo: Canvas + Schoology assignments, your own to-dos and workouts in the bar, with points,
-a streak and reminders.
+todo: Canvas + Schoology assignments, your own to-dos and workouts on the taskbar, with points,
+a streak and reminders. The taskbar widget (~/.local/share/plasma/plasmoids/local.todo) shows the
+bar text (todo-bar) and opens the menu on click or Meta+T.
 
-  niri-todo daemon    sync every 5 min, refresh the bar and send reminders every minute (started by niri)
-  niri-todo sync      sync once and print the bar text and any errors
-  niri-todo menu      dmenu: next task, 10-minute focus timer, open / mark done (Mod+T in ~/.config/niri/config.kdl)
-  niri-todo selftest  check the feed parser, ordering and scoring
+  todo daemon    sync every 5 min, refresh the bar and send reminders every minute (started at login)
+  todo sync      sync once and print the bar text and any errors
+  todo json      the menu as JSON: next task, 10-minute focus timer, open / mark done (read by the widget)
+  todo do ACTION [ID]  run one action from that JSON
+  todo selftest  check the feed parser, ordering and scoring
 
 Setup, in ~/.local/share/dwm-todo/ (share that folder with Syncthing to keep machines in step):
   canvas_token     Canvas access token (Account > Settings > New Access Token), chmod 600
@@ -51,12 +53,12 @@ CONF = f"{DATA}/dwm-todo.conf"
 TODO = f"{DATA}/todo.txt"
 TOKEN = f"{DATA}/canvas_token"
 RUN = os.environ.get("XDG_RUNTIME_DIR", f"{HOME}/.cache")
-BAR = f"{RUN}/niri-todo-bar"      # one line, read by niri-status
-ANKI_COUNT = f"{RUN}/niri-todo-anki"  # "<date> <due>", written by the Anki add-on after each answered card
-PIDFILE = f"{RUN}/niri-todo.pid"  # the daemon; the Anki add-on sends it SIGUSR1 after every answered card
-STICKY = f"{RUN}/niri-todo-sticky"  # ids of notifications that stay until clicked; Mod+t closes them
-FOCUS = f"{RUN}/niri-todo-focus"  # "<end epoch> <icon> <text>": the running focus/break timer, read by niri-status
-DMENU = ["dmenu", "-i", "-l", "15"]
+BAR = f"{RUN}/todo-bar"      # one line, read by todo-bar
+ANKI_COUNT = f"{RUN}/todo-anki"  # "<date> <due>", written by the Anki add-on after each answered card
+PIDFILE = f"{RUN}/todo.pid"  # the daemon; the Anki add-on sends it SIGUSR1 after every answered card
+STICKY = f"{RUN}/todo-sticky"  # ids of notifications that stay until clicked; opening the menu closes them
+TAGGED = f"{RUN}/todo-tagged.json"  # {tag: id} of shown notifications that the next one with that tag replaces
+FOCUS = f"{RUN}/todo-focus"  # "<end epoch> <icon> <text>": the running focus/break timer, read by todo-bar
 
 LOOKBACK = 14 * 86400  # overdue work older than this drops off the list
 AHEAD = 60 * 86400
@@ -72,12 +74,9 @@ EARLY, EARLY_BONUS = 86400, 5  # turned in this long before it's due: bonus poin
 SURPRISE = 0.25  # chance a completion pays double, fixed per task so every machine agrees
 LEVEL = 100  # points per level
 FREEZE_EVERY, MAX_FREEZES = 7, 2  # active days that earn a streak freeze, and how many can be banked
-# Bar and menu icons (Symbols Nerd Font): graduation cap, warning, coffee, star, flame
+# Bar icons (Symbols Nerd Font): timer; graduation cap, warning, coffee, star, flame
 TIMER = "󰔛"
 CAP, WARN, COFFEE, STAR, FIRE = "", "", "󰅶", "", "󰈸"
-# Menu icons: timer +, timer off, pause, check, sync; and one per source (cards for Anki, weightlifter, checkbox for todo.txt)
-MORE, TIMER_OFF, PAUSE, CHECK, SYNC = "󱫣", "󰔞", "󰏤", "󰄬", "󰓦"
-SOURCE_ICON = {"canvas": CAP, "schoology": CAP, "todo": "󰄱", "anki": "󰘹", "workout": "󱅝"}
 PRIORITY = {"canvas": 1, "schoology": 2, "todo": 2, "anki": 3, "workout": 4}  # breaks ties on the same day
 MANUAL = ("schoology", "todo", "workout")  # nothing reports these done: they're checked off from the menu
 LATE_FIRST = 2 * 86400  # nothing due within this long: late work moves to the top
@@ -242,7 +241,7 @@ def schoology_tasks(feed):
             events = parse_ics(f.read())
     else:
         feed = re.sub(r"^webcal://", "https://", feed)
-        with urlopen(Request(feed, headers={"User-Agent": "niri-todo"}), timeout=30) as r:
+        with urlopen(Request(feed, headers={"User-Agent": "the-script todo"}), timeout=30) as r:
             events = parse_ics(r.read().decode("utf-8", "replace"))
     now = time.time()
     # Calendar events (fundraisers, meetings) link to /event/; everything else is work to turn in.
@@ -542,24 +541,35 @@ def bar_text(tasks, errors, s, now):
     if items:
         head = f"{short(items[0]['title'])} ({left(items[0]['due'] - now)})"
     else:
-        head = "run niri-todo sync" if errors and not tasks else "all caught up"
+        head = "run todo sync" if errors and not tasks else "all caught up"
     parts = [(f"{WARN} " if errors else f"{CAP} ") + head]
     parts.append(f"{STAR} {total(s)} {FIRE} {streak(s)}")
     return "  ".join(parts)
 
 
 def notify(title, body="", urgent=False, tag=None):
-    """Urgent ones stay until clicked (dunstrc) or until Mod+t opens the menu (close_sticky).
+    """Urgent ones stay until clicked or until the menu is opened (close_sticky).
     A tag replaces the shown notification with the same tag instead of stacking under it."""
-    hint = ["-h", f"string:x-dunst-stack-tag:{tag}"] if tag else []
     try:
-        p = subprocess.run(["notify-send", "-p", "-a", "niri-todo", "-u", "critical" if urgent else "normal",
-                            *hint, title, body], capture_output=True, text=True, timeout=10)
+        with open(TAGGED) as f:
+            tagged = json.load(f)
+    except (OSError, ValueError):
+        tagged = {}
+    replace = ["-r", str(tagged[tag])] if tag in tagged else []
+    try:
+        p = subprocess.run(["notify-send", "-p", "-a", "To-do", "-u", "critical" if urgent else "normal",
+                            *replace, title, body], capture_output=True, text=True, timeout=10)
     except (OSError, subprocess.TimeoutExpired):
         return
-    if urgent and p.stdout.strip().isdigit():
+    nid = p.stdout.strip()
+    if not nid.isdigit():
+        return
+    if tag:
+        tagged[tag] = int(nid)
+        write(TAGGED, json.dumps(tagged))
+    if urgent:
         with open(STICKY, "a") as f:
-            f.write(p.stdout.strip() + "\n")
+            f.write(nid + "\n")
 
 
 def close_sticky():
@@ -636,7 +646,7 @@ def daemon():
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
-        sys.exit("niri-todo daemon is already running")
+        sys.exit("todo daemon is already running")
     write(PIDFILE, f"{os.getpid()}\n")
     # SIGUSR1 (from the Anki add-on, after each answered card) is taken by sigtimedwait below, which
     # wakes the loop at once instead of at its next interval.
@@ -655,16 +665,8 @@ def daemon():
             try:
                 step()
             except Exception as e:
-                print(f"niri-todo {step.__name__}: {e}", file=sys.stderr)
-        if poked:
-            redraw_bar()
+                print(f"todo {step.__name__}: {e}", file=sys.stderr)
         poked = signal.sigtimedwait([signal.SIGUSR1], ANKI_EVERY if anki_open else 60) is not None
-
-
-def redraw_bar():
-    """The bar's todo block (custom/todo in ~/.config/waybar/config.jsonc) redraws right away on
-    SIGRTMIN+8 instead of on its next one-second tick."""
-    subprocess.run(["pkill", "-RTMIN+8", "-x", "waybar"])
 
 
 # ---- menu ----
@@ -698,7 +700,7 @@ def timer(secs, icon, text):
 
 
 def focus(t, reopen=True):
-    """One 10-minute session. When it ends, a notification points to Mod+t for more or a break:
+    """One 10-minute session. When it ends, a notification points to Meta+T for more or a break:
     nothing pops up that grabs the keyboard while you're typing."""
     if reopen:
         open_url(t)
@@ -713,7 +715,7 @@ def focus(t, reopen=True):
         s["focus_next"] = time.time()
         pts = total(s)
     tick()
-    notify(f"Session done: +2 pts ({pts})", "Mod+t: 10 more minutes or a 5-minute break", urgent=True)
+    notify(f"Session done: +2 pts ({pts})", "Meta+T: 10 more minutes or a 5-minute break", urgent=True)
 
 
 def rest(t):
@@ -722,7 +724,7 @@ def rest(t):
     if timer(REST_SECS, COFFEE, "break"):
         with state() as s:
             s["focus_next"] = time.time()
-        notify(f"Break's over: {t['title']}", "Mod+t: 10 more minutes", urgent=True)
+        notify(f"Break's over: {t['title']}", "Meta+T: 10 more minutes", urgent=True)
 
 
 def workout_done(listed):
@@ -757,60 +759,51 @@ def finish():
     tick()
 
 
-def dmenu(rows, prompt):
-    p = subprocess.run(DMENU + ["-p", prompt], input="\n".join(l for l, _ in rows) + "\n",
-                       capture_output=True, text=True)
-    choice = p.stdout.rstrip("\n")
-    return next((a for l, a in rows if l == choice), None) if p.returncode == 0 else None
-
-
-def run_menu():
-    close_sticky()
+def menu_rows():
+    """What the menu offers: the score, the timer and session rows as (text, (action, task)), the open
+    tasks, and when tracking began."""
     tasks = load("tasks.json", {"tasks": []})["tasks"]
     now = time.time()
     with state() as s:
         items = todo(tasks, s, now)
-        (run, freezes), (lvl, to_next) = streak_info(s), level_info(total(s))
-        prompt = (f"{STAR} {total(s)} pts · Lv {lvl} ({to_next} to go) · {FIRE} {run}-day streak"
-                  + (f" · {freezes} freeze" if freezes else ""))
+        score = streak_info(s), level_info(total(s)), total(s)
         since = s.get("since", now)
         again = next_session(tasks, s, now)
-    rows = []
+    top = []
     first = next((t for t in items if t["source"] != "workout"), None)  # workouts get no focus timer
     if again and not focus_end():
-        rows += [(f"{MORE}  10 more minutes: {again['title']}", ("more", again)),
-                 (f"{COFFEE}  5-minute break", ("rest", again)), (f"{PAUSE}  Stop for now (not finished)", ("pause", again))]
+        top += [(f"10 more minutes: {again['title']}", ("more", again)),
+                ("5-minute break", ("rest", again)), ("Stop for now (not finished)", ("pause", again))]
     if focus_end(TIMER) > now:
-        rows.append((f"{CHECK}  Finished it", ("finish", None)))
+        top.append(("Finished it", ("finish", None)))
     if focus_end() > now:
-        rows.append((f"{TIMER_OFF}  Stop timer", ("stop", None)))
+        top.append(("Stop timer", ("stop", None)))
     elif first and not again:
-        rows.append((f"{TIMER}  Start 10-min focus: {first['title']}", ("focus", first)))
-    # Columns: source icon, time left, title (after the course for Canvas ones; Schoology's "course" is just Schoology).
-    due = [left(t["due"] - now, 1) for t in items]
-    dw = max(map(len, due), default=0)
-    rows += [(f"{SOURCE_ICON[t['source']]}  {d:>{dw}}  "
-              f"{t['course'] + ' · ' if t['course'] and t['source'] == 'canvas' else ''}{t['title']}", ("task", t))
-             for d, t in zip(due, items)]
-    rows.append((f"{SYNC}  Sync now", ("sync", None)))
-    act, t = dmenu(rows, prompt) or (None, None)
-    if act == "task":
-        sub = [("Start 10-min focus", ("focus", t))]
-        if t["source"] == "workout":
-            sub = [("Finished", ("workout", t))]
-        elif t["source"] == "anki" or t["url"]:
-            sub.append(("Open Anki" if t["source"] == "anki" else "Open in browser", ("open", t)))
-        if t["source"] in ("schoology", "todo") and t["due"] < now:  # past due: it may have gone in on time anyway
-            sub += [("Turned it in on time", ("done_on_time", t)), ("Turned it in late", ("done_late", t))]
-            if t["due"] < since:  # from before the tracker: or just clear it, no points
-                sub += [("Done before niri-todo (no points)", ("done", t))]
-        elif t["source"] in ("schoology", "todo"):  # not due yet: on time, maybe early
-            early = now <= t["due"] - EARLY
-            sub += [(f"Turned it in (+{PTS['done'] + EARLY_BONUS} early)" if early else f"Turned it in (+{PTS['done']})",
-                     ("done", t))]
-        if t["source"] == "schoology":
-            sub += [("Hide (not an assignment)", ("hide", t))]
-        act, t = dmenu(sub, short(t["title"], 40)) or (None, None)
+        top.append((f"Start 10-min focus: {first['title']}", ("focus", first)))
+    return score, top, items, since, now
+
+
+def task_actions(t, now, since):
+    """The submenu for one task: [(text, (action, task))]."""
+    sub = [("Start 10-min focus", ("focus", t))]
+    if t["source"] == "workout":
+        sub = [("Finished", ("workout", t))]
+    elif t["source"] == "anki" or t["url"]:
+        sub.append(("Open Anki" if t["source"] == "anki" else "Open in browser", ("open", t)))
+    if t["source"] in ("schoology", "todo") and t["due"] < now:  # past due: it may have gone in on time anyway
+        sub += [("Turned it in on time", ("done_on_time", t)), ("Turned it in late", ("done_late", t))]
+        if t["due"] < since:  # from before the tracker: or just clear it, no points
+            sub += [("Done before tracking began (no points)", ("done", t))]
+    elif t["source"] in ("schoology", "todo"):  # not due yet: on time, maybe early
+        early = now <= t["due"] - EARLY
+        sub += [(f"Turned it in (+{PTS['done'] + EARLY_BONUS} early)" if early else f"Turned it in (+{PTS['done']})",
+                 ("done", t))]
+    if t["source"] == "schoology":
+        sub += [("Hide (not an assignment)", ("hide", t))]
+    return sub
+
+
+def run_action(act, t):
     if act == "focus":
         focus(t)
     elif act == "more":
@@ -841,6 +834,30 @@ def run_menu():
             s["hidden"].append(t["id"])
     if act in ("sync", "done", "done_on_time", "done_late", "hide", "workout"):
         tick()
+
+
+def menu_json():
+    """The menu as JSON for the taskbar widget."""
+    close_sticky()
+    ((run, freezes), (lvl, to_next), pts), top, items, since, now = menu_rows()
+    row = lambda text, a: {"text": text, "act": a[0], "id": a[1]["id"] if a[1] else ""}
+    print(json.dumps({
+        "pts": pts, "level": lvl, "to_next": to_next, "streak": run, "freezes": freezes,
+        "top": [row(text, a) for text, a in top],
+        "tasks": [{"id": t["id"], "source": t["source"], "title": t["title"],
+                   "course": t["course"] if t["source"] == "canvas" else "",
+                   "left": left(t["due"] - now, 1), "late": t["due"] < now,
+                   "actions": [row(text, a) for text, a in task_actions(t, now, since)]} for t in items]}))
+
+
+def menu_do(act, tid=""):
+    """Run one action from menu_json, only if the menu still offers it: the list may have changed since."""
+    _, top, items, since, now = menu_rows()
+    offered = [a for _, a in top] + [("sync", None)] + [a for t in items for _, a in task_actions(t, now, since)]
+    a = next((a for a in offered if a[0] == act and (a[1]["id"] if a[1] else "") == tid), None)
+    if not a:
+        sys.exit(f"todo: {act} {tid} is no longer in the menu")
+    run_action(*a)
 
 
 def selftest():
@@ -956,11 +973,13 @@ def selftest():
 
 
 def main():
-    cmds = {"daemon": daemon, "menu": run_menu, "selftest": selftest}
+    cmds = {"daemon": daemon, "json": menu_json, "selftest": selftest}
     if sys.argv[1:] == ["sync"]:
         errors = sync()
         tick()
         print(open(BAR).read().strip(), *errors, sep="\n")
+    elif sys.argv[1:2] == ["do"] and len(sys.argv) in (3, 4):
+        menu_do(*sys.argv[2:])
     elif len(sys.argv) == 2 and sys.argv[1] in cmds:
         cmds[sys.argv[1]]()
     else:

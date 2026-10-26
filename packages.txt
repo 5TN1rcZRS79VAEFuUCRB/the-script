@@ -1,23 +1,44 @@
-# Packages installed by install.sh (official Arch repos only).
+# Packages installed by install.sh from the official Arch repos. The Windows 7 look itself
+# (AeroThemePlasma) comes from the AUR; install.sh builds that with yay (aur.txt).
 # Blank lines and # comments are ignored.
 
-# --- desktop: niri (window manager), waybar (bar + tray), foot (terminal), bemenu (dmenu for Wayland) ---
-niri
-xwayland-satellite        # X11-only apps (Steam, many games); niri starts it when one opens
-xdg-desktop-portal-gnome  # screen sharing and screenshots for apps under niri
-waybar
-foot
-bemenu
-bemenu-wayland
-swayidle                  # monitors off after 10 minutes idle (see ~/.config/niri/config.kdl)
+# --- desktop: KDE Plasma (AeroThemePlasma replaces its shell, theme and window decoration) ---
+plasma-desktop
+plasma-workspace
+plasma-nm                 # network in the tray
+plasma-pa                 # volume in the tray
+plasma5support            # the todo widget runs its commands through it
+kvantum                   # the Windows 7 widget style
+sddm                      # the Windows 7 logon screen
+sddm-kcm
+xdg-desktop-portal-kde    # file pickers, screen sharing and the dark-mode setting for apps
+dolphin                   # file manager (kept light, like Explorer)
+spectacle                 # screenshots (Print, or Meta+Shift+S)
+kscreen                   # System Settings > Display; kscreen-doctor sets the scale and VRR
+foot                      # terminal, with the Windows command prompt icon
 wl-clipboard              # wl-paste: terminal apps (Claude Code's Ctrl+V) read pasted screenshots with it
+# Needed to build AeroThemePlasma from the AUR (its install guide lists them)
+base-devel
+git
+cmake
+extra-cmake-modules
+ninja
+curl
+unzip
+qt6-virtualkeyboard
+qt6-multimedia
+qt6-5compat
+qt6-wayland
+plasma-wayland-protocols
+wayland-protocols
+vulkan-headers
 
-# --- fonts (bar, terminal and menus all resolve to DejaVu Sans Mono; the bar icons come from the Nerd Font symbols) ---
+# --- fonts (the terminal is DejaVu Sans Mono; the taskbar's todo icons come from the Nerd Font symbols) ---
 ttf-dejavu
 ttf-nerd-fonts-symbols-mono
 ttf-nerd-fonts-symbols
 
-# --- audio: the volume readout and device pickers on the bar ---
+# --- audio ---
 pipewire
 pipewire-pulse
 pipewire-alsa
@@ -26,10 +47,7 @@ libpulse
 rtkit
 alsa-utils       # runs the UCM boot sequence at startup; without it the laptop mic-mute LED never follows mute
 
-# --- laptop backlight (Fn brightness keys, bound in ~/.config/niri/config.kdl)
-brightnessctl
-
-# --- network picker (niri-net, Mod+N); the laptop's battery and power profile need no package here
+# --- network ---
 networkmanager
 wireless-regdb
 
@@ -44,31 +62,16 @@ nss-mdns
 cups
 gutenprint
 
-# --- notifications: niri-todo reminders (notify-send + dunst) ---
-dunst
+# --- todo: reminders (notify-send) and opening assignments in the browser ---
 libnotify
-
-# --- niri-todo: opens assignments in the browser ---
 xdg-utils
-
-# --- bar stats + helper scripts ---
-lm_sensors
-python-gobject
-
-# --- dark mode plumbing (GTK, Qt5/Qt6, xdg portal) ---
-xdg-desktop-portal
-xdg-desktop-portal-gtk
-dconf
-gsettings-desktop-schemas
-adwaita-icon-theme
-qt5ct
-qt6ct
 
 # --- apps ---
 firefox
+element-desktop
 keepassxc
 syncthing        # keeps the KeePassXC database in sync between machines
-anki             # flashcards; niri-todo shows today's due cards (its add-on is in home/.local/share/Anki2)
+anki             # flashcards; the todo widget shows today's due cards (its add-on is in home/.local/share/Anki2)
 mpv              # plays the audio and video on Anki cards
 proton-vpn-gtk-app
 gnome-keyring    # Secret Service (D-Bus activated) where Proton VPN keeps its login

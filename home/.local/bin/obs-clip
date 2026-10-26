@@ -5,7 +5,7 @@ obs-clip: save the last 30 seconds from OBS's replay buffer, plus a copy that fi
   obs-clip    save the clip (~/Videos/OBS/Replay <date>.mp4), then make <name>.discord.mp4 next to
               it with discord-compress (under Discord's 10 MB free upload limit)
 
-Desktops only: install.sh binds it to Alt+F10 in ~/.config/niri/local.kdl and starts OBS with the
+Desktops only: install.sh binds it to Alt+F10 (a KDE global shortcut) and starts OBS with the
 replay buffer at login. OBS's own hotkeys don't work under Wayland, so this asks OBS over its
 websocket, with the password install.sh generated in OBS's websocket config.
 """

@@ -1,10 +1,11 @@
-// Follow the system's dark preference everywhere, including the home page
-// (Firefox's "automatic" doesn't always resolve to dark outside GNOME/KDE).
-user_pref("ui.systemUsesDarkTheme", 1);
-user_pref("browser.theme.toolbar-theme", 0);
-user_pref("browser.theme.content-theme", 0);
-user_pref("layout.css.prefers-color-scheme.content-override", 0);
-// Scaling comes from niri's per-monitor scale (~/.config/niri/local.kdl). Do not also set
+// Follow the desktop's light/dark setting everywhere, including the home page. Firefox reads it
+// from the xdg-desktop-portal, which reports Plasma's color scheme (dark with the default theme).
+user_pref("browser.theme.toolbar-theme", 2);
+user_pref("browser.theme.content-theme", 2);
+user_pref("layout.css.prefers-color-scheme.content-override", 2);
+// The Windows 7 title bar (SMOD) above the tabs, instead of Firefox drawing its own.
+user_pref("browser.tabs.inTitlebar", 0);
+// Scaling comes from Plasma's per-monitor scale (System Settings > Display). Do not also set
 // layout.css.devPixelsPerPx here -- Firefox multiplies the two (2.25x).
 user_pref("layout.css.devPixelsPerPx", "-1.0");
 

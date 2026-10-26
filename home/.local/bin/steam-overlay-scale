@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 #
-# niri-steam-overlay: make Steam's in-game overlay (Shift+Tab) follow niri's display scale.
+# steam-overlay-scale: make Steam's in-game overlay (Shift+Tab) follow the display scale.
 #
 # Steam's overlay process works out the scale (1.5 here) when a game starts and sends it to the
 # overlay code inside the game, but that message gets lost: the game side keeps its starting value
 # of 0, which means "don't scale", so at 4K the overlay is drawn at 1x and is tiny. This patches
-# that starting value in Steam's 64-bit overlay library to niri's largest output scale. A scale
+# that starting value in Steam's 64-bit overlay library to the largest monitor scale (kscreen-doctor). A scale
 # Steam does manage to send still replaces it.
 #
-#   niri-steam-overlay        patch the library if it needs it (nothing is written otherwise)
+#   steam-overlay-scale        patch the library if it needs it (nothing is written otherwise)
 #
-# niri runs this at login (config.kdl), and Steam rewrites the library when it updates, so
-# niri-steam-overlay.path runs it again whenever the file changes. Takes effect for games started
+# It runs at login (~/.config/autostart/steam-overlay-scale.desktop), and Steam rewrites the library
+# when it updates, so steam-overlay-scale.path runs it again whenever the file changes. Takes effect for games started
 # afterwards. 32-bit games use another library and are not covered.
 
 import json
@@ -29,9 +29,9 @@ MOVABS = bytes.fromhex("48b8")
 MOVABS_HIGH = bytes.fromhex("ffffffff")
 
 
-def niri_scale():
-    out = subprocess.run(["niri", "msg", "-j", "outputs"], capture_output=True, text=True, check=True).stdout
-    scales = [o["logical"]["scale"] for o in json.loads(out).values() if o.get("logical")]
+def display_scale():
+    out = subprocess.run(["kscreen-doctor", "-j"], capture_output=True, text=True, check=True).stdout
+    scales = [o["scale"] for o in json.loads(out)["outputs"] if o.get("enabled") and o.get("connected")]
     return max(scales, default=1.0)
 
 
@@ -53,19 +53,19 @@ def main():
         data = f.read()
     at = find_scale_field(data)
     if at is None:
-        print("niri-steam-overlay: Steam's overlay library changed; scale not patched", file=sys.stderr)
+        print("steam-overlay-scale: Steam's overlay library changed; scale not patched", file=sys.stderr)
         return 1
-    scale = niri_scale()
+    scale = display_scale()
     want = struct.pack("<f", scale if scale != 1 else 0.0)
     if data[at:at + 4] == want:
         return 0
     # A new file renamed over the old one: games running now keep the library they loaded.
-    tmp = LIB + ".niri-tmp"
+    tmp = LIB + ".scale-tmp"
     with open(tmp, "wb") as f:
         f.write(data[:at] + want + data[at + 4:])
     os.chmod(tmp, os.stat(LIB).st_mode)
     os.replace(tmp, LIB)
-    print(f"niri-steam-overlay: overlay scale set to {scale}")
+    print(f"steam-overlay-scale: overlay scale set to {scale}")
     return 0
 
 

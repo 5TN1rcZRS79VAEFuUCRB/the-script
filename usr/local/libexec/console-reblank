@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
 # console-reblank: turn the monitors off again after a hotplug wakes them while the text console is
-# blanked (see /etc/udev/rules.d/90-console-reblank.rules). Under niri the console counts as blanked
-# too, but niri owns the display then and the kernel ignores the write.
+# blanked (see /etc/udev/rules.d/90-console-reblank.rules). Under the desktop the console counts as
+# blanked too, but the compositor owns the display then and the kernel ignores the write.
 
 import fcntl
 import os

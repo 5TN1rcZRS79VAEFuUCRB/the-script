@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 #
-# Recreates this niri desktop on an Arch Linux machine.
-# Run as your normal user (it calls sudo where it needs root):  ./install.sh
+# the-script: recreates this Windows 7-style KDE Plasma desktop (AeroThemePlasma) on an Arch Linux
+# machine. Run as your normal user (it calls sudo where it needs root):  ./install.sh
 # Safe to re-run; anything it would overwrite is backed up first.
 
 set -euo pipefail
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 
-SCALE="${SCALE:-}"
 DO_PACKAGES=1
 WITH_STEAM=0
 
@@ -15,20 +14,15 @@ usage() {
 	cat <<'EOF'
 Usage: ./install.sh [options]
 
-  --scale N       display scaling for every monitor connected now: 1, 1.25, 1.5, 2...
-                  Written to ~/.config/niri/local.kdl. Default: a re-run keeps that
-                  file as it is; a first install converts Xft.dpi from an old
-                  ~/.Xresources (144 -> 1.5), else uses 1.
   --steam         also install Steam (needs the [multilib] repo enabled in
                   /etc/pacman.conf) and the matching 32-bit graphics libraries
-  --no-packages   skip the pacman step
+  --no-packages   skip the pacman and AUR steps
   -h, --help      this text
 EOF
 }
 
 while [ $# -gt 0 ]; do
 	case "$1" in
-	--scale)       SCALE="${2:?--scale needs a number}"; shift ;;
 	--steam)       WITH_STEAM=1 ;;
 	--no-packages) DO_PACKAGES=0 ;;
 	-h|--help)     usage; exit 0 ;;
@@ -65,6 +59,18 @@ place() { # src dest
 	install -Dm"$mode" "$src" "$dest"
 }
 
+# Moves a file or folder of this user's into the backup, for things the-script no longer installs.
+retire() { # path...
+	local p rel
+	for p in "$@"; do
+		[ -e "$p" ] || [ -L "$p" ] || continue
+		rel=${p#"$HOME"/}
+		mkdir -p "$BACKUP/$(dirname "$rel")"
+		mv "$p" "$BACKUP/$rel"
+		REPLACED+=("$rel")
+	done
+}
+
 # Root-owned files: an existing different one is kept next to it as .bak-<date>.
 sudo_place() { # src dest
 	cmp -s "$1" "$2" 2>/dev/null && return
@@ -73,28 +79,80 @@ sudo_place() { # src dest
 	echo "Installed $2"
 }
 
+kset() { kwriteconfig6 "$@"; }
+
 # ---------------------------------------------------------------- passwordless sudo
-# niri-update re-runs this installer unattended when a commit is pushed, so its sudo calls cannot
-# ask for a password. This makes the user root-equivalent without one: anything running as this
-# user, and anyone who can push to the repo, gets root. Undo: sudo rm /etc/sudoers.d/10-niri-update
-SUDOERS=/etc/sudoers.d/10-niri-update
+# the-script-update re-runs this installer unattended when a commit is pushed, so its sudo calls
+# cannot ask for a password. This makes the user root-equivalent without one: anything running as
+# this user, and anyone who can push to the repo, gets root. Undo: sudo rm /etc/sudoers.d/10-the-script
+SUDOERS=/etc/sudoers.d/10-the-script
 if ! sudo test -e "$SUDOERS"; then
-	say "Passwordless sudo for $(id -un) (lets niri-update run this installer unattended)"
+	say "Passwordless sudo for $(id -un) (lets the-script-update run this installer unattended)"
 	tmp="$(mktemp)"
 	echo "$(id -un) ALL=(ALL) NOPASSWD: ALL" > "$tmp"
 	sudo visudo -cqf "$tmp" && sudo install -m440 "$tmp" "$SUDOERS"
 	rm -f "$tmp"
 fi
+# The same rule under its name from niri-script, removed once the new one is in place.
+sudo test -e "$SUDOERS" && sudo rm -f /etc/sudoers.d/10-niri-update
 
 # ---------------------------------------------------------------- packages
+listed() { sed -e 's/#.*//' -e 's/[[:space:]]*$//' "$1" | grep -v '^$'; }
 if [ "$DO_PACKAGES" -eq 1 ]; then
 	say "Installing packages (sudo password may be requested)"
-	mapfile -t PKGS < <(sed -e 's/#.*//' -e 's/[[:space:]]*$//' packages.txt | grep -v '^$')
+	mapfile -t PKGS < <(listed packages.txt)
 	# Only packages not installed yet. Naming an installed one to `pacman -S` upgrades it alone (a
 	# partial upgrade), and --noconfirm even overrides IgnorePkg: that pulled a pinned xorg-server
 	# forward and Xorg then crashed in the amdgpu driver. Upgrades stay with pacman -Syu.
 	mapfile -t MISSING < <(pacman -T "${PKGS[@]}" || true)
 	[ ${#MISSING[@]} -eq 0 ] || sudo pacman -S --noconfirm "${MISSING[@]}"
+
+	# AeroThemePlasma from the AUR, built with yay (installed first if missing). Building takes a while
+	# the first time. aeroshell-libplasma-git replaces libplasma, and pacman's question about that
+	# defaults to no under --noconfirm, so the answers come from `yes` instead.
+	mapfile -t AUR < <(listed aur.txt)
+	mapfile -t MISSING < <(pacman -T "${AUR[@]}" || true)
+	if [ ${#MISSING[@]} -gt 0 ]; then
+		say "Building AeroThemePlasma from the AUR: ${MISSING[*]}"
+		if ! command -v yay >/dev/null; then
+			tmp="$(mktemp -d)"
+			git clone -q https://aur.archlinux.org/yay-bin.git "$tmp/yay-bin"
+			(cd "$tmp/yay-bin" && makepkg -si --noconfirm)
+			rm -rf "$tmp"
+		fi
+		(set +o pipefail; yes y | yay -S --needed --answerclean All --answerdiff None --answeredit None --removemake "${MISSING[@]}")
+		mapfile -t MISSING < <(pacman -T "${AUR[@]}" || true)
+		[ ${#MISSING[@]} -eq 0 ] || die "these AUR packages did not install: ${MISSING[*]} (run: yay -S ${MISSING[*]})"
+	fi
+fi
+
+# ---------------------------------------------------------------- leftovers from niri-script
+# This repo was niri-script, a niri desktop, before it became the-script. Its scripts, services and
+# autostart are retired into the backup folder (a niri session still running keeps working until you
+# log out). Its niri, waybar and dunst settings in ~/.config stay where they are, unused.
+MIGRATED=0
+if [ -e "$HOME/.local/state/niri-script-installed" ] || [ -L "$HOME/.local/share/niri-script" ]; then
+	say "Retiring niri-script's scripts and services"
+	MIGRATED=1
+	systemctl --user disable --now niri-update.timer niri-steam-overlay.path 2>/dev/null || true
+	retire "$HOME"/.config/systemd/user/niri-{update.service,update.timer,steam-overlay.path,steam-overlay.service}
+	retire "$HOME"/.local/bin/{dmenu,niri-audio,niri-down,niri-mouse,niri-net,niri-place,niri-power,niri-status,niri-tray,niri-todo,niri-update,niri-steam-overlay}
+	retire "$HOME/.local/share/Anki2/addons21/niri_todo"
+	rm -f "$HOME/.local/share/niri-script" "$HOME/.local/state/niri-script-installed"
+	[ -e /etc/udev/rules.d/70-niri-mouse-dpi.rules ] && sudo rm -f /etc/udev/rules.d/70-niri-mouse-dpi.rules
+	# niri-script's updater, which ran this, then flags niri to restart once idle. Without its helper
+	# scripts a restarted niri has no bar, so the flags are cleared once it has set them.
+	if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
+		systemd-run --user --collect -q --on-active=60 /usr/bin/rm -f \
+			"$XDG_RUNTIME_DIR/niri-restart-session" "$XDG_RUNTIME_DIR/dwm-restart-session" || true
+	fi
+fi
+# From trying Plasma before the-script: the todo widget and daemon under their old names.
+retire "$HOME/.local/share/plasma/plasmoids/local.niritodo" "$HOME/.config/autostart/niri-todo.desktop"
+# A generic portals.conf choosing GTK's portal (niri's) would override KDE's under Plasma too, and apps
+# would then miss Plasma's dark mode.
+if grep -qsx 'default=gtk' "$HOME/.config/xdg-desktop-portal/portals.conf"; then
+	retire "$HOME/.config/xdg-desktop-portal/portals.conf"
 fi
 
 # ---------------------------------------------------------------- dotfiles + scripts
@@ -102,54 +160,132 @@ say "Installing config files and scripts into $HOME"
 while IFS= read -r -d '' f; do
 	place "$f" "$HOME/${f#home/}"
 done < <(find home -type f -print0)
+systemctl --user daemon-reload 2>/dev/null || true
 
-# The mouse speed saved with Mod+Shift+M goes into niri's config (mouse.kdl).
-"$HOME/.local/bin/niri-mouse" apply
-
-# The todo daemon outlives niri restarts (niri starts apps in scopes of their own), so a running one
-# would keep the old code: restart it. niri's own start of it at the next login then finds it running.
-todo_daemon='/\.local/bin/niri-todo daemon'
-if pkill -f "$todo_daemon"; then
-	for _ in $(seq 50); do pgrep -f "$todo_daemon" >/dev/null || break; sleep 0.1; done
-	systemd-run --user --collect -q "$HOME/.local/bin/niri-todo" daemon || warn "could not restart niri-todo; run: niri-todo daemon &"
-fi
-
-# ---------------------------------------------------------------- display scaling + refresh rate
-# Monitors differ per machine, so their settings live in ~/.config/niri/local.kdl, not in the repo's
-# config.kdl. Written on the first install (or with --scale) for every monitor connected now; after
-# that a re-run leaves it alone, so edits made by hand stay put. Each monitor gets its native
-# resolution without a refresh rate, which makes niri pick the fastest one: a monitor's "preferred"
-# mode is often 60 Hz even on a 240 Hz panel, and fullscreen games then only offer 60 Hz.
-LOCAL_KDL="$HOME/.config/niri/local.kdl"
-if [ -n "$SCALE" ] || [ ! -e "$LOCAL_KDL" ]; then
-	if [ -z "$SCALE" ]; then
-		dpi="$(awk '/^Xft\.dpi:/{ if (int($2) > 0) print int($2); exit }' "$HOME/.Xresources" 2>/dev/null || true)"
-		SCALE="$(awk -v d="${dpi:-96}" 'BEGIN { print d / 96 }')"
+# The todo daemon outlives a logout, so a running one would keep the old code: restart it. The
+# autostart entry at the next login then finds it running. niri-todo is its name from niri-script.
+was_running=0
+for d in '/\.local/bin/todo daemon' '/\.local/bin/niri-todo daemon'; do
+	if pkill -f "$d"; then
+		was_running=1
+		for _ in $(seq 50); do pgrep -f "$d" >/dev/null || break; sleep 0.1; done
 	fi
-	awk -v s="$SCALE" 'BEGIN { exit !(s ~ /^[0-9]*\.?[0-9]+$/ && s >= 0.5 && s <= 4) }' \
-		|| die "--scale must be a number from 0.5 to 4, got '$SCALE'"
-	say "Display scaling: $SCALE"
-	tmp="$(mktemp)"
-	{
-		echo "// This machine's monitors; niri applies changes on save. Names and modes: niri msg outputs"
-		echo "// Other options: mode \"2560x1440@143.912\", variable-refresh-rate, position x=0 y=0"
-		for s in /sys/class/drm/card*-*/status; do
-			[ "$(cat "$s")" = connected ] || continue
-			d="${s%/status}"; name="${d##*/}"; name="${name#card*-}"; mode="$(head -n1 "$d/modes")"
-			printf 'output "%s" {\n' "$name"
-			[ -z "$mode" ] || printf '    mode "%s"\n' "$mode"
-			printf '    scale %s\n}\n' "$SCALE"
+done
+[ "$was_running" -eq 0 ] || systemd-run --user --collect -q "$HOME/.local/bin/todo" daemon \
+	|| warn "could not restart the todo daemon; run: todo daemon &"
+
+# ---------------------------------------------------------------- Windows 7 look (AeroThemePlasma)
+# What AeroThemePlasma's first-run wizard would set, plus fixes found while trying it. Settings that
+# need a running session (theme, wallpaper, the Windows key, the todo widget) are applied at login by
+# the-script-plasma.
+say "Windows 7 look: effects, theme variants, icons, wallpaper"
+if [ -d /usr/share/plasma/look-and-feel/authui7 ]; then
+	# Effects. KDE's own blur runs next to ATP's glass blur (a fork of it) and makes it flicker.
+	for e in aeroglassblur aeroglide dimscreenaero libkwin_effect_smodsnap smodglow smodpeekeffect; do
+		kset --file kwinrc --group Plugins --key "${e}Enabled" true
+	done
+	for e in blur dialogparent fadingpopups login logout maximize scale squash windowaperture; do
+		kset --file kwinrc --group Plugins --key "${e}Enabled" false
+	done
+	for k in font menuFont toolBarFont; do
+		kset --file kdeglobals --group General --key "$k" "Segoe UI,9,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0"
+	done
+	kset --file kdeglobals --group General --key smallestReadableFont "Segoe UI,8,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0"
+
+	# A dark variant of the Windows 7 theme: the shell stays Windows 7 light, apps go dark (and the
+	# portal tells Firefox and Electron apps so). The tray's light/dark switch flips between the two.
+	# Copies, not links: Plasma refuses packages that link outside themselves. Remade on every run so
+	# they follow ATP updates.
+	lnf="$HOME/.local/share/plasma/look-and-feel/authui7-dark"
+	rm -rf "$lnf" && cp -r /usr/share/plasma/look-and-feel/authui7 "$lnf"
+	sed -i -e 's/"Id": "authui7"/"Id": "authui7-dark"/' -e 's/"Name": "Windows 7 style"/"Name": "Windows 7 style (dark)"/' "$lnf/metadata.json"
+	sed -i -e 's/^ColorScheme=Aero$/ColorScheme=KvArcDark/' -e 's/^widgetStyle=kvantum$/widgetStyle=kvantum-dark/' "$lnf/contents/defaults"
+	# kvantum-dark loads the Kvantum theme "<theme>Dark": Windows7AeroDark, made from KvArcDark.
+	kv="$HOME/.config/Kvantum/Windows7AeroDark"
+	mkdir -p "$kv"
+	cp /usr/share/Kvantum/KvArcDark/KvArcDark.kvconfig "$kv/Windows7AeroDark.kvconfig"
+	cp /usr/share/Kvantum/KvArcDark/KvArcDark.svg "$kv/Windows7AeroDark.svg"
+	kset --file Kvantum/kvantum.kvconfig --group General --key theme Windows7Aero
+	kset --file kdeglobals --group KDE --key DefaultLightLookAndFeel authui7
+	kset --file kdeglobals --group KDE --key DefaultDarkLookAndFeel authui7-dark
+	kset --file kdeglobals --group KDE --key AutomaticLookAndFeel false
+
+	# Pinned taskbar apps stay where they are when opened: the taskbar hard-codes separateLaunchers
+	# off, and Plasma only keeps launchers in place with it on.
+	tasks="$HOME/.local/share/plasma/plasmoids/io.gitgud.wackyideas.seventasks"
+	rm -rf "$tasks" && cp -r /usr/share/plasma/plasmoids/io.gitgud.wackyideas.seventasks "$tasks"
+	sed -i 's/separateLaunchers: false/separateLaunchers: true/' "$tasks/contents/ui/main.qml"
+	grep -q 'separateLaunchers: true' "$tasks/contents/ui/main.qml" \
+		|| warn "the taskbar changed; pinned apps may jump to the end when opened"
+
+	# Windows 7-era icons for apps the theme has none for, layered over it. The Firefox logo is the
+	# 2009 one; Element gets Windows Live Messenger's. Others keep their own logos.
+	icons="$HOME/.local/share/icons/Windows 7 Aero"
+	theme="/usr/share/icons/Windows 7 Aero"
+	mkdir -p "$icons/apps"/{16,32,48,256}
+	ln -sfn "$theme/index.theme" "$icons/index.theme"
+	link_icon() { # app icon name, Windows 7 icon
+		local s p
+		for s in 16 32 48 256; do
+			p=$(find "$theme" -path "*/$s/$2.png" -print -quit)
+			[ -n "$p" ] || p=$(find "$theme" -name "$2.png" | sort -V | tail -n1)
+			[ -n "$p" ] && ln -sfn "$p" "$icons/apps/$s/$1.png"
 		done
-	} > "$tmp"
-	place "$tmp" "$LOCAL_KDL"
-	rm -f "$tmp"
+	}
+	link_icon foot utilities-terminal
+	link_icon org.gnome.Nautilus system-file-manager
+	link_icon mpv multimedia-video-player
+	link_icon nvidia-settings preferences-desktop-display
+	link_icon kvantum preferences-desktop-theme
+	link_icon kmenuedit application-menu
+	link_icon preferences-desktop-emoticons accessories-character-map
+	link_icon java21-openjdk application-x-java
+	link_icon java25-openjdk application-x-java
+	link_icon hwloc utilities-system-monitor
+	link_icon qv4l2 camera-web
+	link_icon qvidcap camera-video
+	link_icon assistant help-browser
+	for n in io.element.Element element Element; do   # only drawn at 16 and 32 px
+		for s in 16 32; do ln -sfn "$theme/actions/32/im-msn.png" "$icons/apps/$s/$n.png"; done
+	done
+	if [ ! -e "$icons/apps/256/firefox.png" ]; then
+		tmp="$(mktemp)"
+		if curl -fsSL -A "the-script" -o "$tmp" https://commons.wikimedia.org/wiki/Special:FilePath/Mozilla_Firefox_3.5_logo.png; then
+			for s in 16 32 48 256; do
+				ffmpeg -loglevel error -y -i "$tmp" -vf "scale=$s:$s:flags=lanczos" "$icons/apps/$s/firefox.png" \
+					|| warn "could not scale the Firefox logo (is ffmpeg installed?)"
+			done
+		else
+			warn "could not download the 2009 Firefox logo; Firefox keeps its own icon"
+		fi
+		rm -f "$tmp"
+	fi
+	rm -f "$HOME/.cache/icon-cache.kcache"
+
+	# Wallpaper: Windows 7's own "Harmony" (img0), applied at the first login.
+	wp="$HOME/.local/share/wallpapers/windows7-harmony.jpg"
+	if [ ! -e "$wp" ]; then
+		mkdir -p "${wp%/*}"
+		curl -fsSL -o "$wp.tmp" "https://archive.org/download/Windows-wallcollection/Img0_(Windows_7).jpg" \
+			&& mv "$wp.tmp" "$wp" || { rm -f "$wp.tmp"; warn "could not download the Windows 7 wallpaper"; }
+	fi
+
+	# Dolphin is the file manager, and stays light like Explorer while other apps are dark.
+	kset --file kde-mimeapps.list --group "Default Applications" --key inode/directory "org.kde.dolphin.desktop;"
+	kset --file dolphinrc --group KDE --key widgetStyle kvantum
+	kset --file dolphinrc --group UiSettings --key ColorScheme Aero
+
+	# A running KWin picks up the effect changes now; otherwise they apply at the next login.
+	qdbus6 org.kde.KWin /KWin reconfigure >/dev/null 2>&1 || true
+else
+	warn "AeroThemePlasma is not installed; skipping the Windows 7 look (rerun without --no-packages)"
 fi
-# A desktop (no battery) runs every monitor with VRR (G-SYNC/FreeSync) always on: every window,
-# fullscreen games included. Added to an existing local.kdl too, unless it already sets VRR somewhere.
-if ! compgen -G '/sys/class/power_supply/BAT*' >/dev/null && [ -e "$LOCAL_KDL" ] \
-	&& ! grep -q '^[[:space:]]*variable-refresh-rate' "$LOCAL_KDL"; then
-	say "Desktop: variable refresh rate on every monitor"
-	sed -i '/^[[:space:]]*output /a\    variable-refresh-rate' "$LOCAL_KDL"
+
+# The Windows 7 logon screen. SDDM starts at the next boot; until then nothing changes.
+say "Login: SDDM with the Windows 7 logon screen"
+sudo_place etc/sddm.conf.d/10-win7.conf /etc/sddm.conf.d/10-win7.conf
+if ! systemctl is-enabled -q sddm 2>/dev/null; then
+	sudo systemctl enable sddm || warn "could not enable SDDM; run: sudo systemctl enable sddm"
 fi
 
 # ---------------------------------------------------------------- Firefox
@@ -183,7 +319,7 @@ if command -v firefox >/dev/null; then
 	# The Always-visible userscript ships in this repo, but Violentmonkey keeps its scripts in its
 	# own storage, which a policy cannot seed, so it is imported by hand once (see the line printed).
 	sudo_place firefox/policies.json /etc/firefox/policies/policies.json
-	# Links opened from other programs (niri-todo, chat apps) go to Firefox, not another installed browser.
+	# Links opened from other programs (todo, chat apps) go to Firefox, not another installed browser.
 	{ xdg-settings set default-web-browser firefox.desktop && xdg-mime default firefox.desktop text/html; } \
 		|| warn "could not make Firefox the default browser; run: xdg-settings set default-web-browser firefox.desktop"
 	echo "Violentmonkey will auto-install; import the userscript once by opening this in Firefox:"
@@ -192,14 +328,7 @@ else
 	warn "firefox is not installed; skipping its settings"
 fi
 
-# The 70- rule lets the mouse menu (Mod+Shift+M) read a Razer or Endgame Gear mouse's DPI without root.
-say "udev: Razer / Endgame Gear DPI access"
-sudo_place etc/udev/rules.d/70-niri-mouse-dpi.rules /etc/udev/rules.d/70-niri-mouse-dpi.rules
-sudo udevadm control --reload || warn "could not reload udev rules; they take effect after a reboot"
-sudo udevadm trigger --subsystem-match=hidraw --action=change 2>/dev/null || true
-systemctl --user daemon-reload 2>/dev/null || true
-
-# Outside niri (the login prompt after a reboot) nothing turned the monitors off. The udev rule keeps
+# On a text console (Ctrl+Alt+F2) nothing turns the monitors off. The udev rule keeps
 # them off when a DisplayPort monitor's hotplug on going to sleep lights the console again.
 say "Console: monitors off after 10 minutes idle"
 sudo_place etc/systemd/system/console-blank.service /etc/systemd/system/console-blank.service
@@ -268,24 +397,26 @@ else
 fi
 
 # ---------------------------------------------------------------- auto-update
-# niri-update.timer pulls this clone every 5 minutes and re-runs this installer on new commits.
+# the-script-update.timer pulls this clone every 5 minutes and re-runs this installer on new commits.
 say "Auto-update: pull and reinstall on new commits"
-ln -sfn "$PWD" "$HOME/.local/share/niri-script"
-systemctl --user enable --now niri-update.timer \
-	|| warn "could not start the auto-update timer; after logging in run: systemctl --user enable --now niri-update.timer"
+ln -sfn "$PWD" "$HOME/.local/share/the-script"
+systemctl --user enable --now the-script-update.timer \
+	|| warn "could not start the auto-update timer; after logging in run: systemctl --user enable --now the-script-update.timer"
 
 # ---------------------------------------------------------------- Steam overlay scale
-# Steam's in-game overlay ignores the display scale (tiny at 4K); niri-steam-overlay fixes that, and
-# the .path unit re-applies it whenever a Steam update replaces the patched library.
+# Steam's in-game overlay ignores the display scale (tiny at 4K); steam-overlay-scale fixes that at
+# login, and the .path unit re-applies it whenever a Steam update replaces the patched library.
 say "Steam overlay: follow the display scale"
-systemctl --user enable --now niri-steam-overlay.path \
-	|| warn "could not start niri-steam-overlay.path; after logging in run: systemctl --user enable --now niri-steam-overlay.path"
-"$HOME/.local/bin/niri-steam-overlay" || warn "could not patch Steam's overlay scale; run niri-steam-overlay to see why"
+systemctl --user enable --now steam-overlay-scale.path \
+	|| warn "could not start steam-overlay-scale.path; after logging in run: systemctl --user enable --now steam-overlay-scale.path"
+if [ -n "${WAYLAND_DISPLAY:-}" ]; then   # the scale can only be read inside the desktop
+	"$HOME/.local/bin/steam-overlay-scale" || warn "could not patch Steam's overlay scale; run steam-overlay-scale to see why"
+fi
 
 # ---------------------------------------------------------------- OBS clipping (desktops only)
 # A desktop (no battery) starts OBS hidden in the tray at login with its replay buffer running, and
-# Alt+F10 (obs-clip) saves the last 30 seconds plus a copy small enough for Discord. Both lines go in
-# local.kdl, so laptops never get them. OBS rewrites its own files, so its "Discord" profile is only
+# Alt+F10 (obs-clip) saves the last 30 seconds plus a copy small enough for Discord. Both are set up
+# here, so laptops never get them. OBS rewrites its own files, so its "Discord" profile is only
 # written when missing; the websocket password is made on this machine and never kept in the repo.
 if ! compgen -G '/sys/class/power_supply/BAT*' >/dev/null; then
 	say "Desktop: OBS replay buffer at login, Alt+F10 saves a clip"
@@ -387,16 +518,26 @@ if ! compgen -G '/sys/class/power_supply/BAT*' >/dev/null; then
 	    with open(path, "w") as f:
 	        json.dump(cfg, f, indent=2)
 	EOF
-	if [ -e "$LOCAL_KDL" ] && ! grep -q 'obs-clip' "$LOCAL_KDL"; then
-		cat >> "$LOCAL_KDL" <<-'EOF'
-
-		// OBS clipping (desktop): replay buffer from login, Alt+F10 saves the last 30 seconds (obs-clip)
-		spawn-at-startup "obs" "--profile" "Discord" "--collection" "Discord" "--startreplaybuffer" "--minimize-to-tray" "--disable-shutdown-check"
-		binds {
-		    Alt+F10 { spawn "obs-clip"; }
-		}
-		EOF
-	fi
+	mkdir -p "$HOME/.config/autostart" "$HOME/.local/share/applications"
+	cat > "$HOME/.config/autostart/obs-replay.desktop" <<-'EOF'
+	[Desktop Entry]
+	Type=Application
+	Name=OBS replay buffer
+	Comment=OBS hidden in the tray, keeping the last 30 seconds for obs-clip (Alt+F10)
+	Exec=obs --profile Discord --collection Discord --startreplaybuffer --minimize-to-tray --disable-shutdown-check
+	OnlyShowIn=KDE;
+	NoDisplay=true
+	EOF
+	cat > "$HOME/.local/share/applications/obs-clip.desktop" <<-'EOF'
+	[Desktop Entry]
+	Type=Application
+	Name=Save OBS clip
+	Comment=Save the last 30 seconds from OBS's replay buffer, plus a copy for Discord
+	Exec=sh -c "\\$HOME/.local/bin/obs-clip"
+	NoDisplay=true
+	EOF
+	# Read when the shortcut service starts (the next login, if it is running now).
+	kset --file kglobalshortcutsrc --group services --group obs-clip.desktop --key _launch Alt+F10
 fi
 
 # ---------------------------------------------------------------- git identity
@@ -429,16 +570,6 @@ else
 	warn "Claude Code is not installed; skipping. Install it (curl -fsSL https://claude.ai/install.sh | bash), then rerun"
 fi
 
-# ---------------------------------------------------------------- GTK dark preference (dconf)
-say "GTK/desktop dark preference"
-if command -v dconf >/dev/null; then
-	bus=(); [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ] || bus=(dbus-run-session --)  # a console or ssh has no session bus
-	"${bus[@]}" dconf write /org/gnome/desktop/interface/color-scheme "'prefer-dark'" \
-		|| warn "could not write the dark preference; run: gsettings set org.gnome.desktop.interface color-scheme prefer-dark"
-else
-	warn "dconf is not installed; skipping the desktop dark preference"
-fi
-
 # ---------------------------------------------------------------- Steam (optional)
 if [ "$WITH_STEAM" -eq 1 ]; then
 	say "Steam"
@@ -460,23 +591,25 @@ fi
 
 # ---------------------------------------------------------------- done
 say "Done"
-# niri-update compares this with the pulled commit to know whether to install again.
+# the-script-update compares this with the pulled commit to know whether to install again.
 mkdir -p "$HOME/.local/state"
-git rev-parse HEAD > "$HOME/.local/state/niri-script-installed"
+git rev-parse HEAD > "$HOME/.local/state/the-script-installed"
 # Hand edits to these files are gone from the live copies; copy back into the repo any worth keeping.
 if [ ${#REPLACED[@]} -gt 0 ]; then
 	warn "these files differed from the repo and were replaced or removed (old copies in $BACKUP):"
 	printf '  ~/%s\n' "${REPLACED[@]}" >&2
 fi
+# Installed by the-script-update from a niri desktop: say that a restart switches over.
+if [ "$MIGRATED" -eq 1 ] && [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
+	notify-send -u critical "the-script is installed" "Restart to switch to the Windows 7 desktop: pick AeroThemePlasma on the logon screen." 2>/dev/null || true
+fi
 cat <<EOF
 
 Next steps:
-  1. Log out, then log in on the first text console (Ctrl+Alt+F1): niri starts automatically.
-     (On another console, or after quitting niri, run:  niri-session)
-  2. Mod is the Super/Windows key. Mod+Shift+Enter opens a terminal, Mod+P a launcher,
-     Mod+Shift+/ lists every key. See README.md.
+  1. Restart. The Windows 7 logon screen comes up; pick the AeroThemePlasma session (bottom left)
+     the first time, and it is remembered after that.
+  2. The Windows key opens the Start menu, Meta+T the to-do list. See README.md.
   3. NVIDIA card? Install the driver yourself first (e.g. 'sudo pacman -S nvidia-open'),
      since the right package depends on your GPU and kernel. It is not part of this repo.
-  4. Display too big/small?  ./install.sh --no-packages --scale 1.25   (or 1.5, 2...),
-     or edit ~/.config/niri/local.kdl, which applies the moment you save it.
+  4. Display too big/small? System Settings > Display & Monitor > Scale.
 EOF

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+#
+# todo-bar: the taskbar widget's text (~/.local/share/plasma/plasmoids/local.todo), which runs this
+# every second: next assignment, points and streak from the todo daemon, or the running focus/break
+# countdown in its place ("<icon> 7:32 <task>").
+
+RUN="${XDG_RUNTIME_DIR:-$HOME/.cache}"
+hw=""; read -r hw 2>/dev/null < "$RUN/todo-bar"
+fend=0; read -r fend ficon ftext 2>/dev/null < "$RUN/todo-focus"
+if [ "${fend:-0}" -gt "$EPOCHSECONDS" ] 2>/dev/null; then
+	left=$((fend - EPOCHSECONDS))
+	printf -v hw '%s %d:%02d %s' "$ficon" $((left / 60)) $((left % 60)) "$ftext"
+fi
+printf '%s\n' "$hw"

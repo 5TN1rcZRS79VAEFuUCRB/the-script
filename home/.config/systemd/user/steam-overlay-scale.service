@@ -1,0 +1,8 @@
+# Run by steam-overlay-scale.path when Steam rewrites its overlay library. It also runs at login
+# (~/.config/autostart/steam-overlay-scale.desktop), when the display scale can be read.
+[Unit]
+Description=Make Steam's in-game overlay follow the display scale
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/steam-overlay-scale

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+#
+# the-script-update: pulls this repo and re-runs install.sh when a new commit is pushed. Run every
+# 5 minutes by the-script-update.timer. install.sh records the commit it installed, so a failed
+# install (pacman lock, no network) is retried on the next run instead of being skipped.
+
+set -euo pipefail
+trap 'notify-send -u critical "the-script update failed" "journalctl --user -u the-script-update" 2>/dev/null || true' ERR
+
+cd "$HOME/.local/share/the-script"   # symlink to the clone, made by install.sh
+# Offline (e.g. just resumed and Wi-Fi is still connecting): skip quietly, the next run retries.
+getent hosts github.com >/dev/null || exit 0
+git pull --ff-only -q                       # refuses (and notifies) if this clone has diverged
+[ "$(git rev-parse HEAD)" = "$(cat "$HOME/.local/state/the-script-installed" 2>/dev/null)" ] && exit 0
+
+./install.sh

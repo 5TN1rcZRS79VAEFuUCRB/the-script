@@ -29,15 +29,12 @@ keys() { # component action keys...
 }
 
 # The panel is made on the first start of the shell; wait for it (and its Start orb).
-wait_start() {
-	for _ in $(seq 60); do
-		start=$(js 'var p = panels()[0]; var s = p ? p.widgets("io.gitgud.wackyideas.SevenStart")[0] : null; print(s ? s.id : "");' 2>/dev/null)
-		[ -n "$start" ] && return
-		sleep 1
-	done
-	echo "the-script-plasma: no panel with the Start orb" >&2; exit 1
-}
-wait_start
+for _ in $(seq 60); do
+	start=$(js 'var p = panels()[0]; var s = p ? p.widgets("io.gitgud.wackyideas.SevenStart")[0] : null; print(s ? s.id : "");' 2>/dev/null)
+	[ -n "$start" ] && break
+	sleep 1
+done
+[ -n "$start" ] || { echo "the-script-plasma: no panel with the Start orb" >&2; exit 1; }
 
 # Only marked done once the theme applies, so a login before install.sh made authui7-dark retries.
 if [ ! -e "$FIRST" ] && plasma-apply-lookandfeel -a authui7-dark; then
@@ -56,9 +53,6 @@ if [ ! -e "$NIRI_SCALE" ] && [ -f "$HOME/.config/niri/local.kdl" ]; then
 	awk '$1 == "output" { gsub(/"/, "", $2); o = $2 } $1 == "scale" { print o, $2 }' "$HOME/.config/niri/local.kdl" |
 		while read -r o s; do kscreen-doctor "output.$o.scale.$s" >/dev/null; done
 	mkdir -p "$STATE" && touch "$NIRI_SCALE"
-	# The running shell keeps text rendered for the old scale (uneven, smudged letters) until restarted.
-	systemctl --user restart plasma-plasmashell
-	wait_start
 fi
 
 # Plasma 6 hands a lone Meta press to "activate application launcher", which skips the Start orb.

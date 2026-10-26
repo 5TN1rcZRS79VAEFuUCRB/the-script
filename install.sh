@@ -204,7 +204,19 @@ if [ -d /usr/share/plasma/look-and-feel/authui7 ]; then
 	lnf="$HOME/.local/share/plasma/look-and-feel/authui7-dark"
 	rm -rf "$lnf" && mkdir -p "${lnf%/*}" && cp -r /usr/share/plasma/look-and-feel/authui7 "$lnf"
 	sed -i -e 's/"Id": "authui7"/"Id": "authui7-dark"/' -e 's/"Name": "Windows 7 style"/"Name": "Windows 7 style (dark)"/' "$lnf/metadata.json"
-	sed -i -e 's/^ColorScheme=Aero$/ColorScheme=KvArcDark/' -e 's/^widgetStyle=kvantum$/widgetStyle=kvantum-dark/' "$lnf/contents/defaults"
+	sed -i -e 's/^ColorScheme=Aero$/ColorScheme=Windows7AeroDark/' -e 's/^widgetStyle=kvantum$/widgetStyle=kvantum-dark/' "$lnf/contents/defaults"
+	# Its color scheme is KvArcDark with Windows 7's black window titles: KvArcDark's white ones are
+	# unreadable on light glass.
+	cs="$HOME/.local/share/color-schemes/Windows7AeroDark.colors"
+	mkdir -p "${cs%/*}"
+	sed -e 's/^Name=KvArcDark$/Name=Windows 7 Aero (dark)/' \
+		-e '/^\[WM\]$/,/^\[/{s/^activeForeground=.*/activeForeground=0,0,0/;s/^inactiveForeground=.*/inactiveForeground=67,78,84/}' \
+		/usr/share/color-schemes/KvArcDark.colors >"$cs"
+	# Installs from before this were left on KvArcDark itself.
+	if grep -qx 'ColorScheme=KvArcDark' "$HOME/.config/kdeglobals" 2>/dev/null; then
+		plasma-apply-colorscheme Windows7AeroDark >/dev/null 2>&1 \
+			|| warn "could not switch to the Windows7AeroDark color scheme; pick it in System Settings"
+	fi
 	# kvantum-dark loads the Kvantum theme "<theme>Dark": Windows7AeroDark, made from KvArcDark.
 	kv="$HOME/.config/Kvantum/Windows7AeroDark"
 	mkdir -p "$kv"
@@ -325,6 +337,14 @@ if [ -d /usr/share/plasma/look-and-feel/authui7 ]; then
 	open(kv, "w").write(text)
 	EOF
 	kset --file Kvantum/kvantum.kvconfig --group General --key theme Windows7Aero
+	# KWin draws window titles with the widget style, so under kvantum-dark they came out white whatever
+	# the color scheme said. KWin gets the light theme under a name with no "Dark" variant (kvantum-dark
+	# would pick Windows7AeroDark for Windows7Aero itself).
+	kv="$HOME/.config/Kvantum/Windows7AeroKWin"
+	mkdir -p "$kv"
+	ln -sfn /usr/share/Kvantum/Windows7Aero/Windows7Aero.kvconfig "$kv/Windows7AeroKWin.kvconfig"
+	ln -sfn /usr/share/Kvantum/Windows7Aero/Windows7Aero.svg "$kv/Windows7AeroKWin.svg"
+	kset --file Kvantum/kvantum.kvconfig --group Applications --key Windows7AeroKWin "kwin_wayland, kwin_x11, kwin"
 	kset --file kdeglobals --group KDE --key DefaultLightLookAndFeel authui7
 	kset --file kdeglobals --group KDE --key DefaultDarkLookAndFeel authui7-dark
 	kset --file kdeglobals --group KDE --key AutomaticLookAndFeel false

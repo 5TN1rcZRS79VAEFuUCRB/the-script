@@ -40,7 +40,7 @@ desktop (no battery) the first login turns variable refresh rate (G-SYNC/FreeSyn
 | --- | --- |
 | KDE Plasma and AeroThemePlasma (the `aeroshell-*` and `aerothemeplasma-*` AUR packages, built with `yay`) | packages (`packages.txt`, `aur.txt`) |
 | The Windows 7 look: Aero glass and Windows 7 window effects, a dark variant of the Windows 7 theme (`authui7-dark`: the shell, context menus and open/save dialogs stay light, apps go dark; Dolphin stays light like Explorer), Windows 7-era icons for apps the icon theme lacks (the 2009 Firefox logo, Windows Live Messenger's icon for Element), pinned taskbar apps that stay in place, and Windows 7's Harmony wallpaper | `~/.config/kwinrc`, `kdeglobals`, `Kvantum/`, `~/.local/share/plasma/`, `~/.local/share/icons/Windows 7 Aero/`, `~/.local/share/wallpapers/` |
-| Settings that need a running desktop, applied at every login by `the-script-plasma`: the theme and wallpaper (first login only), the Windows key opening the Start menu, and the to-do widget on the taskbar | `~/.config/autostart/the-script-plasma.desktop` |
+| Settings that need a running desktop, applied at every login by `the-script-plasma`: the theme and wallpaper (first login only), the Windows key opening the Start menu, and the to-do widget on the taskbar. AeroThemePlasma's own setup wizard is turned off, since this covers it | `~/.config/autostart/the-script-plasma.desktop`, `x-atpootb.desktop` |
 | The Windows 7 logon screen (SDDM) | `/etc/sddm.conf.d/10-win7.conf`, `systemctl enable sddm` (needs sudo) |
 | School assignments and to-dos on the taskbar (`todo`, `todo-bar`, the `local.todo` widget) | `~/.local/bin/`, `~/.local/share/plasma/plasmoids/local.todo/`, `~/.config/autostart/todo.desktop` |
 | foot (terminal) | `~/.config/foot/` |
@@ -54,7 +54,7 @@ desktop (no battery) the first login turns variable refresh rate (G-SYNC/FreeSyn
 | Syncthing (keeps the KeePassXC database in sync), started now and at every login | `systemctl --user enable syncthing`. Pair devices and share the folder yourself at http://127.0.0.1:8384; keys are never in this repo |
 | Auto-update: every 5 minutes `the-script-update.timer` pulls this clone and, on a new commit, re-runs `install.sh`. Failures show a notification (`journalctl --user -u the-script-update`). Needs passwordless sudo, which the installer sets up: anything running as you, and anyone who can push here, gets root | `~/.local/share/the-script` (link to the clone), `/etc/sudoers.d/10-the-script` (undo: delete it and `systemctl --user disable --now the-script-update.timer`) |
 | Steam's in-game overlay follows the display scale (below) | `~/.local/bin/steam-overlay-scale`, `steam-overlay-scale.path` |
-| Desktops only (no battery): OBS starts hidden in the tray at login with a 30-second replay buffer, and `Alt+F10` saves a clip plus a copy under Discord's 10 MB limit (`obs-clip`, `discord-compress`). Recordings go to `~/Videos/OBS/` as 1080p60 H.264 MP4 | packages `obs-studio`, `python-websockets`; OBS's `Discord` profile in `~/.config/obs-studio/` (written once), `~/.config/autostart/obs-replay.desktop`, the key in `~/.config/kglobalshortcutsrc` |
+| `discord-compress video.mp4 [MB]`: re-encodes a video under Discord's upload limit (10 MB by default) | `~/.local/bin/` |
 | git commit name and email (GitHub noreply address) | `~/.gitconfig` (only `user.name` and `user.email`) |
 | Tailscale, and `ssh arch-server` over it (no browser login; run `sudo tailscale up` once per machine) | `~/.ssh/config.d/`, `~/.ssh/known_hosts.d/`, plus an `Include` line at the top of your own `~/.ssh/config` |
 | Claude Code: ponytail + caveman plugins and caveman hooks; requests go straight to Anthropic, not through the caveman proxy, so Remote Control works (only if `claude` is installed; undo with `caveman disable claude`) | `~/.claude/settings.json`, `~/.claude.json`, `~/.caveman/` |
@@ -69,7 +69,6 @@ Plasma's usual keys apply (System Settings > Keyboard > Shortcuts). The ones set
 | Plasma's own launcher | `Alt+F1` |
 | To-do list | `Meta+T`, or click its text on the taskbar |
 | Screenshot | `Print` (Spectacle), `Meta+Shift+S` for an area |
-| Save the last 30 seconds as a clip, plus a Discord-sized copy (desktops) | `Alt+F10` |
 
 ## School assignments and to-dos
 

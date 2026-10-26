@@ -535,132 +535,13 @@ if [ -n "${WAYLAND_DISPLAY:-}" ]; then   # the scale can only be read inside the
 	"$HOME/.local/bin/steam-overlay-scale" || warn "could not patch Steam's overlay scale; run steam-overlay-scale to see why"
 fi
 
-# ---------------------------------------------------------------- OBS clipping (desktops only)
-# A desktop (no battery) starts OBS hidden in the tray at login with its replay buffer running, and
-# Alt+F10 (obs-clip) saves the last 30 seconds plus a copy small enough for Discord. Both are set up
-# here, so laptops never get them. OBS rewrites its own files, so its "Discord" profile is only
-# written when missing; the websocket password is made on this machine and never kept in the repo.
-if ! compgen -G '/sys/class/power_supply/BAT*' >/dev/null; then
-	say "Desktop: OBS replay buffer at login, Alt+F10 saves a clip"
-	if [ "$DO_PACKAGES" -eq 1 ]; then
-		mapfile -t MISSING < <(pacman -T obs-studio python-websockets || true)
-		[ ${#MISSING[@]} -eq 0 ] || sudo pacman -S --noconfirm "${MISSING[@]}"
-	fi
-	OBS_DIR="$HOME/.config/obs-studio"
-	if [ ! -e "$OBS_DIR/basic/profiles/Discord/basic.ini" ]; then
-		# Canvas at the first monitor's native size, recordings scaled to 1080p (H.264 MP4, which
-		# Discord plays inline). NVENC on an NVIDIA card, x264 on the CPU otherwise.
-		mode=""
-		for s in /sys/class/drm/card*-*/status; do
-			[ "$(cat "$s")" = connected ] && { mode="$(head -n1 "${s%/status}/modes")"; break; }
-		done
-		[[ $mode =~ ^([0-9]+)x([0-9]+) ]] && { bw=${BASH_REMATCH[1]}; bh=${BASH_REMATCH[2]}; } || { bw=1920; bh=1080; }
-		oh=$(( bh < 1080 ? bh : 1080 )); ow=$(( bw * oh / bh / 2 * 2 ))
-		if lspci 2>/dev/null | grep -Ei 'vga|3d' | grep -qi nvidia; then
-			enc=obs_nvenc_h264_tex
-			encjson='{"rate_control":"CQP","cqp":22,"preset2":"p5","tune":"hq","multipass":"qres","profile":"high","bf":2}'
-		else
-			enc=obs_x264
-			encjson='{"rate_control":"CRF","crf":22,"preset":"veryfast"}'
-		fi
-		mkdir -p "$OBS_DIR/basic/profiles/Discord" "$OBS_DIR/basic/scenes" "$HOME/Videos/OBS"
-		cat > "$OBS_DIR/basic/profiles/Discord/basic.ini" <<-EOF
-		[General]
-		Name=Discord
-
-		[Output]
-		Mode=Advanced
-		FilenameFormatting=%CCYY-%MM-%DD %hh-%mm-%ss
-
-		[AdvOut]
-		RecType=Standard
-		RecFilePath=$HOME/Videos/OBS
-		RecFormat2=hybrid_mp4
-		RecEncoder=$enc
-		RecAudioEncoder=ffmpeg_aac
-		RecTracks=1
-		Track1Bitrate=160
-		RecRB=true
-		RecRBTime=30
-		RecRBSize=1024
-
-		[Video]
-		BaseCX=$bw
-		BaseCY=$bh
-		OutputCX=$ow
-		OutputCY=$oh
-		FPSType=0
-		FPSCommon=60
-		ScaleType=lanczos
-		ColorFormat=NV12
-		ColorSpace=709
-		ColorRange=Partial
-
-		[Audio]
-		SampleRate=48000
-		ChannelSetup=Stereo
-		EOF
-		echo "$encjson" > "$OBS_DIR/basic/profiles/Discord/recordEncoder.json"
-		# One scene: the whole screen (PipeWire; OBS asks which monitor the first time), desktop audio and mic.
-		cat > "$OBS_DIR/basic/scenes/Discord.json" <<-EOF
-		{
-		  "name": "Discord",
-		  "current_scene": "Scene",
-		  "current_program_scene": "Scene",
-		  "scene_order": [{"name": "Scene"}],
-		  "DesktopAudioDevice1": {"id": "pulse_output_capture", "versioned_id": "pulse_output_capture", "name": "Desktop Audio", "settings": {"device_id": "default"}},
-		  "AuxAudioDevice1": {"id": "pulse_input_capture", "versioned_id": "pulse_input_capture", "name": "Mic/Aux", "settings": {"device_id": "default"}},
-		  "sources": [
-		    {"id": "scene", "versioned_id": "scene", "name": "Scene", "settings": {"id_counter": 1, "items": [
-		      {"name": "Screen", "id": 1, "visible": true, "pos": {"x": 0, "y": 0}, "scale": {"x": 1, "y": 1},
-		       "bounds_type": 2, "bounds_align": 0, "bounds": {"x": $bw, "y": $bh}}
-		    ]}},
-		    {"id": "pipewire-screen-capture-source", "versioned_id": "pipewire-screen-capture-source", "name": "Screen", "settings": {"ShowCursor": true}}
-		  ]
-		}
-		EOF
-		# Skip OBS's first-run setup wizard on a fresh install.
-		[ -e "$OBS_DIR/user.ini" ] || printf '[General]\nFirstRun=true\n' > "$OBS_DIR/user.ini"
-	fi
-	# obs-clip talks to OBS over its websocket. Takes effect the next time OBS starts.
-	python3 - "$OBS_DIR/plugin_config/obs-websocket/config.json" <<-'EOF'
-	import json, os, secrets, sys
-	path = sys.argv[1]
-	try:
-	    with open(path) as f:
-	        cfg = json.load(f)
-	except FileNotFoundError:
-	    cfg = {}
-	if not (cfg.get("server_enabled") and cfg.get("server_password")):
-	    cfg.update(server_enabled=True, auth_required=True,
-	               server_password=cfg.get("server_password") or secrets.token_urlsafe(12))
-	    cfg.setdefault("server_port", 4455)
-	    cfg.setdefault("first_load", False)
-	    os.makedirs(os.path.dirname(path), exist_ok=True)
-	    with open(path, "w") as f:
-	        json.dump(cfg, f, indent=2)
-	EOF
-	mkdir -p "$HOME/.config/autostart" "$HOME/.local/share/applications"
-	cat > "$HOME/.config/autostart/obs-replay.desktop" <<-'EOF'
-	[Desktop Entry]
-	Type=Application
-	Name=OBS replay buffer
-	Comment=OBS hidden in the tray, keeping the last 30 seconds for obs-clip (Alt+F10)
-	Exec=obs --profile Discord --collection Discord --startreplaybuffer --minimize-to-tray --disable-shutdown-check
-	OnlyShowIn=KDE;
-	NoDisplay=true
-	EOF
-	cat > "$HOME/.local/share/applications/obs-clip.desktop" <<-'EOF'
-	[Desktop Entry]
-	Type=Application
-	Name=Save OBS clip
-	Comment=Save the last 30 seconds from OBS's replay buffer, plus a copy for Discord
-	Exec=sh -c "\\$HOME/.local/bin/obs-clip"
-	NoDisplay=true
-	EOF
-	# Read when the shortcut service starts (the next login, if it is running now).
-	kset --file kglobalshortcutsrc --group services --group obs-clip.desktop --key _launch Alt+F10
-fi
+# ---------------------------------------------------------------- OBS replay buffer (removed)
+# Desktops used to start OBS hidden at login with a replay buffer, saved by Alt+F10 (obs-clip). That
+# is gone: its autostart, shortcut and script are retired, and a running replay OBS is closed. OBS
+# itself and its settings stay.
+retire "$HOME/.config/autostart/obs-replay.desktop" "$HOME/.local/share/applications/obs-clip.desktop" "$HOME/.local/bin/obs-clip"
+kset --file kglobalshortcutsrc --group services --group obs-clip.desktop --key _launch --delete
+pkill -f '^/usr/bin/obs --profile Discord --collection Discord --startreplaybuffer' 2>/dev/null || true
 
 # ---------------------------------------------------------------- git identity
 # GitHub noreply address, so commits work and push without exposing an email.

@@ -360,7 +360,7 @@ if [ -d /usr/share/plasma/look-and-feel/authui7 ]; then
 		|| warn "the taskbar changed; pinned apps may jump to the end when opened"
 
 	# Windows 7-era icons for apps the theme has none for, layered over it. The Firefox logo is the
-	# 2009 one; Element gets Windows Live Messenger's. Others keep their own logos.
+	# 2009 one, Steam's is its pre-2014 one; Element gets Windows Live Messenger's. Others keep their own logos.
 	icons="$HOME/.local/share/icons/Windows 7 Aero"
 	theme="/usr/share/icons/Windows 7 Aero"
 	mkdir -p "$icons/apps"/{16,32,48,256}
@@ -405,6 +405,24 @@ if [ -d /usr/share/plasma/look-and-feel/authui7 ]; then
 			warn "could not download the 2009 Firefox logo; Firefox keeps its own icon"
 		fi
 		rm -f "$tmp"
+	fi
+	# Steam's pre-2014 icon is the 256 px PNG inside the late-2013 installer's own icon, kept by the Wayback Machine.
+	if [ ! -e "$icons/apps/256/steam.png" ]; then
+		tmp="$(mktemp)"
+		if curl -fsSL -A "the-script" -o "$tmp" https://web.archive.org/web/20131119120314id_/http://media.steampowered.com/client/installer/SteamSetup.exe \
+			&& off=$(grep -obUaP -m1 '\x89PNG\r\n\x1a\n' "$tmp" | head -n1 | cut -d: -f1) && [ -n "$off" ]; then
+			tail -c +"$((off + 1))" "$tmp" > "$tmp.png"
+			len=$(grep -obUa -m1 'IEND' "$tmp.png" | head -n1 | cut -d: -f1)
+			truncate -s "$((len + 8))" "$tmp.png"   # end after IEND's CRC
+			for s in 16 32 48 256; do
+				ffmpeg -loglevel error -y -i "$tmp.png" \
+					-vf "scale=$s:$s:flags=lanczos" "$icons/apps/$s/steam.png" \
+					|| warn "could not scale the old Steam icon (is ffmpeg installed?)"
+			done
+		else
+			warn "could not download the old Steam icon; Steam keeps its own"
+		fi
+		rm -f "$tmp" "$tmp.png"
 	fi
 	rm -f "$HOME/.cache/icon-cache.kcache"
 

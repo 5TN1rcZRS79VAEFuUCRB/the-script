@@ -213,8 +213,9 @@ if [ -d /usr/share/plasma/look-and-feel/authui7 ]; then
 	sed -e 's/^Name=KvArcDark$/Name=Windows 7 Aero (dark)/' \
 		-e '/^\[WM\]$/,/^\[/{s/^activeForeground=.*/activeForeground=0,0,0/;s/^inactiveForeground=.*/inactiveForeground=67,78,84/}' \
 		/usr/share/color-schemes/KvArcDark.colors >"$cs"
-	# Installs from before this were left on KvArcDark itself.
-	if grep -qx 'ColorScheme=KvArcDark' "$HOME/.config/kdeglobals" 2>/dev/null; then
+	# Installs from before this were left on KvArcDark itself. Read it with kreadconfig6: applying the
+	# look-and-feel stores the scheme in ~/.config/kdedefaults/kdeglobals, not ~/.config/kdeglobals.
+	if [ "$(kreadconfig6 --file kdeglobals --group General --key ColorScheme 2>/dev/null)" = KvArcDark ]; then
 		plasma-apply-colorscheme Windows7AeroDark >/dev/null 2>&1 \
 			|| warn "could not switch to the Windows7AeroDark color scheme; pick it in System Settings"
 	fi

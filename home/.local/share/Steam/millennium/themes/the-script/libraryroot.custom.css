@@ -1,5 +1,5 @@
-/* Steam's own title bar row (menus, notifications, window buttons). Its class names change with
-   every Steam build, so it is found as the row two levels above the stable .TitleBar element. */
-div:has(> div > .TitleBar.title-area) {
+/* Steam's own minimize/maximize/close buttons; the Windows 7 title bar KWin draws has them. The
+   rest of Steam's top row (menus, friends, notifications) stays. */
+.TitleBar .title-bar-actions.window-controls {
 	display: none !important;
 }

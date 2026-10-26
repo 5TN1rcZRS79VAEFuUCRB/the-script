@@ -31,10 +31,12 @@ import glob
 import math
 import json
 import os
+import pickle
 import random
 import re
 import shutil
 import signal
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -313,6 +315,47 @@ def anki_due():
             col.close()
 
 
+def anki_pull():
+    """Sync the local collection with AnkiWeb while Anki is closed, so reviews done on another
+    machine count here without opening Anki. When AnkiWeb wants a full sync (another machine
+    uploaded its whole collection), this downloads only if nothing changed here since the last
+    sync, so nothing is lost; otherwise picking the side that wins stays Anki's question."""
+    if anki_running():
+        return  # Anki has the collection open and syncs it itself when it opens and closes
+    try:
+        from anki.collection import Collection
+        from anki.sync import SyncAuth
+    except ImportError:
+        return
+    cols = sorted(glob.glob(os.path.expanduser("~/.local/share/Anki2/*/collection.anki2")))
+    if not cols:
+        return
+    base, profile = os.path.split(os.path.dirname(cols[0]))
+    db = sqlite3.connect(f"file:{base}/prefs21.db?mode=ro", uri=True)
+    try:
+        row = db.execute("select cast(data as blob) from profiles where name = ?", (profile,)).fetchone()
+    finally:
+        db.close()
+    prefs = pickle.loads(row[0]) if row else {}
+    if not prefs.get("syncKey"):
+        return  # never signed in to AnkiWeb here
+    # ponytail: Anki can't open the profile during the second or so this holds the collection
+    col = Collection(cols[0])
+    try:
+        auth = SyncAuth(hkey=prefs["syncKey"], endpoint=prefs.get("currentSyncUrl"))
+        out = col.sync_collection(auth, False)
+        if out.new_endpoint:
+            auth.endpoint = out.new_endpoint
+        if out.required in (out.FULL_SYNC, out.FULL_DOWNLOAD):
+            if col.mod > col.db.scalar("select ls from col"):
+                raise RuntimeError("AnkiWeb needs a full sync and this machine has changes, open Anki to choose")
+            col.full_upload_or_download(auth=auth, server_usn=out.server_media_usn, upload=False)
+        elif out.required == out.FULL_UPLOAD:
+            raise RuntimeError("AnkiWeb wants a full upload, open Anki to choose")
+    finally:
+        col.close()
+
+
 def sync():
     conf = config()
     old = load("tasks.json", {"tasks": []})["tasks"]
@@ -341,6 +384,10 @@ def sync():
         for t in tasks:
             if t["source"] == "canvas":
                 score_canvas(s, t)
+    try:
+        anki_pull()
+    except Exception as e:  # offline: count what's here
+        errors.append(f"anki: sync: {e}")
     return update_anki(tasks, errors)
 
 

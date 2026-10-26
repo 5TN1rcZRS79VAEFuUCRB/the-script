@@ -1,7 +1,7 @@
 {
     "name": "the-script",
     "author": "the-script",
-    "description": "Hides Steam's own window buttons; KWin draws the Windows 7 title bar instead.",
+    "description": "Hides Steam's own window buttons and drag areas; KWin draws the Windows 7 title bar instead.",
     "version": "1.0.0",
     "UseDefaultPatches": true
 }

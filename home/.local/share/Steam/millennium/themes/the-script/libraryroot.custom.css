@@ -3,3 +3,9 @@
 .TitleBar .title-bar-actions.window-controls {
 	display: none !important;
 }
+
+/* Steam's drag areas (top row, bottom bar) move the window and change the cursor; the Windows 7
+   title bar moves it instead. */
+* {
+	-webkit-app-region: no-drag !important;
+}

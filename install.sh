@@ -606,7 +606,7 @@ fi
 
 # ---------------------------------------------------------------- Steam title bar
 # KWin draws Steam a Windows 7 title bar (kwinrulesrc above). Millennium (aur.txt) loads the
-# the-script theme (~/.local/share/Steam/millennium/themes), which hides Steam's own window buttons.
+# the-script theme (~/.local/share/Steam/millennium/themes), which hides Steam's own window buttons and drag areas.
 # Millennium fills in the rest of its config itself. A theme picked in Millennium's settings is kept.
 say "Steam: hide its own window buttons (Millennium theme)"
 python3 - "$HOME/.config/millennium/config.json" <<-'EOF' || warn "could not select Steam's the-script theme in Millennium"

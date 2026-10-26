@@ -362,6 +362,11 @@ if [ -d /usr/share/plasma/look-and-feel/authui7 ]; then
 	for n in io.element.Element element Element; do   # only drawn at 16 and 32 px
 		for s in 16 32; do ln -sfn "$theme/actions/32/im-msn.png" "$icons/apps/$s/$n.png"; done
 	done
+	# Element's window and tray icon come from its own file instead; the hook redoes this on updates.
+	sudo_place etc/pacman.d/hooks/element-msn-icon.hook /etc/pacman.d/hooks/element-msn-icon.hook
+	if [ -d /usr/lib/element/build ] && ! cmp -s "$theme/actions/32/im-msn.png" /usr/lib/element/build/icon.png; then
+		sudo cp "$theme/actions/32/im-msn.png" /usr/lib/element/build/icon.png
+	fi
 	if [ ! -e "$icons/apps/256/firefox.png" ]; then
 		tmp="$(mktemp)"
 		if curl -fsSL -A "the-script" -o "$tmp" https://commons.wikimedia.org/wiki/Special:FilePath/Mozilla_Firefox_3.5_logo.png; then

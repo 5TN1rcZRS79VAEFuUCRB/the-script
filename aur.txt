@@ -9,3 +9,5 @@ aerothemeplasma-desktop-git
 aerothemeplasma-sounds-git
 aerothemeplasma-icons-git
 uac-polkit-agent-git
+# Selawik: open stand-in for Segoe UI, the desktop font (~/.config/fontconfig/conf.d).
+ttf-selawik

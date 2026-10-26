@@ -20,7 +20,7 @@ js() { qdbus6 org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScrip
 # kglobalaccel keys are Qt key codes: Meta 16777250, Ctrl+Esc 83886080, Alt+F1 150994992.
 keys() { # component action keys...
 	local c=$1 a=$2; shift 2
-	local list; list=$(printf '[%s],' "$@"); list="[${list%,}]"
+	local list; list=$(printf '([%s],),' "$@"); list="[${list%,}]"
 	[ $# -gt 0 ] || list="@a(ai) []"
 	gdbus call --session -d org.kde.kglobalaccel -o /kglobalaccel \
 		-m org.kde.KGlobalAccel.setForeignShortcutKeys "['$c','$a','','']" "$list" >/dev/null
@@ -34,8 +34,8 @@ for _ in $(seq 60); do
 done
 [ -n "$start" ] || { echo "the-script-plasma: no panel with the Start orb" >&2; exit 1; }
 
-if [ ! -e "$FIRST" ]; then
-	plasma-apply-lookandfeel -a authui7-dark
+# Only marked done once the theme applies, so a login before install.sh made authui7-dark retries.
+if [ ! -e "$FIRST" ] && plasma-apply-lookandfeel -a authui7-dark; then
 	[ -e "$WALLPAPER" ] && plasma-apply-wallpaperimage "$WALLPAPER"
 	if ! compgen -G '/sys/class/power_supply/BAT*' >/dev/null; then
 		for o in $(kscreen-doctor -j | python3 -c 'import json, sys; print(*(o["name"] for o in json.load(sys.stdin)["outputs"] if o.get("connected")))'); do

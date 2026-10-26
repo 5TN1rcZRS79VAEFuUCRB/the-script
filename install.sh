@@ -593,6 +593,22 @@ if [ -n "${WAYLAND_DISPLAY:-}" ]; then   # the scale can only be read inside the
 	"$HOME/.local/bin/steam-overlay-scale" || warn "could not patch Steam's overlay scale; run steam-overlay-scale to see why"
 fi
 
+# ---------------------------------------------------------------- Steam title bar
+# KWin draws Steam a Windows 7 title bar (kwinrulesrc above). Millennium (aur.txt) loads the
+# the-script theme (~/.local/share/Steam/millennium/themes), which hides Steam's own title bar row.
+# Millennium fills in the rest of its config itself. A theme picked in Millennium's settings is kept.
+say "Steam: hide its own title bar (Millennium theme)"
+python3 - "$HOME/.config/millennium/config.json" <<-'EOF' || warn "could not select Steam's the-script theme in Millennium"
+	import json, os, sys
+	path = sys.argv[1]
+	cfg = json.load(open(path)) if os.path.exists(path) else {}
+	themes = cfg.setdefault("themes", {})
+	if themes.get("activeTheme", "default") == "default":
+	    themes["activeTheme"] = "the-script"
+	    os.makedirs(os.path.dirname(path), exist_ok=True)
+	    json.dump(cfg, open(path, "w"), indent=4)
+EOF
+
 # ---------------------------------------------------------------- OBS replay buffer (removed)
 # Desktops used to start OBS hidden at login with a replay buffer, saved by Alt+F10 (obs-clip). That
 # is gone: its autostart, shortcut and script are retired, and a running replay OBS is closed. OBS

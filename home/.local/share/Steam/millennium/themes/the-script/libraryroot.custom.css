@@ -1,0 +1,5 @@
+/* Steam's own title bar row (menus, notifications, window buttons). Its class names change with
+   every Steam build, so it is found as the row two levels above the stable .TitleBar element. */
+div:has(> div > .TitleBar.title-area) {
+	display: none !important;
+}

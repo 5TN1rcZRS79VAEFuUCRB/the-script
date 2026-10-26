@@ -11,3 +11,5 @@ aerothemeplasma-icons-git
 uac-polkit-agent-git
 # Selawik: open stand-in for Segoe UI, the desktop font (~/.config/fontconfig/conf.d).
 ttf-selawik
+# Millennium: Steam theme loader; its the-script theme hides Steam's own title bar for the Windows 7 one.
+millennium

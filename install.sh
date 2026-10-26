@@ -206,13 +206,22 @@ if [ -d /usr/share/plasma/look-and-feel/authui7 ]; then
 	rm -rf "$lnf" && mkdir -p "${lnf%/*}" && cp -r /usr/share/plasma/look-and-feel/authui7 "$lnf"
 	sed -i -e 's/"Id": "authui7"/"Id": "authui7-dark"/' -e 's/"Name": "Windows 7 style"/"Name": "Windows 7 style (dark)"/' "$lnf/metadata.json"
 	sed -i -e 's/^ColorScheme=Aero$/ColorScheme=Windows7AeroDark/' -e 's/^widgetStyle=kvantum$/widgetStyle=kvantum-dark/' "$lnf/contents/defaults"
-	# Its color scheme is KvArcDark with Windows 7's black window titles: KvArcDark's white ones are
-	# unreadable on light glass.
+	# Its color scheme is KvArcDark with Windows 7's black window titles (KvArcDark's white ones are
+	# unreadable on light glass) and Windows 7's light tooltips (KWin draws the title-bar button ones
+	# with the light Kvantum theme, so white text there was invisible).
 	cs="$HOME/.local/share/color-schemes/Windows7AeroDark.colors"
 	mkdir -p "${cs%/*}"
 	sed -e 's/^Name=KvArcDark$/Name=Windows 7 Aero (dark)/' \
 		-e '/^\[WM\]$/,/^\[/{s/^activeForeground=.*/activeForeground=0,0,0/;s/^inactiveForeground=.*/inactiveForeground=67,78,84/}' \
+		-e '/^\[Colors:Tooltip\]$/,/^\[/{/^\[Colors:Tooltip\]$/d;/^\[/!d}' \
 		/usr/share/color-schemes/KvArcDark.colors >"$cs"
+	{ echo; sed -n '/^\[Colors:Tooltip\]$/,/^$/p' /usr/share/color-schemes/Aero.colors; } >>"$cs"
+	# Applying a scheme copies its colors into kdeglobals, so a scheme already in use needs them there too.
+	if [ "$(kreadconfig6 --file kdeglobals --group General --key ColorScheme 2>/dev/null)" = Windows7AeroDark ]; then
+		sed -n '/^\[Colors:Tooltip\]$/,/^$/{/=/p}' "$cs" | while IFS== read -r k v; do
+			kset --file kdeglobals --group Colors:Tooltip --key "$k" --notify "$v"
+		done
+	fi
 	# Installs from before this were left on KvArcDark itself. Read it with kreadconfig6: applying the
 	# look-and-feel stores the scheme in ~/.config/kdedefaults/kdeglobals, not ~/.config/kdeglobals.
 	if [ "$(kreadconfig6 --file kdeglobals --group General --key ColorScheme 2>/dev/null)" = KvArcDark ]; then
@@ -224,11 +233,11 @@ if [ -d /usr/share/plasma/look-and-feel/authui7 ]; then
 	mkdir -p "$kv"
 	cp /usr/share/Kvantum/KvArcDark/KvArcDark.kvconfig "$kv/Windows7AeroDark.kvconfig"
 	cp /usr/share/Kvantum/KvArcDark/KvArcDark.svg "$kv/Windows7AeroDark.svg"
-	# Context menus stay Windows 7 (light, blue hover) like the shell: Windows7Aero's menu elements and
-	# the gradients they use are copied into the dark theme's SVG as w7*, and [Menu] / [MenuItem] point
-	# at them.
+	# Context menus and tooltips stay Windows 7 (light, blue hover) like the shell: Windows7Aero's menu
+	# and tooltip elements and the gradients they use are copied into the dark theme's SVG as w7*, and
+	# [Menu] / [MenuItem] / [ToolTip] point at them.
 	python3 - /usr/share/Kvantum/Windows7Aero "$kv/Windows7AeroDark.kvconfig" "$kv/Windows7AeroDark.svg" <<-'EOF' \
-		|| warn "could not give the dark theme Windows 7 menus; they stay dark"
+		|| warn "could not give the dark theme Windows 7 menus and tooltips; they stay dark"
 	import copy, re, sys
 	import xml.etree.ElementTree as ET
 
@@ -248,11 +257,12 @@ if [ -d /usr/share/plasma/look-and-feel/authui7 ]; then
 	# Menu frame, menu items (hover, submenu arrows, separators), and checkboxes/radios as menu-*.
 	rename = {}
 	for i in byid:
-	    if re.match(r"(mnu|menuitem|arrow)-", i):   # Kvantum draws menu separators as <indicator>-separator
+	    if re.match(r"(mnu|menuitem|arrow|ttip)-", i):   # Kvantum draws menu separators as <indicator>-separator
 	        rename[i] = "w7" + i
 	    elif re.match(r"(checkbox|radio)-", i):
 	        rename[i] = "menu-" + i
 	assert any(k.startswith("mnu-") for k in rename), "Windows7Aero.svg has no menu elements"
+	assert any(k.startswith("ttip-") for k in rename), "Windows7Aero.svg has no tooltip elements"
 
 
 	def refs(e):
@@ -323,15 +333,16 @@ if [ -d /usr/share/plasma/look-and-feel/authui7 ]; then
 
 	w7 = sections(open(f"{w7dir}/Windows7Aero.kvconfig").read())
 	text = open(kv).read()
-	el = {"mnu": "w7mnu", "menuitem": "w7menuitem", "arrow": "w7arrow"}
-	for name, extra in (("Menu", ["text.normal.color=black"]), ("MenuItem", [])):
+	el = {"mnu": "w7mnu", "menuitem": "w7menuitem", "arrow": "w7arrow", "ttip": "w7ttip"}
+	for name, extra in (("Menu", ["text.normal.color=black"]), ("MenuItem", []), ("ToolTip", [])):
 	    lines = [re.sub(r"(element)=(\w+)$", lambda m: f"{m.group(1)}={el.get(m.group(2), m.group(2))}", l)
 	             for l in w7[name]] + extra
 	    text, n = re.subn(rf"(?ms)^\[{name}\]\n.*?(?=^\[|\Z)", f"[{name}]\n" + "\n".join(lines) + "\n\n", text)
 	    assert n == 1, name
 	general = dict(l.split("=", 1) for l in w7["%General"] if "=" in l)
 	for k in ("menu_shadow_depth", "submenu_overlap", "menu_separator_height", "menu_blur_radius",
-	          "reduce_menu_opacity", "scrollable_menu", "submenu_delay"):
+	          "reduce_menu_opacity", "scrollable_menu", "submenu_delay", "tooltip_shadow_depth",
+	          "tooltip_blur_radius"):
 	    if k in general:
 	        text, n = re.subn(rf"(?m)^{k}=.*$", f"{k}={general[k]}", text)
 	        if not n:

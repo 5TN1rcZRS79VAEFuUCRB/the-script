@@ -442,6 +442,11 @@ if [ -d /usr/share/plasma/look-and-feel/authui7 ]; then
 	kset --file xdg-desktop-portal-kderc --group KDE --key widgetStyle kvantum
 	kset --file xdg-desktop-portal-kderc --group UiSettings --key ColorScheme Aero
 
+	# KWin's own [steam] rule (/etc/xdg/kwinrulesrc) forces Steam to a shadow with no title bar; this
+	# overrides just that key so it gets the Windows 7 one. Steam's own buttons stay inside the window.
+	kset --file kwinrulesrc --group steam --key Description "Steam: Windows 7 title bar"
+	kset --file kwinrulesrc --group steam --key decorationpolicy server
+
 	# A running KWin picks up the effect changes now; otherwise they apply at the next login.
 	qdbus6 org.kde.KWin /KWin reconfigure >/dev/null 2>&1 || true
 else

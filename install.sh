@@ -205,6 +205,120 @@ if [ -d /usr/share/plasma/look-and-feel/authui7 ]; then
 	mkdir -p "$kv"
 	cp /usr/share/Kvantum/KvArcDark/KvArcDark.kvconfig "$kv/Windows7AeroDark.kvconfig"
 	cp /usr/share/Kvantum/KvArcDark/KvArcDark.svg "$kv/Windows7AeroDark.svg"
+	# Context menus stay Windows 7 (light, blue hover) like the shell: Windows7Aero's menu elements and
+	# the gradients they use are copied into the dark theme's SVG as w7*, and [Menu] / [MenuItem] point
+	# at them.
+	python3 - /usr/share/Kvantum/Windows7Aero "$kv/Windows7AeroDark.kvconfig" "$kv/Windows7AeroDark.svg" <<-'EOF' \
+		|| warn "could not give the dark theme Windows 7 menus; they stay dark"
+	import copy, re, sys
+	import xml.etree.ElementTree as ET
+
+	w7dir, kv, svg = sys.argv[1:4]
+	SVG, XL = "http://www.w3.org/2000/svg", "http://www.w3.org/1999/xlink"
+	for p, u in {"": SVG, "xlink": XL, "inkscape": "http://www.inkscape.org/namespaces/inkscape",
+	             "sodipodi": "http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"}.items():
+	    ET.register_namespace(p, u)
+	src = ET.parse(f"{w7dir}/Windows7Aero.svg").getroot()
+	dst_tree = ET.parse(svg)
+	dst = dst_tree.getroot()
+	byid = {e.get("id"): e for e in src.iter() if e.get("id")}
+	parent = {c: p for p in src.iter() for c in p}
+	REF = re.compile(r"url\(#([^)]+)\)")
+	HREF = f"{{{XL}}}href"
+
+	# Menu frame, menu items (hover, submenu arrows, separators), and checkboxes/radios as menu-*.
+	rename = {}
+	for i in byid:
+	    if re.match(r"(mnu|menuitem|arrow)-", i):   # Kvantum draws menu separators as <indicator>-separator
+	        rename[i] = "w7" + i
+	    elif re.match(r"(checkbox|radio)-", i):
+	        rename[i] = "menu-" + i
+	assert any(k.startswith("mnu-") for k in rename), "Windows7Aero.svg has no menu elements"
+
+
+	def refs(e):
+	    out = set()
+	    for n in e.iter():
+	        for k, v in n.attrib.items():
+	            out.update(REF.findall(v))
+	            if k == HREF and v.startswith("#"):
+	                out.add(v[1:])
+	    return out
+
+
+	# Gradients and other defs the copied elements use, followed through href chains.
+	need, todo = set(), set().union(*(refs(byid[i]) for i in rename))
+	while todo:
+	    i = todo.pop()
+	    if i in need or i not in byid:
+	        continue
+	    need.add(i)
+	    todo |= refs(byid[i])
+
+
+	def fix(e):
+	    for n in e.iter():
+	        if n.get("id"):
+	            n.set("id", rename.get(n.get("id"), "w7-" + n.get("id")))
+	        for k, v in list(n.attrib.items()):
+	            v = REF.sub(lambda m: f"url(#w7-{m.group(1)})", v)
+	            if k == HREF and v.startswith("#"):
+	                v = "#w7-" + v[1:]
+	            n.set(k, v)
+	    return e
+
+
+	# Elements whose renamed id the dark theme already has (its menu-checkbox-*) are replaced.
+	gone = set(rename.values())
+	for p in list(dst.iter()):
+	    for c in list(p):
+	        if c.get("id") in gone:
+	            p.remove(c)
+	defs = ET.SubElement(dst, f"{{{SVG}}}defs")
+	for i in need:
+	    defs.append(fix(copy.deepcopy(byid[i])))
+	for i in rename:
+	    e = byid[i]
+	    # Keep the transforms of the layers the element sits in.
+	    t, p = [], parent.get(e)
+	    while p is not None and p is not src:
+	        if p.get("transform"):
+	            t.insert(0, p.get("transform"))
+	        p = parent.get(p)
+	    g = ET.SubElement(dst, f"{{{SVG}}}g", {"transform": " ".join(t)} if t else {})
+	    g.append(fix(copy.deepcopy(e)))
+	dst_tree.write(svg, xml_declaration=True, encoding="UTF-8")
+
+	# Config: Windows7Aero's [Menu] and [MenuItem] sections and menu settings, on the new elements.
+	def sections(text):
+	    out, name = {}, None
+	    for line in text.splitlines():
+	        m = re.match(r"\[(.+)\]$", line)
+	        if m:
+	            name = m.group(1)
+	            out.setdefault(name, [])
+	        elif name and line.strip():
+	            out[name].append(line)
+	    return out
+
+
+	w7 = sections(open(f"{w7dir}/Windows7Aero.kvconfig").read())
+	text = open(kv).read()
+	el = {"mnu": "w7mnu", "menuitem": "w7menuitem", "arrow": "w7arrow"}
+	for name, extra in (("Menu", ["text.normal.color=black"]), ("MenuItem", [])):
+	    lines = [re.sub(r"(element)=(\w+)$", lambda m: f"{m.group(1)}={el.get(m.group(2), m.group(2))}", l)
+	             for l in w7[name]] + extra
+	    text, n = re.subn(rf"(?ms)^\[{name}\]\n.*?(?=^\[|\Z)", f"[{name}]\n" + "\n".join(lines) + "\n\n", text)
+	    assert n == 1, name
+	general = dict(l.split("=", 1) for l in w7["%General"] if "=" in l)
+	for k in ("menu_shadow_depth", "submenu_overlap", "menu_separator_height", "menu_blur_radius",
+	          "reduce_menu_opacity", "scrollable_menu", "submenu_delay"):
+	    if k in general:
+	        text, n = re.subn(rf"(?m)^{k}=.*$", f"{k}={general[k]}", text)
+	        if not n:
+	            text = text.replace("[%General]\n", f"[%General]\n{k}={general[k]}\n", 1)
+	open(kv, "w").write(text)
+	EOF
 	kset --file Kvantum/kvantum.kvconfig --group General --key theme Windows7Aero
 	kset --file kdeglobals --group KDE --key DefaultLightLookAndFeel authui7
 	kset --file kdeglobals --group KDE --key DefaultDarkLookAndFeel authui7-dark

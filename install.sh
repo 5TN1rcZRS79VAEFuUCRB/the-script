@@ -186,7 +186,8 @@ done
 say "Windows 7 look: effects, theme variants, icons, wallpaper"
 if [ -d /usr/share/plasma/look-and-feel/authui7 ]; then
 	# Effects. KDE's own blur runs next to ATP's glass blur (a fork of it) and makes it flicker.
-	for e in aeroglassblur aeroglide dimscreenaero libkwin_effect_smodsnap smodglow smodpeekeffect; do
+	# minimizeall is the KWin script behind the show desktop button's click (its MinimizeAll shortcut).
+	for e in aeroglassblur aeroglide dimscreenaero libkwin_effect_smodsnap smodglow smodpeekeffect minimizeall; do
 		kset --file kwinrc --group Plugins --key "${e}Enabled" true
 	done
 	for e in blur dialogparent fadingpopups login logout maximize scale squash windowaperture; do

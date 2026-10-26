@@ -393,6 +393,9 @@ if [ -d /usr/share/plasma/look-and-feel/authui7 ]; then
 	kset --file kde-mimeapps.list --group "Default Applications" --key inode/directory "org.kde.dolphin.desktop;"
 	kset --file dolphinrc --group KDE --key widgetStyle kvantum
 	kset --file dolphinrc --group UiSettings --key ColorScheme Aero
+	# Open/save dialogs of other apps (KDE's portal) match Dolphin, not the dark apps.
+	kset --file xdg-desktop-portal-kderc --group KDE --key widgetStyle kvantum
+	kset --file xdg-desktop-portal-kderc --group UiSettings --key ColorScheme Aero
 
 	# A running KWin picks up the effect changes now; otherwise they apply at the next login.
 	qdbus6 org.kde.KWin /KWin reconfigure >/dev/null 2>&1 || true

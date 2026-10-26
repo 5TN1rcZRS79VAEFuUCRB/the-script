@@ -6,6 +6,7 @@
 #
 #   - first login only: the Windows 7 theme with dark apps (authui7-dark, made by install.sh), the
 #     Windows 7 wallpaper, and on a desktop variable refresh rate always on (games included)
+#   - once, on machines that had niri: each monitor's scale from niri's local.kdl
 #   - the Windows key opens the Start orb's menu (SevenStart), not Plasma's launcher (Alt+F1)
 #   - the todo widget on the taskbar left of the tray, opened by Meta+T
 
@@ -13,6 +14,7 @@ set -uo pipefail
 
 STATE="$HOME/.local/state"
 FIRST="$STATE/the-script-plasma-first-login"
+NIRI_SCALE="$STATE/the-script-plasma-niri-scale"
 WALLPAPER="$HOME/.local/share/wallpapers/windows7-harmony.jpg"
 APPLETSRC="$HOME/.config/plasma-io.gitgud.wackyideas.desktop-appletsrc"
 
@@ -43,6 +45,14 @@ if [ ! -e "$FIRST" ] && plasma-apply-lookandfeel -a authui7-dark; then
 		done
 	fi
 	mkdir -p "$STATE" && touch "$FIRST"
+fi
+
+# Once, on machines that had niri: its per-monitor scale (~/.config/niri/local.kdl), since Plasma
+# starts every screen at its own default (1 on the T14, which is too small).
+if [ ! -e "$NIRI_SCALE" ] && [ -f "$HOME/.config/niri/local.kdl" ]; then
+	awk '$1 == "output" { gsub(/"/, "", $2); o = $2 } $1 == "scale" { print o, $2 }' "$HOME/.config/niri/local.kdl" |
+		while read -r o s; do kscreen-doctor "output.$o.scale.$s" >/dev/null; done
+	mkdir -p "$STATE" && touch "$NIRI_SCALE"
 fi
 
 # Plasma 6 hands a lone Meta press to "activate application launcher", which skips the Start orb.

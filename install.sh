@@ -135,7 +135,7 @@ if [ -e "$HOME/.local/state/niri-script-installed" ] || [ -L "$HOME/.local/share
 	say "Retiring niri-script's scripts and services"
 	MIGRATED=1
 	systemctl --user disable --now niri-update.timer niri-steam-overlay.path 2>/dev/null || true
-	retire "$HOME"/.config/systemd/user/niri-{update.service,update.timer,steam-overlay.path,steam-overlay.service}
+	retire "$HOME"/.config/systemd/user/niri-{update.timer,steam-overlay.path,steam-overlay.service}
 	retire "$HOME"/.local/bin/{dmenu,niri-audio,niri-down,niri-mouse,niri-net,niri-place,niri-power,niri-status,niri-tray,niri-todo,niri-update,niri-steam-overlay}
 	retire "$HOME/.local/share/Anki2/addons21/niri_todo"
 	rm -f "$HOME/.local/share/niri-script" "$HOME/.local/state/niri-script-installed"
@@ -147,6 +147,11 @@ if [ -e "$HOME/.local/state/niri-script-installed" ] || [ -L "$HOME/.local/share
 			"$XDG_RUNTIME_DIR/niri-restart-session" "$XDG_RUNTIME_DIR/dwm-restart-session" || true
 	fi
 fi
+# niri-update.service may be the unit running this installer. Removing its file now would make the
+# daemon-reload below forget it is a oneshot, and systemd would kill this run on the default 90s start
+# timeout. So it waits for a run that it did not start.
+[ "$(systemctl --user show -p ActiveState --value niri-update.service 2>/dev/null)" = activating ] \
+	|| retire "$HOME/.config/systemd/user/niri-update.service"
 # From trying Plasma before the-script: the todo widget and daemon under their old names.
 retire "$HOME/.local/share/plasma/plasmoids/local.niritodo" "$HOME/.config/autostart/niri-todo.desktop"
 # A generic portals.conf choosing GTK's portal (niri's) would override KDE's under Plasma too, and apps

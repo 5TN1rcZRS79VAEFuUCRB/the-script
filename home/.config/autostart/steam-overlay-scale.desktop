@@ -2,6 +2,6 @@
 Type=Application
 Name=Steam overlay scale
 Comment=Make Steam's in-game overlay follow the display scale (steam-overlay-scale)
-Exec=sh -c "\\$HOME/.local/bin/steam-overlay-scale"
+Exec=sh -c "exec ~/.local/bin/steam-overlay-scale"
 OnlyShowIn=KDE;
 NoDisplay=true

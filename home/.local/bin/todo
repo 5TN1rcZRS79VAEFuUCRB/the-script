@@ -58,6 +58,7 @@ ANKI_COUNT = f"{RUN}/todo-anki"  # "<date> <due>", written by the Anki add-on af
 PIDFILE = f"{RUN}/todo.pid"  # the daemon; the Anki add-on sends it SIGUSR1 after every answered card
 STICKY = f"{RUN}/todo-sticky"  # ids of notifications that stay until clicked; opening the menu closes them
 TAGGED = f"{RUN}/todo-tagged.json"  # {tag: id} of shown notifications that the next one with that tag replaces
+ANKI_LOG = f"{RUN}/anki.log"  # what Anki printed each time the menu launched it, for when it doesn't open
 FOCUS = f"{RUN}/todo-focus"  # "<end epoch> <icon> <text>": the running focus/break timer, read by todo-bar
 
 LOOKBACK = 14 * 86400  # overdue work older than this drops off the list
@@ -683,7 +684,11 @@ def focus_end(kind=None):
 
 def open_url(t):
     if t["source"] == "anki":
-        subprocess.Popen(["anki"], start_new_session=True)  # an already-open Anki just comes to the front
+        with open(ANKI_LOG, "a") as log:
+            log.write(f"--- {datetime.now():%F %T}\n")
+            log.flush()
+            # an already-open Anki just comes to the front
+            subprocess.Popen(["anki"], stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
     elif t["url"].startswith("https://"):
         subprocess.Popen(["xdg-open", t["url"]], start_new_session=True)
 

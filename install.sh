@@ -202,7 +202,7 @@ if [ -d /usr/share/plasma/look-and-feel/authui7 ]; then
 	# Copies, not links: Plasma refuses packages that link outside themselves. Remade on every run so
 	# they follow ATP updates.
 	lnf="$HOME/.local/share/plasma/look-and-feel/authui7-dark"
-	rm -rf "$lnf" && cp -r /usr/share/plasma/look-and-feel/authui7 "$lnf"
+	rm -rf "$lnf" && mkdir -p "${lnf%/*}" && cp -r /usr/share/plasma/look-and-feel/authui7 "$lnf"
 	sed -i -e 's/"Id": "authui7"/"Id": "authui7-dark"/' -e 's/"Name": "Windows 7 style"/"Name": "Windows 7 style (dark)"/' "$lnf/metadata.json"
 	sed -i -e 's/^ColorScheme=Aero$/ColorScheme=KvArcDark/' -e 's/^widgetStyle=kvantum$/widgetStyle=kvantum-dark/' "$lnf/contents/defaults"
 	# kvantum-dark loads the Kvantum theme "<theme>Dark": Windows7AeroDark, made from KvArcDark.

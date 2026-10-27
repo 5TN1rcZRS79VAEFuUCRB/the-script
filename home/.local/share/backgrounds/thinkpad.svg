@@ -1,82 +1,53 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3840 2400" width="3840" height="2400">
-<!-- the-script's wallpaper: a ThinkPad keyboard in the dark, the TrackPoint between G, H and B. -->
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- the-script's wallpaper: the ThinkPad wordmark on a matte black lid, its i-dot lit red. Drawn with Nimbus Sans Bold Italic, as outlines. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="3840" height="2400" viewBox="0 0 3840 2400">
 <defs>
-  <radialGradient id="bg" cx="50%" cy="50%" r="75%">
-    <stop offset="0" stop-color="#161616"/><stop offset="1" stop-color="#060606"/>
-  </radialGradient>
-  <linearGradient id="cap" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="0" stop-color="#1e1e1e"/><stop offset="1" stop-color="#141414"/>
-  </linearGradient>
-  <linearGradient id="face" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="0" stop-color="#1c1c1c"/><stop offset="1" stop-color="#191919"/>
-  </linearGradient>
-  <radialGradient id="fade" cx="50%" cy="50%" r="50%">
-    <stop offset="0.25" stop-color="#fff"/><stop offset="1" stop-color="#000"/>
-  </radialGradient>
-  <mask id="vignette"><rect width="3840" height="2400" fill="url(#fade)"/></mask>
-  <radialGradient id="nub" cx="42%" cy="38%" r="65%">
-    <stop offset="0" stop-color="#f0362c"/><stop offset="0.7" stop-color="#d0201a"/><stop offset="1" stop-color="#8e120d"/>
-  </radialGradient>
-  <pattern id="grip" width="20" height="20" patternUnits="userSpaceOnUse">
-    <circle cx="10" cy="10" r="4.5" fill="#000" fill-opacity="0.28"/>
-  </pattern>
-  <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="14"/></filter>
+<g>
+<g id="glyph-0-0">
+<path d="M 118.21875 -138.921875 L 166.984375 -138.921875 L 173.1875 -167.671875 L 38.875 -167.671875 L 32.65625 -138.921875 L 83.71875 -138.921875 L 54.046875 0 L 88.546875 0 Z M 118.21875 -138.921875 "/>
+</g>
+<g id="glyph-0-1">
+<path d="M 51.0625 -167.671875 L 15.40625 0 L 47.609375 0 L 62.5625 -69.921875 C 65.546875 -84.640625 74.296875 -95.6875 85.09375 -99.125 C 87.859375 -100.046875 90.625 -100.515625 93.609375 -100.515625 C 104.421875 -100.515625 110.171875 -94.296875 110.171875 -83.03125 C 110.171875 -80.046875 109.703125 -77.046875 108.796875 -71.984375 L 93.375 0 L 125.578125 0 L 143.296875 -83.265625 C 144.203125 -87.625 144.671875 -91.765625 144.671875 -95.90625 C 144.671875 -114.078125 131.328125 -126.265625 111.3125 -126.265625 C 94.765625 -126.265625 82.34375 -119.828125 69.921875 -105.34375 L 83.265625 -167.671875 Z M 51.0625 -167.671875 "/>
+</g>
+<g id="glyph-0-2">
+<path d="M 74.0625 -124.203125 L 41.859375 -124.203125 L 15.40625 0 L 47.609375 0 Z M 74.0625 -124.203125 "/>
+</g>
+<g id="glyph-0-3">
+<path d="M 40.9375 -124.203125 L 14.484375 0 L 46.6875 0 L 61.640625 -69.921875 C 65.546875 -89.015625 77.515625 -100.515625 93.15625 -100.515625 C 101.4375 -100.515625 106.953125 -97.296875 109.015625 -90.84375 C 109.703125 -88.546875 110.171875 -86.015625 110.171875 -83.265625 C 110.171875 -80.046875 109.703125 -77.28125 108.796875 -71.984375 L 93.375 0 L 125.578125 0 L 143.296875 -83.265625 C 144.203125 -87.625 144.671875 -91.765625 144.671875 -95.90625 C 144.671875 -109.703125 136.84375 -120.515625 123.96875 -124.4375 C 119.828125 -125.578125 115.453125 -126.265625 110.859375 -126.265625 C 93.84375 -126.265625 81.421875 -120.0625 69 -105.34375 L 73.140625 -124.203125 Z M 40.9375 -124.203125 "/>
+</g>
+<g id="glyph-0-4">
+<path d="M 81.421875 -167.671875 L 49.21875 -167.671875 L 13.5625 0 L 45.765625 0 L 54.515625 -40.703125 L 70.15625 -54.96875 L 88.3125 0 L 126.046875 0 L 96.375 -76.8125 L 149.734375 -124.203125 L 113.15625 -124.203125 L 61.875 -75.90625 Z M 81.421875 -167.671875 "/>
+</g>
+<g id="glyph-0-5">
+<path d="M 64.625 -59.796875 L 107.640625 -59.796875 C 125.8125 -59.796875 139.15625 -65.3125 151.5625 -78.4375 C 163.984375 -91.546875 171.8125 -111.09375 171.8125 -128.796875 C 171.8125 -140.765625 166.515625 -151.5625 157.09375 -158.703125 C 148.8125 -165.140625 139.375 -167.671875 123.96875 -167.671875 L 53.125 -167.671875 L 17.484375 0 L 51.984375 0 Z M 70.84375 -88.546875 L 81.421875 -138.921875 L 116.84375 -138.921875 C 126.953125 -138.921875 134.09375 -134.3125 136.625 -126.265625 C 137.3125 -124.4375 137.546875 -122.59375 137.546875 -120.75 C 137.546875 -113.84375 135.015625 -105.109375 131.796875 -100.28125 C 126.046875 -92.234375 118.21875 -88.546875 106.03125 -88.546875 Z M 70.84375 -88.546875 "/>
+</g>
+<g id="glyph-0-6">
+<path d="M 121.203125 -3.90625 C 119.140625 -6.4375 118.21875 -7.8125 117.296875 -9.65625 C 116.609375 -11.265625 116.375 -12.875 116.375 -14.265625 C 116.375 -15.640625 116.609375 -17.25 117.0625 -19.09375 L 131.5625 -88.09375 C 132.484375 -92.234375 132.9375 -95.6875 132.9375 -98.4375 C 132.9375 -111.09375 122.59375 -121.671875 107.40625 -124.65625 C 101.65625 -125.8125 95.453125 -126.265625 88.78125 -126.265625 C 52.671875 -126.265625 34.046875 -113.15625 27.59375 -83.265625 L 57.734375 -83.265625 C 61.1875 -94.0625 66.015625 -98.4375 76.359375 -100.046875 C 78.65625 -100.28125 81.1875 -100.515625 83.484375 -100.515625 C 92.6875 -100.515625 97.296875 -98.90625 99.359375 -94.984375 C 100.046875 -93.609375 100.28125 -92.234375 100.28125 -90.625 C 100.28125 -85.796875 97.0625 -80.734375 92.453125 -78.4375 C 87.859375 -75.90625 87.859375 -75.90625 71.296875 -73.59375 L 57.953125 -71.53125 C 46.921875 -69.6875 38.40625 -66.46875 31.28125 -61.40625 C 19.09375 -52.671875 11.5 -38.640625 11.5 -24.84375 C 11.5 -12.65625 19.3125 -1.15625 30.359375 2.765625 C 34.953125 4.375 40.25 5.296875 46 5.296875 C 59.109375 5.296875 70.375 0.234375 84.1875 -12.421875 C 83.484375 -8.96875 83.484375 -7.8125 83.484375 -6.203125 C 83.484375 -3.90625 83.953125 -2.53125 85.09375 0 L 120.296875 0 Z M 92 -49.90625 C 87.859375 -31.046875 76.8125 -20.46875 61.1875 -20.46875 C 50.140625 -20.46875 44.390625 -24.375 44.390625 -31.96875 C 44.390625 -42.78125 52.90625 -50.375 67.84375 -52.90625 L 79.34375 -54.734375 C 90.15625 -56.578125 90.15625 -56.578125 93.84375 -58.65625 Z M 92 -49.90625 "/>
+</g>
+<g id="glyph-0-7">
+<path d="M 93.15625 0 L 125.34375 0 L 161 -167.671875 L 128.796875 -167.671875 L 116.15625 -108.09375 C 110.859375 -120.515625 101.203125 -126.265625 85.5625 -126.265625 C 66.9375 -126.265625 48.0625 -115.6875 36.109375 -98.4375 C 24.84375 -82.109375 18.171875 -61.40625 18.171875 -42.546875 C 18.171875 -23 25.296875 -7.59375 37.484375 -0.234375 C 43.46875 3.453125 50.375 5.296875 57.734375 5.296875 C 73.375 5.296875 85.328125 -0.234375 95.90625 -12.65625 Z M 87.40625 -100.515625 C 99.8125 -100.515625 107.640625 -90.390625 107.640625 -74.296875 C 107.640625 -52.4375 97.515625 -31.28125 83.03125 -23.453125 C 79.34375 -21.390625 75.4375 -20.46875 71.0625 -20.46875 C 63.25 -20.46875 57.265625 -24.609375 54.046875 -31.515625 C 52.203125 -36.34375 51.0625 -41.625 51.0625 -47.375 C 51.0625 -68.3125 61.40625 -89.46875 75.671875 -97.515625 C 79.34375 -99.59375 83.03125 -100.515625 87.40625 -100.515625 Z M 87.40625 -100.515625 "/>
+</g>
+</g>
+<radialGradient id="radial-pattern-0" gradientUnits="userSpaceOnUse" cx="1920" cy="1200" fx="1920" fy="1200" r="2688">
+<stop offset="0" stop-color="rgb(7.5%, 7.5%, 7.5%)" stop-opacity="1"/>
+<stop offset="1" stop-color="rgb(2.5%, 2.5%, 2.5%)" stop-opacity="1"/>
+</radialGradient>
+<radialGradient id="radial-pattern-1" gradientUnits="userSpaceOnUse" cx="1698.571833" cy="1116" fx="1698.571833" fy="1116" r="105.6">
+<stop offset="0" stop-color="rgb(89%, 14%, 10%)" stop-opacity="0.35"/>
+<stop offset="1" stop-color="rgb(89%, 14%, 10%)" stop-opacity="0"/>
+</radialGradient>
 </defs>
-<rect width="3840" height="2400" fill="url(#bg)"/>
-<g mask="url(#vignette)">
-<g transform="translate(745,635)">
-  <rect width="520" height="520" rx="46" fill="url(#cap)" stroke="#262626" stroke-width="4"/>
-  <rect x="34" y="28" width="452" height="440" rx="34" fill="url(#face)"/>
-  <text x="74" y="150" font-family="Adwaita Sans, sans-serif" font-size="96" fill="#3c3c3c">F</text>
+<rect x="-384" y="-240" width="4608" height="2880" fill="url(#radial-pattern-0)"/>
+<g fill="rgb(80%, 80%, 80%)" fill-opacity="1">
+<use xlink:href="#glyph-0-0" x="1378.5" y="1281"/>
+<use xlink:href="#glyph-0-1" x="1516.5" y="1281"/>
+<use xlink:href="#glyph-0-2" x="1657.5" y="1281"/>
+<use xlink:href="#glyph-0-3" x="1721.5" y="1281"/>
+<use xlink:href="#glyph-0-4" x="1862.5" y="1281"/>
+<use xlink:href="#glyph-0-5" x="1990.5" y="1281"/>
+<use xlink:href="#glyph-0-6" x="2140.5" y="1281"/>
+<use xlink:href="#glyph-0-7" x="2268.5" y="1281"/>
 </g>
-<g transform="translate(1355,635)">
-  <rect width="520" height="520" rx="46" fill="url(#cap)" stroke="#262626" stroke-width="4"/>
-  <rect x="34" y="28" width="452" height="440" rx="34" fill="url(#face)"/>
-  <text x="74" y="150" font-family="Adwaita Sans, sans-serif" font-size="96" fill="#3c3c3c">G</text>
-</g>
-<g transform="translate(1965,635)">
-  <rect width="520" height="520" rx="46" fill="url(#cap)" stroke="#262626" stroke-width="4"/>
-  <rect x="34" y="28" width="452" height="440" rx="34" fill="url(#face)"/>
-  <text x="74" y="150" font-family="Adwaita Sans, sans-serif" font-size="96" fill="#3c3c3c">H</text>
-</g>
-<g transform="translate(2575,635)">
-  <rect width="520" height="520" rx="46" fill="url(#cap)" stroke="#262626" stroke-width="4"/>
-  <rect x="34" y="28" width="452" height="440" rx="34" fill="url(#face)"/>
-  <text x="74" y="150" font-family="Adwaita Sans, sans-serif" font-size="96" fill="#3c3c3c">J</text>
-</g>
-<g transform="translate(1050,1245)">
-  <rect width="520" height="520" rx="46" fill="url(#cap)" stroke="#262626" stroke-width="4"/>
-  <rect x="34" y="28" width="452" height="440" rx="34" fill="url(#face)"/>
-  <text x="74" y="150" font-family="Adwaita Sans, sans-serif" font-size="96" fill="#3c3c3c">V</text>
-</g>
-<g transform="translate(1660,1245)">
-  <rect width="520" height="520" rx="46" fill="url(#cap)" stroke="#262626" stroke-width="4"/>
-  <rect x="34" y="28" width="452" height="440" rx="34" fill="url(#face)"/>
-  <text x="74" y="150" font-family="Adwaita Sans, sans-serif" font-size="96" fill="#3c3c3c">B</text>
-</g>
-<g transform="translate(2270,1245)">
-  <rect width="520" height="520" rx="46" fill="url(#cap)" stroke="#262626" stroke-width="4"/>
-  <rect x="34" y="28" width="452" height="440" rx="34" fill="url(#face)"/>
-  <text x="74" y="150" font-family="Adwaita Sans, sans-serif" font-size="96" fill="#3c3c3c">N</text>
-</g>
-<g transform="translate(1180,25)">
-  <rect width="520" height="520" rx="46" fill="url(#cap)" stroke="#262626" stroke-width="4"/>
-  <rect x="34" y="28" width="452" height="440" rx="34" fill="url(#face)"/>
-  <text x="74" y="150" font-family="Adwaita Sans, sans-serif" font-size="96" fill="#3c3c3c">R</text>
-</g>
-<g transform="translate(1790,25)">
-  <rect width="520" height="520" rx="46" fill="url(#cap)" stroke="#262626" stroke-width="4"/>
-  <rect x="34" y="28" width="452" height="440" rx="34" fill="url(#face)"/>
-  <text x="74" y="150" font-family="Adwaita Sans, sans-serif" font-size="96" fill="#3c3c3c">T</text>
-</g>
-<g transform="translate(2400,25)">
-  <rect width="520" height="520" rx="46" fill="url(#cap)" stroke="#262626" stroke-width="4"/>
-  <rect x="34" y="28" width="452" height="440" rx="34" fill="url(#face)"/>
-  <text x="74" y="150" font-family="Adwaita Sans, sans-serif" font-size="96" fill="#3c3c3c">Y</text>
-</g>
-</g>
-<circle cx="1920.0" cy="1200.0" r="112" fill="#0d0d0d" stroke="#1f1f1f" stroke-width="4"/>
-<circle cx="1920.0" cy="1210.0" r="74" fill="#000" fill-opacity="0.8" filter="url(#shadow)"/>
-<circle cx="1920.0" cy="1200.0" r="66" fill="url(#nub)"/>
-<circle cx="1920.0" cy="1200.0" r="66" fill="url(#grip)"/>
+<path fill-rule="nonzero" fill="url(#radial-pattern-1)" d="M 1378.5 1074 L 1804.171875 1116 C 1804.171875 1174.320312 1756.894531 1221.601562 1698.570312 1221.601562 C 1640.25 1221.601562 1592.972656 1174.320312 1592.972656 1116 C 1592.972656 1057.679688 1640.25 1010.398438 1698.570312 1010.398438 C 1756.894531 1010.398438 1804.171875 1057.679688 1804.171875 1116 "/>
+<path fill-rule="nonzero" fill="rgb(88.6%, 13.7%, 10.2%)" fill-opacity="1" d="M 1679.671875 1092 L 1727.671875 1092 L 1717.46875 1140 L 1669.46875 1140 Z M 1679.671875 1092 "/>
 </svg>

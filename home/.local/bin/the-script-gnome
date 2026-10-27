@@ -39,7 +39,7 @@ print(repr(cur + add) if add else "")' "$(gsettings get "$schema" "$key")" "$@")
 if [ ! -e "$FIRST" ]; then
 	gsettings set org.gnome.desktop.interface color-scheme prefer-dark
 	gsettings set org.gnome.desktop.interface accent-color red
-	# A ThinkPad keyboard in the dark with the red TrackPoint (~/.local/share/backgrounds), in light style too.
+	# The ThinkPad wordmark with its red i-dot on matte black (~/.local/share/backgrounds), in light style too.
 	bg="file://$HOME/.local/share/backgrounds/thinkpad.svg"
 	if [ -e "${bg#file://}" ]; then
 		for k in "background picture-uri" "background picture-uri-dark" "screensaver picture-uri"; do

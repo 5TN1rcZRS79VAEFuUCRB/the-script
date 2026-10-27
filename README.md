@@ -57,7 +57,6 @@ desktop (no battery) the first login turns variable refresh rate (G-SYNC/FreeSyn
 | `discord-compress video.mp4 [MB]`: re-encodes a video under Discord's upload limit (10 MB by default) | `~/.local/bin/` |
 | git commit name and email (GitHub noreply address) | `~/.gitconfig` (only `user.name` and `user.email`) |
 | Tailscale, and `ssh arch-server` over it (no browser login; run `sudo tailscale up` once per machine) | `~/.ssh/config.d/`, `~/.ssh/known_hosts.d/`, plus an `Include` line at the top of your own `~/.ssh/config` |
-| Claude Code: ponytail + caveman plugins and caveman hooks; requests go straight to Anthropic, not through the caveman proxy, so Remote Control works (only if `claude` is installed; undo with `caveman disable claude`) | `~/.claude/settings.json`, `~/.claude.json`, `~/.caveman/` |
 
 ## Keys
 

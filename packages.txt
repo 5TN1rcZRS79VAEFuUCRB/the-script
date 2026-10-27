@@ -76,5 +76,3 @@ mpv              # plays the audio and video on Anki cards
 proton-vpn-gtk-app
 gnome-keyring    # Secret Service (D-Bus activated) where Proton VPN keeps its login
 
-# --- Claude Code add-ons: the caveman proxy CLI is an npm package ---
-npm

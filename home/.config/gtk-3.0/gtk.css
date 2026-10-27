@@ -1,0 +1,36 @@
+/* ThinkPad colors and square corners for GTK 3 apps (and Firefox's toolbars, which take GTK's colors).
+   Same palette as ../gtk-4.0/gtk.css; GTK 3 names its colors with @define-color instead. */
+
+@define-color accent_bg_color #e2231a;
+@define-color accent_fg_color #ffffff;
+@define-color accent_color #ff5a4f;
+@define-color theme_selected_bg_color #e2231a;
+@define-color theme_selected_fg_color #ffffff;
+
+@define-color window_bg_color #141414;
+@define-color window_fg_color #e6e6e6;
+@define-color view_bg_color #0f0f0f;
+@define-color view_fg_color #e6e6e6;
+@define-color theme_bg_color #141414;
+@define-color theme_fg_color #e6e6e6;
+@define-color theme_base_color #0f0f0f;
+@define-color theme_text_color #e6e6e6;
+@define-color theme_unfocused_bg_color #141414;
+@define-color theme_unfocused_base_color #0f0f0f;
+
+@define-color headerbar_bg_color #1a1a1a;
+@define-color headerbar_fg_color #e6e6e6;
+@define-color headerbar_backdrop_color #141414;
+@define-color sidebar_bg_color #101010;
+@define-color card_bg_color #1c1c1c;
+@define-color dialog_bg_color #1a1a1a;
+@define-color popover_bg_color #1c1c1c;
+@define-color borders #2e2e2e;
+
+* {
+  border-radius: 0;
+}
+
+radio {
+  border-radius: 9999px;
+}

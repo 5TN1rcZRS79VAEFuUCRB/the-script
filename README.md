@@ -38,7 +38,8 @@ are there too). Variable refresh rate (G-SYNC/FreeSync) is in the same place, pe
 | --- | --- |
 | GNOME (`gnome-shell`, Settings, Nautilus, the image viewer and text editor) | packages (`packages.txt`) |
 | ThinkPad look for apps: matte black and charcoal, the TrackPoint's red as the accent, square corners (delete both files for stock GNOME) | `~/.config/gtk-4.0/gtk.css`, `~/.config/gtk-3.0/gtk.css` |
-| Settings applied at every login by `the-script-gnome` (gsettings needs the session): dark style for apps, a red accent and a black and white wallpaper (Arch's split) (first login only), and the AppIndicator extension (tray icons for Steam, Discord, Syncthing, KeePassXC) and the to-do extension turned on | `~/.config/autostart/the-script-gnome.desktop` |
+| Gray folder icons to match (`Adwaita-ThinkPad`: Adwaita's folder icons recolored, remade on every run) | `~/.local/share/icons/Adwaita-ThinkPad/` |
+| Settings applied at every login by `the-script-gnome` (gsettings needs the session): dark style for apps, a red accent and a black and white wallpaper (Arch's split) (first login only), the AppIndicator extension (tray icons for Steam, Discord, Syncthing, KeePassXC) and the to-do extension turned on, and once, the app grid sorted into folders (Chat, Internet, Media, Development, System) with everyday apps first and in the dash | `~/.config/autostart/the-script-gnome.desktop` |
 | The login screen (GDM) | `systemctl enable gdm` (needs sudo) |
 | School assignments and to-dos in the top bar (`todo`, `todo-bar`, the `todo@the-script` GNOME Shell extension) | `~/.local/bin/`, `~/.local/share/gnome-shell/extensions/todo@the-script/`, `~/.config/autostart/todo.desktop` |
 | Console, GNOME's terminal | package (`packages.txt`) |

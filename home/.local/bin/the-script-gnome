@@ -8,6 +8,8 @@
 #     use it too) and the split wallpaper (archlinux-wallpaper)
 #   - the AppIndicator extension (tray icons for Steam, Discord, Syncthing, KeePassXC) and the to-do
 #     extension turned on
+#   - gray folder icons (Adwaita-ThinkPad, made by install.sh)
+#   - once: the app grid sorted into folders (Chat, Internet, Media, Development, System) and the dash
 #   - screenshots through the portal without a dialog, for apps outside Flatpak (screenshot)
 #   - once, on machines that had KDE: the installer is run again from GNOME to remove Plasma, which it
 #     could not do with Plasma running
@@ -49,6 +51,54 @@ fi
 
 gsettings set org.gnome.shell disable-user-extensions false
 add_to_list org.gnome.shell enabled-extensions "${EXTENSIONS[@]}"
+
+# Once: the app grid sorted into folders, everyday apps first, and the same everyday apps in the dash.
+# Apps a machine lacks are skipped; anything new lands after these. Rearranging by hand is kept.
+if [ ! -e "$STATE/the-script-gnome-app-folders" ]; then
+	python3 - <<-'EOF' && touch "$STATE/the-script-gnome-app-folders"
+	import subprocess
+
+	TOP = ["firefox", "org.gnome.Nautilus", "org.gnome.Console", "org.gnome.TextEditor", "steam", "anki",
+	       "org.keepassxc.KeePassXC", "org.gnome.Settings"]
+	DASH = ["firefox", "org.gnome.Nautilus", "org.gnome.Console", "io.element.Element", "discord", "steam", "anki"]
+	FOLDERS = {
+	    "Chat": ["io.element.Element", "discord", "weechat"],
+	    "Internet": ["chromium", "org.torproject.torbrowser-launcher", "proton.vpn.app.gtk"],
+	    "Media": ["mpv", "com.obsproject.Studio", "org.gnome.Loupe"],
+	    "Development": ["nvim", "cmake-gui", "vmware-workstation", "vmware-netcfg", "btop"],
+	    "System": ["cups", "system-config-printer", "org.freedesktop.IBus.Setup", "org.gnome.ColorProfileViewer",
+	               "qt5ct", "qt6ct", "avahi-discover", "bssh", "bvnc", "xgps", "xgpsspeed", "qv4l2", "qvidcap",
+	               "the-script-update", "org.torproject.torbrowser-launcher.settings"],
+	}
+
+
+	def gset(schema, key, value):
+	    subprocess.run(["gsettings", "set", schema, key, value], check=True)
+
+
+	def strv(items):
+	    return "[" + ", ".join(repr(i) for i in items) + "]"
+
+
+	for name, apps in FOLDERS.items():
+	    schema = f"org.gnome.desktop.app-folders.folder:/org/gnome/desktop/app-folders/folders/{name}/"
+	    gset(schema, "name", repr(name))
+	    gset(schema, "apps", strv(f"{a}.desktop" for a in apps))
+	    gset(schema, "categories", "@as []")
+	    gset(schema, "translate", "false")
+	gset("org.gnome.desktop.app-folders", "folder-children", strv(FOLDERS))
+	order = [f"{a}.desktop" for a in TOP] + list(FOLDERS)
+	gset("org.gnome.shell", "app-picker-layout",
+	     "[{" + ", ".join(f"{i!r}: <{{'position': <{n}>}}>" for n, i in enumerate(order)) + "}]")
+	gset("org.gnome.shell", "favorite-apps", strv(f"{a}.desktop" for a in DASH))
+	EOF
+fi
+
+# Gray folders (the Adwaita-ThinkPad icons install.sh makes), unless another icon theme was picked.
+if [ -e "$HOME/.local/share/icons/Adwaita-ThinkPad/index.theme" ] \
+	&& [ "$(gsettings get org.gnome.desktop.interface icon-theme)" = "'Adwaita'" ]; then
+	gsettings set org.gnome.desktop.interface icon-theme Adwaita-ThinkPad
+fi
 
 # Apps outside Flatpak may take screenshots through the portal without a dialog (~/.local/bin/screenshot).
 # They run as you anyway; Flatpak apps still ask.

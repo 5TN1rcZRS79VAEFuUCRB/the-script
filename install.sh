@@ -222,6 +222,43 @@ if command -v gnome-shell >/dev/null && [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]; 
 	"$HOME/.local/bin/the-script-gnome" || warn "could not apply the GNOME settings; they apply at the next login"
 fi
 
+# Folder icons in gray instead of Adwaita's blue, to go with the ThinkPad colors (gtk.css): an icon theme
+# with just Adwaita's folder icons, recolored, over Adwaita itself. Remade on every run so it follows
+# Adwaita updates; the-script-gnome selects it.
+icons="$HOME/.local/share/icons/Adwaita-ThinkPad"
+rm -rf "$icons"
+python3 - /usr/share/icons/Adwaita/scalable "$icons" <<-'EOF' || warn "could not make the gray folder icons; folders stay blue"
+	import glob, os, re, sys
+
+	src, dst = sys.argv[1:3]
+	icons = (glob.glob(f"{src}/places/folder*.svg") + glob.glob(f"{src}/places/user-home.svg")
+	         + glob.glob(f"{src}/places/user-desktop.svg") + glob.glob(f"{src}/mimetypes/inode-directory.svg")
+	         + glob.glob(f"{src}/status/folder-open.svg"))
+	assert icons, "Adwaita has no folder icons"
+
+
+	def gray(m):
+	    r, g, b = (int(m.group(1)[i:i + 2], 16) for i in (0, 2, 4))
+	    if b - r < 25:              # already neutral (the paper inside, shadows)
+	        return m.group(0)
+	    y = round((0.2126 * r + 0.7152 * g + 0.0722 * b) * 0.85)
+	    return "#%02x%02x%02x" % (y, y, y)
+
+
+	for f in icons:
+	    rel = os.path.relpath(f, src)
+	    os.makedirs(os.path.dirname(f"{dst}/scalable/{rel}"), exist_ok=True)
+	    with open(f) as i, open(f"{dst}/scalable/{rel}", "w") as o:
+	        o.write(re.sub(r"#([0-9a-fA-F]{6})\b", gray, i.read()))
+	ctx = {"places": "Places", "mimetypes": "MimeTypes", "status": "Status"}
+	dirs = sorted({os.path.dirname(os.path.relpath(f, src)) for f in icons})
+	with open(f"{dst}/index.theme", "w") as o:
+	    o.write("[Icon Theme]\nName=Adwaita-ThinkPad\nComment=Adwaita with gray folders (the-script)\n"
+	            "Inherits=Adwaita,hicolor\nDirectories=" + ",".join(f"scalable/{d}" for d in dirs) + "\n")
+	    for d in dirs:
+	        o.write(f"\n[scalable/{d}]\nContext={ctx[d]}\nSize=128\nMinSize=8\nMaxSize=512\nType=Scalable\n")
+EOF
+
 # The login screen. GDM takes over at the next boot; a running session is left alone. --force replaces
 # the display-manager link another one (SDDM) holds.
 say "Login: GDM"

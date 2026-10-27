@@ -5,7 +5,7 @@
 # in place changes nothing.
 #
 #   - first run only: dark style for apps, a red accent (the ThinkPad colors in ~/.config/gtk-4.0/gtk.css
-#     use it too) and the split wallpaper (archlinux-wallpaper)
+#     use it too) and the ThinkPad wallpaper
 #   - the AppIndicator extension (tray icons for Steam, Discord, Syncthing, KeePassXC) and the to-do
 #     extension turned on
 #   - gray folder icons (Adwaita-ThinkPad, made by install.sh)
@@ -39,8 +39,8 @@ print(repr(cur + add) if add else "")' "$(gsettings get "$schema" "$key")" "$@")
 if [ ! -e "$FIRST" ]; then
 	gsettings set org.gnome.desktop.interface color-scheme prefer-dark
 	gsettings set org.gnome.desktop.interface accent-color red
-	# A white Arch logo where thin black lines meet, on near-black, in light style too.
-	bg=file:///usr/share/backgrounds/archlinux/split.png
+	# A ThinkPad keyboard in the dark with the red TrackPoint (~/.local/share/backgrounds), in light style too.
+	bg="file://$HOME/.local/share/backgrounds/thinkpad.svg"
 	if [ -e "${bg#file://}" ]; then
 		for k in "background picture-uri" "background picture-uri-dark" "screensaver picture-uri"; do
 			gsettings set org.gnome.desktop.${k% *} ${k#* } "$bg"

@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3840 2400" width="3840" height="2400">
+<!-- the-script's wallpaper: a ThinkPad keyboard in the dark, the TrackPoint between G, H and B. -->
+<defs>
+  <radialGradient id="bg" cx="50%" cy="50%" r="75%">
+    <stop offset="0" stop-color="#161616"/><stop offset="1" stop-color="#060606"/>
+  </radialGradient>
+  <linearGradient id="cap" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#1e1e1e"/><stop offset="1" stop-color="#141414"/>
+  </linearGradient>
+  <linearGradient id="face" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#1c1c1c"/><stop offset="1" stop-color="#191919"/>
+  </linearGradient>
+  <radialGradient id="fade" cx="50%" cy="50%" r="50%">
+    <stop offset="0.25" stop-color="#fff"/><stop offset="1" stop-color="#000"/>
+  </radialGradient>
+  <mask id="vignette"><rect width="3840" height="2400" fill="url(#fade)"/></mask>
+  <radialGradient id="nub" cx="42%" cy="38%" r="65%">
+    <stop offset="0" stop-color="#f0362c"/><stop offset="0.7" stop-color="#d0201a"/><stop offset="1" stop-color="#8e120d"/>
+  </radialGradient>
+  <pattern id="grip" width="20" height="20" patternUnits="userSpaceOnUse">
+    <circle cx="10" cy="10" r="4.5" fill="#000" fill-opacity="0.28"/>
+  </pattern>
+  <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="14"/></filter>
+</defs>
+<rect width="3840" height="2400" fill="url(#bg)"/>
+<g mask="url(#vignette)">
+<g transform="translate(745,635)">
+  <rect width="520" height="520" rx="46" fill="url(#cap)" stroke="#262626" stroke-width="4"/>
+  <rect x="34" y="28" width="452" height="440" rx="34" fill="url(#face)"/>
+  <text x="74" y="150" font-family="Adwaita Sans, sans-serif" font-size="96" fill="#3c3c3c">F</text>
+</g>
+<g transform="translate(1355,635)">
+  <rect width="520" height="520" rx="46" fill="url(#cap)" stroke="#262626" stroke-width="4"/>
+  <rect x="34" y="28" width="452" height="440" rx="34" fill="url(#face)"/>
+  <text x="74" y="150" font-family="Adwaita Sans, sans-serif" font-size="96" fill="#3c3c3c">G</text>
+</g>
+<g transform="translate(1965,635)">
+  <rect width="520" height="520" rx="46" fill="url(#cap)" stroke="#262626" stroke-width="4"/>
+  <rect x="34" y="28" width="452" height="440" rx="34" fill="url(#face)"/>
+  <text x="74" y="150" font-family="Adwaita Sans, sans-serif" font-size="96" fill="#3c3c3c">H</text>
+</g>
+<g transform="translate(2575,635)">
+  <rect width="520" height="520" rx="46" fill="url(#cap)" stroke="#262626" stroke-width="4"/>
+  <rect x="34" y="28" width="452" height="440" rx="34" fill="url(#face)"/>
+  <text x="74" y="150" font-family="Adwaita Sans, sans-serif" font-size="96" fill="#3c3c3c">J</text>
+</g>
+<g transform="translate(1050,1245)">
+  <rect width="520" height="520" rx="46" fill="url(#cap)" stroke="#262626" stroke-width="4"/>
+  <rect x="34" y="28" width="452" height="440" rx="34" fill="url(#face)"/>
+  <text x="74" y="150" font-family="Adwaita Sans, sans-serif" font-size="96" fill="#3c3c3c">V</text>
+</g>
+<g transform="translate(1660,1245)">
+  <rect width="520" height="520" rx="46" fill="url(#cap)" stroke="#262626" stroke-width="4"/>
+  <rect x="34" y="28" width="452" height="440" rx="34" fill="url(#face)"/>
+  <text x="74" y="150" font-family="Adwaita Sans, sans-serif" font-size="96" fill="#3c3c3c">B</text>
+</g>
+<g transform="translate(2270,1245)">
+  <rect width="520" height="520" rx="46" fill="url(#cap)" stroke="#262626" stroke-width="4"/>
+  <rect x="34" y="28" width="452" height="440" rx="34" fill="url(#face)"/>
+  <text x="74" y="150" font-family="Adwaita Sans, sans-serif" font-size="96" fill="#3c3c3c">N</text>
+</g>
+<g transform="translate(1180,25)">
+  <rect width="520" height="520" rx="46" fill="url(#cap)" stroke="#262626" stroke-width="4"/>
+  <rect x="34" y="28" width="452" height="440" rx="34" fill="url(#face)"/>
+  <text x="74" y="150" font-family="Adwaita Sans, sans-serif" font-size="96" fill="#3c3c3c">R</text>
+</g>
+<g transform="translate(1790,25)">
+  <rect width="520" height="520" rx="46" fill="url(#cap)" stroke="#262626" stroke-width="4"/>
+  <rect x="34" y="28" width="452" height="440" rx="34" fill="url(#face)"/>
+  <text x="74" y="150" font-family="Adwaita Sans, sans-serif" font-size="96" fill="#3c3c3c">T</text>
+</g>
+<g transform="translate(2400,25)">
+  <rect width="520" height="520" rx="46" fill="url(#cap)" stroke="#262626" stroke-width="4"/>
+  <rect x="34" y="28" width="452" height="440" rx="34" fill="url(#face)"/>
+  <text x="74" y="150" font-family="Adwaita Sans, sans-serif" font-size="96" fill="#3c3c3c">Y</text>
+</g>
+</g>
+<circle cx="1920.0" cy="1200.0" r="112" fill="#0d0d0d" stroke="#1f1f1f" stroke-width="4"/>
+<circle cx="1920.0" cy="1210.0" r="74" fill="#000" fill-opacity="0.8" filter="url(#shadow)"/>
+<circle cx="1920.0" cy="1200.0" r="66" fill="url(#nub)"/>
+<circle cx="1920.0" cy="1200.0" r="66" fill="url(#grip)"/>
+</svg>

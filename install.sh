@@ -159,6 +159,13 @@ elif [ ${#KDE_HAVE[@]} -gt 0 ]; then
 		"$HOME/.local/share/wallpapers/windows7-harmony.jpg" "$HOME/.config/fontconfig/conf.d/50-segoe-ui-selawik.conf" \
 		"$HOME/.local/share/Steam/millennium/themes/the-script"
 	sudo rm -f /etc/sddm.conf.d/10-win7.conf /etc/pacman.d/hooks/element-msn-icon.hook
+	# Element's own icon file still had Windows Live Messenger's icon copied over it. Reinstalling the same
+	# version puts its own back; if a newer one is out, that update does it instead (pacman -S of one
+	# package alone would be a partial upgrade).
+	if pacman -Qkk element-desktop 2>/dev/null | grep -q 'build/icon.png (SHA256' \
+		&& [ "$(pacman -Q element-desktop | cut -d' ' -f2)" = "$(pacman -Si element-desktop 2>/dev/null | awk '/^Version/ {print $3}')" ]; then
+		sudo pacman -S --noconfirm element-desktop >/dev/null || warn "could not restore Element's icon"
+	fi
 	sudo systemctl disable sddm 2>/dev/null || true
 	# What packages.txt lists stays even where Plasma pulled it in first (the emoji font, for one).
 	mapfile -t keep < <(pacman -Qq $(listed packages.txt) 2>/dev/null || true)

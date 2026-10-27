@@ -4,7 +4,7 @@
 # (~/.config/autostart/the-script-gnome.desktop). Each step checks first, so a run where everything is
 # in place changes nothing.
 #
-#   - first run only: dark style for apps and the small wallpaper (archlinux-wallpaper)
+#   - first run only: dark style for apps and the split wallpaper (archlinux-wallpaper)
 #   - the AppIndicator extension (tray icons for Steam, Discord, Syncthing, KeePassXC) and the to-do
 #     extension turned on
 #   - once, on machines that had KDE: the installer is run again from GNOME to remove Plasma, which it
@@ -34,8 +34,8 @@ print(repr(cur + add) if add else "")' "$(gsettings get "$schema" "$key")" "$@")
 
 if [ ! -e "$FIRST" ]; then
 	gsettings set org.gnome.desktop.interface color-scheme prefer-dark
-	# A small blue Arch logo on dark slate, in light style too.
-	bg=file:///usr/share/backgrounds/archlinux/small.png
+	# A white Arch logo where thin black lines meet, on near-black, in light style too.
+	bg=file:///usr/share/backgrounds/archlinux/split.png
 	if [ -e "${bg#file://}" ]; then
 		for k in "background picture-uri" "background picture-uri-dark" "screensaver picture-uri"; do
 			gsettings set org.gnome.desktop.${k% *} ${k#* } "$bg"

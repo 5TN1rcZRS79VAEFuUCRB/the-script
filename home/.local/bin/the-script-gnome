@@ -8,6 +8,7 @@
 #     use it too) and the split wallpaper (archlinux-wallpaper)
 #   - the AppIndicator extension (tray icons for Steam, Discord, Syncthing, KeePassXC) and the to-do
 #     extension turned on
+#   - screenshots through the portal without a dialog, for apps outside Flatpak (screenshot)
 #   - once, on machines that had KDE: the installer is run again from GNOME to remove Plasma, which it
 #     could not do with Plasma running
 
@@ -48,6 +49,11 @@ fi
 
 gsettings set org.gnome.shell disable-user-extensions false
 add_to_list org.gnome.shell enabled-extensions "${EXTENSIONS[@]}"
+
+# Apps outside Flatpak may take screenshots through the portal without a dialog (~/.local/bin/screenshot).
+# They run as you anyway; Flatpak apps still ask.
+gdbus call --session -d org.freedesktop.impl.portal.PermissionStore -o /org/freedesktop/impl/portal/PermissionStore \
+	-m org.freedesktop.impl.portal.PermissionStore.SetPermission screenshot true screenshot '' "['yes']" >/dev/null
 
 # install.sh leaves Plasma installed while a Plasma session runs. In GNOME, clearing the installed
 # commit makes the updater run it again now, and that run removes Plasma.

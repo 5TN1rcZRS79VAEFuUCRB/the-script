@@ -1,6 +1,0 @@
-# AeroThemePlasma's first-run wizard: install.sh and the-script-plasma already apply what it sets.
-[Desktop Entry]
-Type=Application
-Name=AeroThemePlasma OOTB Experience
-Exec=/usr/bin/atpootb
-Hidden=true

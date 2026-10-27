@@ -1,6 +1,6 @@
 # todo: after every answered card, count today's due cards here (instant: Anki already has
 # them in memory), write the number where the todo daemon reads it, and wake the daemon, so
-# the taskbar's "Anki: N cards" drops the moment you answer.
+# the top bar's "Anki: N cards" drops the moment you answer.
 import os
 import signal
 from datetime import date

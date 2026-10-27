@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+#
+# the-script-gnome: GNOME settings, run by install.sh and at every login
+# (~/.config/autostart/the-script-gnome.desktop). Each step checks first, so a run where everything is
+# in place changes nothing.
+#
+#   - first run only: dark style for apps
+#   - the AppIndicator extension (tray icons for Steam, Discord, Syncthing, KeePassXC) and the to-do
+#     extension turned on
+#   - once, on machines that had KDE: the installer is run again from GNOME to remove Plasma, which it
+#     could not do with Plasma running
+
+set -uo pipefail
+
+STATE="$HOME/.local/state"
+FIRST="$STATE/the-script-gnome-first-run"
+KDE_PENDING="$STATE/the-script-kde-pending"
+EXTENSIONS=(appindicatorsupport@rgcjonas.gmail.com todo@the-script)
+
+# gsettings without a session bus writes to memory and drops it.
+[ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ] || { echo "the-script-gnome: no session bus; settings not applied" >&2; exit 1; }
+gsettings list-schemas | grep -qx org.gnome.shell || { echo "the-script-gnome: GNOME Shell is not installed" >&2; exit 1; }
+
+# Adds items to a string-list setting, keeping what is there.
+add_to_list() { # schema key items...
+	local schema=$1 key=$2; shift 2
+	local new
+	new=$(python3 -c 'import ast, sys
+cur = ast.literal_eval(sys.argv[1].removeprefix("@as "))
+add = [i for i in sys.argv[2:] if i not in cur]
+print(repr(cur + add) if add else "")' "$(gsettings get "$schema" "$key")" "$@")
+	[ -z "$new" ] || gsettings set "$schema" "$key" "$new"
+}
+
+if [ ! -e "$FIRST" ]; then
+	gsettings set org.gnome.desktop.interface color-scheme prefer-dark
+	mkdir -p "$STATE" && touch "$FIRST"
+fi
+
+gsettings set org.gnome.shell disable-user-extensions false
+add_to_list org.gnome.shell enabled-extensions "${EXTENSIONS[@]}"
+
+# install.sh leaves Plasma installed while a Plasma session runs. In GNOME, clearing the installed
+# commit makes the updater run it again now, and that run removes Plasma.
+if [ -e "$KDE_PENDING" ] && [ "${XDG_CURRENT_DESKTOP:-}" = GNOME ] && ! pgrep -x plasmashell >/dev/null; then
+	rm -f "$STATE/the-script-installed"
+	systemctl --user start --no-block the-script-update.service
+fi

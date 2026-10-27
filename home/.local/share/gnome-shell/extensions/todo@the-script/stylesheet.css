@@ -1,0 +1,23 @@
+.todo-menu {
+  min-width: 24em;
+  max-width: 32em;
+}
+
+/* Points, level and streak at the top of the list. */
+.todo-header {
+  font-size: 1.15em;
+  font-weight: bold;
+}
+
+.todo-tasks {
+  max-height: 24em;
+}
+
+.todo-left {
+  padding-left: 1em;
+  color: #a0a0a0;
+}
+
+.todo-late {
+  color: #ff7b63;
+}

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# the-script: recreates this Windows 7-style KDE Plasma desktop (AeroThemePlasma) on an Arch Linux
-# machine. Run as your normal user (it calls sudo where it needs root):  ./install.sh
+# the-script: recreates this GNOME desktop on an Arch Linux machine. Run as your normal user (it
+# calls sudo where it needs root):  ./install.sh
 # Safe to re-run; anything it would overwrite is backed up first.
 
 set -euo pipefail
@@ -16,7 +16,7 @@ Usage: ./install.sh [options]
 
   --steam         also install Steam (needs the [multilib] repo enabled in
                   /etc/pacman.conf) and the matching 32-bit graphics libraries
-  --no-packages   skip the pacman and AUR steps
+  --no-packages   skip the pacman step
   -h, --help      this text
 EOF
 }
@@ -79,7 +79,6 @@ sudo_place() { # src dest
 	echo "Installed $2"
 }
 
-kset() { kwriteconfig6 "$@"; }
 
 # ---------------------------------------------------------------- passwordless sudo
 # the-script-update re-runs this installer unattended when a commit is pushed, so its sudo calls
@@ -106,24 +105,6 @@ if [ "$DO_PACKAGES" -eq 1 ]; then
 	# forward and Xorg then crashed in the amdgpu driver. Upgrades stay with pacman -Syu.
 	mapfile -t MISSING < <(pacman -T "${PKGS[@]}" || true)
 	[ ${#MISSING[@]} -eq 0 ] || sudo pacman -S --noconfirm "${MISSING[@]}"
-
-	# AeroThemePlasma from the AUR, built with yay (installed first if missing). Building takes a while
-	# the first time. aeroshell-libplasma-git replaces libplasma, and pacman's question about that
-	# defaults to no under --noconfirm, so the answers come from `yes` instead.
-	mapfile -t AUR < <(listed aur.txt)
-	mapfile -t MISSING < <(pacman -T "${AUR[@]}" || true)
-	if [ ${#MISSING[@]} -gt 0 ]; then
-		say "Building AeroThemePlasma from the AUR: ${MISSING[*]}"
-		if ! command -v yay >/dev/null; then
-			tmp="$(mktemp -d)"
-			git clone -q https://aur.archlinux.org/yay-bin.git "$tmp/yay-bin"
-			(cd "$tmp/yay-bin" && makepkg -si --noconfirm)
-			rm -rf "$tmp"
-		fi
-		(set +o pipefail; yes y | yay -S --needed --answerclean All --answerdiff None --answeredit None --removemake "${MISSING[@]}")
-		mapfile -t MISSING < <(pacman -T "${AUR[@]}" || true)
-		[ ${#MISSING[@]} -eq 0 ] || die "these AUR packages did not install: ${MISSING[*]} (run: yay -S ${MISSING[*]})"
-	fi
 fi
 
 # ---------------------------------------------------------------- leftovers from niri-script
@@ -152,12 +133,49 @@ fi
 # timeout. So it waits for a run that it did not start.
 [ "$(systemctl --user show -p ActiveState --value niri-update.service 2>/dev/null)" = activating ] \
 	|| retire "$HOME/.config/systemd/user/niri-update.service"
-# From trying Plasma before the-script: the todo widget and daemon under their old names.
-retire "$HOME/.local/share/plasma/plasmoids/local.niritodo" "$HOME/.config/autostart/niri-todo.desktop"
-# A generic portals.conf choosing GTK's portal (niri's) would override KDE's under Plasma too, and apps
-# would then miss Plasma's dark mode.
-if grep -qsx 'default=gtk' "$HOME/.config/xdg-desktop-portal/portals.conf"; then
-	retire "$HOME/.config/xdg-desktop-portal/portals.conf"
+
+# ---------------------------------------------------------------- leftovers from KDE Plasma
+# the-script was a Windows 7-style KDE Plasma desktop (AeroThemePlasma) before it moved to GNOME. With
+# Plasma running, removing it would pull the session out from under you, so it stays until a run from
+# GNOME: the-script-gnome starts that run at the first GNOME login. Plasma's own settings in ~/.config
+# (kwinrc, kdeglobals, ...) stay where they are, unused.
+KDE_PKGS=(aeroshell-libplasma-git aeroshell-workspace-git aeroshell-kwin-components-git aeroshell-smod-git
+	aerothemeplasma-desktop-git aerothemeplasma-sounds-git aerothemeplasma-icons-git uac-polkit-agent-git
+	ttf-selawik millennium plasma-desktop plasma-workspace plasma-nm plasma-pa plasma5support kvantum
+	sddm sddm-kcm xdg-desktop-portal-kde dolphin spectacle kscreen)
+# Installed only to build AeroThemePlasma: removed too, unless something else needs them.
+KDE_BUILD=(extra-cmake-modules qt6-virtualkeyboard qt6-5compat plasma-wayland-protocols)
+mapfile -t KDE_HAVE < <(pacman -Qq "${KDE_PKGS[@]}" 2>/dev/null || true)
+KDE_PENDING="$HOME/.local/state/the-script-kde-pending"
+if [ ${#KDE_HAVE[@]} -gt 0 ] && pgrep -x 'plasmashell|kwin_wayland|kwin_x11' >/dev/null; then
+	say "KDE Plasma is running: it is removed after you log into GNOME"
+	mkdir -p "${KDE_PENDING%/*}" && touch "$KDE_PENDING"
+elif [ ${#KDE_HAVE[@]} -gt 0 ]; then
+	say "Removing KDE Plasma and AeroThemePlasma"
+	retire "$HOME"/.config/autostart/{the-script-plasma.desktop,x-atpootb.desktop} "$HOME/.local/bin/the-script-plasma" \
+		"$HOME"/.local/share/plasma/plasmoids/{local.todo,io.gitgud.wackyideas.seventasks} \
+		"$HOME/.local/share/plasma/look-and-feel/authui7-dark" "$HOME/.local/share/color-schemes/Windows7AeroDark.colors" \
+		"$HOME"/.config/Kvantum/{Windows7AeroDark,Windows7AeroKWin} "$HOME/.local/share/icons/Windows 7 Aero" \
+		"$HOME/.local/share/wallpapers/windows7-harmony.jpg" "$HOME/.config/fontconfig/conf.d/50-segoe-ui-selawik.conf" \
+		"$HOME/.local/share/Steam/millennium/themes/the-script"
+	sudo rm -f /etc/sddm.conf.d/10-win7.conf /etc/pacman.d/hooks/element-msn-icon.hook
+	sudo systemctl disable sddm 2>/dev/null || true
+	# What packages.txt lists stays even where Plasma pulled it in first (the emoji font, for one).
+	mapfile -t keep < <(pacman -Qq $(listed packages.txt) 2>/dev/null || true)
+	[ ${#keep[@]} -eq 0 ] || sudo pacman -D -q --asexplicit "${keep[@]}" >/dev/null
+	if sudo pacman -Rs --noconfirm "${KDE_HAVE[@]}"; then
+		mapfile -t build < <(pacman -Qq "${KDE_BUILD[@]}" 2>/dev/null || true)
+		if [ ${#build[@]} -gt 0 ]; then
+			sudo pacman -D -q --asdeps "${build[@]}" >/dev/null
+			mapfile -t build < <(pacman -Qdtq | grep -xF -f <(printf '%s\n' "${build[@]}") || true)
+			[ ${#build[@]} -eq 0 ] || sudo pacman -Rs --noconfirm "${build[@]}" || true
+		fi
+		rm -f "$KDE_PENDING"
+	else
+		rm -f "$KDE_PENDING"   # not retried at every login; the notification says how
+		warn "could not remove Plasma; run: sudo pacman -Rs ${KDE_HAVE[*]}"
+		notify-send -u critical "the-script: KDE Plasma was not removed" "Run: sudo pacman -Rs ${KDE_HAVE[*]}" 2>/dev/null || true
+	fi
 fi
 
 # ---------------------------------------------------------------- dotfiles + scripts
@@ -179,296 +197,21 @@ done
 [ "$was_running" -eq 0 ] || systemd-run --user --collect -q "$HOME/.local/bin/todo" daemon \
 	|| warn "could not restart the todo daemon; run: todo daemon &"
 
-# ---------------------------------------------------------------- Windows 7 look (AeroThemePlasma)
-# What AeroThemePlasma's first-run wizard would set, plus fixes found while trying it. Settings that
-# need a running session (theme, wallpaper, the Windows key, the todo widget) are applied at login by
-# the-script-plasma.
-say "Windows 7 look: effects, theme variants, icons, wallpaper"
-if [ -d /usr/share/plasma/look-and-feel/authui7 ]; then
-	# Effects. KDE's own blur runs next to ATP's glass blur (a fork of it) and makes it flicker.
-	# minimizeall is the KWin script behind the show desktop button's click (its MinimizeAll shortcut).
-	for e in aeroglassblur aeroglide dimscreenaero libkwin_effect_smodsnap smodglow smodpeekeffect minimizeall; do
-		kset --file kwinrc --group Plugins --key "${e}Enabled" true
-	done
-	for e in blur dialogparent fadingpopups login logout maximize scale squash windowaperture; do
-		kset --file kwinrc --group Plugins --key "${e}Enabled" false
-	done
-	for k in font menuFont toolBarFont; do
-		kset --file kdeglobals --group General --key "$k" "Segoe UI,9,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0"
-	done
-	kset --file kdeglobals --group General --key smallestReadableFont "Segoe UI,8,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0"
-
-	# A dark variant of the Windows 7 theme: the shell stays Windows 7 light, apps go dark (and the
-	# portal tells Firefox and Electron apps so). The tray's light/dark switch flips between the two.
-	# Copies, not links: Plasma refuses packages that link outside themselves. Remade on every run so
-	# they follow ATP updates.
-	lnf="$HOME/.local/share/plasma/look-and-feel/authui7-dark"
-	rm -rf "$lnf" && mkdir -p "${lnf%/*}" && cp -r /usr/share/plasma/look-and-feel/authui7 "$lnf"
-	sed -i -e 's/"Id": "authui7"/"Id": "authui7-dark"/' -e 's/"Name": "Windows 7 style"/"Name": "Windows 7 style (dark)"/' "$lnf/metadata.json"
-	sed -i -e 's/^ColorScheme=Aero$/ColorScheme=Windows7AeroDark/' -e 's/^widgetStyle=kvantum$/widgetStyle=kvantum-dark/' "$lnf/contents/defaults"
-	# Its color scheme is KvArcDark with Windows 7's black window titles (KvArcDark's white ones are
-	# unreadable on light glass) and Windows 7's light tooltips (KWin draws the title-bar button ones
-	# with the light Kvantum theme, so white text there was invisible).
-	cs="$HOME/.local/share/color-schemes/Windows7AeroDark.colors"
-	mkdir -p "${cs%/*}"
-	sed -e 's/^Name=KvArcDark$/Name=Windows 7 Aero (dark)/' \
-		-e '/^\[WM\]$/,/^\[/{s/^activeForeground=.*/activeForeground=0,0,0/;s/^inactiveForeground=.*/inactiveForeground=67,78,84/}' \
-		-e '/^\[Colors:Tooltip\]$/,/^\[/{/^\[Colors:Tooltip\]$/d;/^\[/!d}' \
-		/usr/share/color-schemes/KvArcDark.colors >"$cs"
-	{ echo; sed -n '/^\[Colors:Tooltip\]$/,/^$/p' /usr/share/color-schemes/Aero.colors; } >>"$cs"
-	# Applying a scheme copies its colors into kdeglobals, so a scheme already in use needs them there too.
-	if [ "$(kreadconfig6 --file kdeglobals --group General --key ColorScheme 2>/dev/null)" = Windows7AeroDark ]; then
-		sed -n '/^\[Colors:Tooltip\]$/,/^$/{/=/p}' "$cs" | while IFS== read -r k v; do
-			kset --file kdeglobals --group Colors:Tooltip --key "$k" --notify "$v"
-		done
-	fi
-	# Installs from before this were left on KvArcDark itself. Read it with kreadconfig6: applying the
-	# look-and-feel stores the scheme in ~/.config/kdedefaults/kdeglobals, not ~/.config/kdeglobals.
-	if [ "$(kreadconfig6 --file kdeglobals --group General --key ColorScheme 2>/dev/null)" = KvArcDark ]; then
-		plasma-apply-colorscheme Windows7AeroDark >/dev/null 2>&1 \
-			|| warn "could not switch to the Windows7AeroDark color scheme; pick it in System Settings"
-	fi
-	# kvantum-dark loads the Kvantum theme "<theme>Dark": Windows7AeroDark, made from KvArcDark.
-	kv="$HOME/.config/Kvantum/Windows7AeroDark"
-	mkdir -p "$kv"
-	cp /usr/share/Kvantum/KvArcDark/KvArcDark.kvconfig "$kv/Windows7AeroDark.kvconfig"
-	cp /usr/share/Kvantum/KvArcDark/KvArcDark.svg "$kv/Windows7AeroDark.svg"
-	# Context menus and tooltips stay Windows 7 (light, blue hover) like the shell: Windows7Aero's menu
-	# and tooltip elements and the gradients they use are copied into the dark theme's SVG as w7*, and
-	# [Menu] / [MenuItem] / [ToolTip] point at them.
-	python3 - /usr/share/Kvantum/Windows7Aero "$kv/Windows7AeroDark.kvconfig" "$kv/Windows7AeroDark.svg" <<-'EOF' \
-		|| warn "could not give the dark theme Windows 7 menus and tooltips; they stay dark"
-	import copy, re, sys
-	import xml.etree.ElementTree as ET
-
-	w7dir, kv, svg = sys.argv[1:4]
-	SVG, XL = "http://www.w3.org/2000/svg", "http://www.w3.org/1999/xlink"
-	for p, u in {"": SVG, "xlink": XL, "inkscape": "http://www.inkscape.org/namespaces/inkscape",
-	             "sodipodi": "http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"}.items():
-	    ET.register_namespace(p, u)
-	src = ET.parse(f"{w7dir}/Windows7Aero.svg").getroot()
-	dst_tree = ET.parse(svg)
-	dst = dst_tree.getroot()
-	byid = {e.get("id"): e for e in src.iter() if e.get("id")}
-	parent = {c: p for p in src.iter() for c in p}
-	REF = re.compile(r"url\(#([^)]+)\)")
-	HREF = f"{{{XL}}}href"
-
-	# Menu frame, menu items (hover, submenu arrows, separators), and checkboxes/radios as menu-*.
-	rename = {}
-	for i in byid:
-	    if re.match(r"(mnu|menuitem|arrow|ttip)-", i):   # Kvantum draws menu separators as <indicator>-separator
-	        rename[i] = "w7" + i
-	    elif re.match(r"(checkbox|radio)-", i):
-	        rename[i] = "menu-" + i
-	assert any(k.startswith("mnu-") for k in rename), "Windows7Aero.svg has no menu elements"
-	assert any(k.startswith("ttip-") for k in rename), "Windows7Aero.svg has no tooltip elements"
-
-
-	def refs(e):
-	    out = set()
-	    for n in e.iter():
-	        for k, v in n.attrib.items():
-	            out.update(REF.findall(v))
-	            if k == HREF and v.startswith("#"):
-	                out.add(v[1:])
-	    return out
-
-
-	# Gradients and other defs the copied elements use, followed through href chains.
-	need, todo = set(), set().union(*(refs(byid[i]) for i in rename))
-	while todo:
-	    i = todo.pop()
-	    if i in need or i not in byid:
-	        continue
-	    need.add(i)
-	    todo |= refs(byid[i])
-
-
-	def fix(e):
-	    for n in e.iter():
-	        if n.get("id"):
-	            n.set("id", rename.get(n.get("id"), "w7-" + n.get("id")))
-	        for k, v in list(n.attrib.items()):
-	            v = REF.sub(lambda m: f"url(#w7-{m.group(1)})", v)
-	            if k == HREF and v.startswith("#"):
-	                v = "#w7-" + v[1:]
-	            n.set(k, v)
-	    return e
-
-
-	# Elements whose renamed id the dark theme already has (its menu-checkbox-*) are replaced.
-	gone = set(rename.values())
-	for p in list(dst.iter()):
-	    for c in list(p):
-	        if c.get("id") in gone:
-	            p.remove(c)
-	defs = ET.SubElement(dst, f"{{{SVG}}}defs")
-	for i in need:
-	    defs.append(fix(copy.deepcopy(byid[i])))
-	for i in rename:
-	    e = byid[i]
-	    # Keep the transforms of the layers the element sits in.
-	    t, p = [], parent.get(e)
-	    while p is not None and p is not src:
-	        if p.get("transform"):
-	            t.insert(0, p.get("transform"))
-	        p = parent.get(p)
-	    g = ET.SubElement(dst, f"{{{SVG}}}g", {"transform": " ".join(t)} if t else {})
-	    g.append(fix(copy.deepcopy(e)))
-	dst_tree.write(svg, xml_declaration=True, encoding="UTF-8")
-
-	# Config: Windows7Aero's [Menu] and [MenuItem] sections and menu settings, on the new elements.
-	def sections(text):
-	    out, name = {}, None
-	    for line in text.splitlines():
-	        m = re.match(r"\[(.+)\]$", line)
-	        if m:
-	            name = m.group(1)
-	            out.setdefault(name, [])
-	        elif name and line.strip():
-	            out[name].append(line)
-	    return out
-
-
-	w7 = sections(open(f"{w7dir}/Windows7Aero.kvconfig").read())
-	text = open(kv).read()
-	el = {"mnu": "w7mnu", "menuitem": "w7menuitem", "arrow": "w7arrow", "ttip": "w7ttip"}
-	for name, extra in (("Menu", ["text.normal.color=black"]), ("MenuItem", []), ("ToolTip", [])):
-	    lines = [re.sub(r"(element)=(\w+)$", lambda m: f"{m.group(1)}={el.get(m.group(2), m.group(2))}", l)
-	             for l in w7[name]] + extra
-	    text, n = re.subn(rf"(?ms)^\[{name}\]\n.*?(?=^\[|\Z)", f"[{name}]\n" + "\n".join(lines) + "\n\n", text)
-	    assert n == 1, name
-	general = dict(l.split("=", 1) for l in w7["%General"] if "=" in l)
-	for k in ("menu_shadow_depth", "submenu_overlap", "menu_separator_height", "menu_blur_radius",
-	          "reduce_menu_opacity", "scrollable_menu", "submenu_delay", "tooltip_shadow_depth",
-	          "tooltip_blur_radius"):
-	    if k in general:
-	        text, n = re.subn(rf"(?m)^{k}=.*$", f"{k}={general[k]}", text)
-	        if not n:
-	            text = text.replace("[%General]\n", f"[%General]\n{k}={general[k]}\n", 1)
-	open(kv, "w").write(text)
-	EOF
-	kset --file Kvantum/kvantum.kvconfig --group General --key theme Windows7Aero
-	# KWin draws window titles with the widget style, so under kvantum-dark they came out white whatever
-	# the color scheme said. KWin gets the light theme under a name with no "Dark" variant (kvantum-dark
-	# would pick Windows7AeroDark for Windows7Aero itself).
-	kv="$HOME/.config/Kvantum/Windows7AeroKWin"
-	mkdir -p "$kv"
-	ln -sfn /usr/share/Kvantum/Windows7Aero/Windows7Aero.kvconfig "$kv/Windows7AeroKWin.kvconfig"
-	ln -sfn /usr/share/Kvantum/Windows7Aero/Windows7Aero.svg "$kv/Windows7AeroKWin.svg"
-	kset --file Kvantum/kvantum.kvconfig --group Applications --key Windows7AeroKWin "kwin_wayland, kwin_x11, kwin"
-	kset --file kdeglobals --group KDE --key DefaultLightLookAndFeel authui7
-	kset --file kdeglobals --group KDE --key DefaultDarkLookAndFeel authui7-dark
-	kset --file kdeglobals --group KDE --key AutomaticLookAndFeel false
-
-	# Pinned taskbar apps stay where they are when opened: the taskbar hard-codes separateLaunchers
-	# off, and Plasma only keeps launchers in place with it on.
-	tasks="$HOME/.local/share/plasma/plasmoids/io.gitgud.wackyideas.seventasks"
-	rm -rf "$tasks" && cp -r /usr/share/plasma/plasmoids/io.gitgud.wackyideas.seventasks "$tasks"
-	sed -i 's/separateLaunchers: false/separateLaunchers: true/' "$tasks/contents/ui/main.qml"
-	grep -q 'separateLaunchers: true' "$tasks/contents/ui/main.qml" \
-		|| warn "the taskbar changed; pinned apps may jump to the end when opened"
-
-	# Windows 7-era icons for apps the theme has none for, layered over it. The Firefox logo is the
-	# 2009 one, Steam's is its pre-2014 one; Element gets Windows Live Messenger's. Others keep their own logos.
-	icons="$HOME/.local/share/icons/Windows 7 Aero"
-	theme="/usr/share/icons/Windows 7 Aero"
-	mkdir -p "$icons/apps"/{16,32,48,256}
-	ln -sfn "$theme/index.theme" "$icons/index.theme"
-	link_icon() { # app icon name, Windows 7 icon
-		local s p
-		for s in 16 32 48 256; do
-			p=$(find "$theme" -path "*/$s/$2.png" -print -quit)
-			[ -n "$p" ] || p=$(find "$theme" -name "$2.png" | sort -V | tail -n1)
-			[ -n "$p" ] && ln -sfn "$p" "$icons/apps/$s/$1.png"
-		done
-	}
-	link_icon foot utilities-terminal
-	link_icon org.gnome.Nautilus system-file-manager
-	link_icon mpv multimedia-video-player
-	link_icon nvidia-settings preferences-desktop-display
-	link_icon kvantum preferences-desktop-theme
-	link_icon kmenuedit application-menu
-	link_icon preferences-desktop-emoticons accessories-character-map
-	link_icon java21-openjdk application-x-java
-	link_icon java25-openjdk application-x-java
-	link_icon hwloc utilities-system-monitor
-	link_icon qv4l2 camera-web
-	link_icon qvidcap camera-video
-	link_icon assistant help-browser
-	for n in io.element.Element element Element; do   # only drawn at 16 and 32 px
-		for s in 16 32; do ln -sfn "$theme/actions/32/im-msn.png" "$icons/apps/$s/$n.png"; done
-	done
-	# Element's window and tray icon come from its own file instead; the hook redoes this on updates.
-	sudo_place etc/pacman.d/hooks/element-msn-icon.hook /etc/pacman.d/hooks/element-msn-icon.hook
-	if [ -d /usr/lib/element/build ] && ! cmp -s "$theme/actions/32/im-msn.png" /usr/lib/element/build/icon.png; then
-		sudo cp "$theme/actions/32/im-msn.png" /usr/lib/element/build/icon.png
-	fi
-	if [ ! -e "$icons/apps/256/firefox.png" ]; then
-		tmp="$(mktemp)"
-		if curl -fsSL -A "the-script" -o "$tmp" https://commons.wikimedia.org/wiki/Special:FilePath/Mozilla_Firefox_3.5_logo.png; then
-			for s in 16 32 48 256; do
-				ffmpeg -loglevel error -y -i "$tmp" -vf "scale=$s:$s:flags=lanczos" "$icons/apps/$s/firefox.png" \
-					|| warn "could not scale the Firefox logo (is ffmpeg installed?)"
-			done
-		else
-			warn "could not download the 2009 Firefox logo; Firefox keeps its own icon"
-		fi
-		rm -f "$tmp"
-	fi
-	# Steam's pre-2014 icon is the 256 px PNG inside the late-2013 installer's own icon, kept by the Wayback Machine.
-	if [ ! -e "$icons/apps/256/steam.png" ]; then
-		tmp="$(mktemp)"
-		if curl -fsSL -A "the-script" -o "$tmp" https://web.archive.org/web/20131119120314id_/http://media.steampowered.com/client/installer/SteamSetup.exe \
-			&& off=$(grep -obUaP -m1 '\x89PNG\r\n\x1a\n' "$tmp" | head -n1 | cut -d: -f1) && [ -n "$off" ]; then
-			tail -c +"$((off + 1))" "$tmp" > "$tmp.png"
-			len=$(grep -obUa -m1 'IEND' "$tmp.png" | head -n1 | cut -d: -f1)
-			truncate -s "$((len + 8))" "$tmp.png"   # end after IEND's CRC
-			for s in 16 32 48 256; do
-				ffmpeg -loglevel error -y -i "$tmp.png" \
-					-vf "scale=$s:$s:flags=lanczos" "$icons/apps/$s/steam.png" \
-					|| warn "could not scale the old Steam icon (is ffmpeg installed?)"
-			done
-		else
-			warn "could not download the old Steam icon; Steam keeps its own"
-		fi
-		rm -f "$tmp" "$tmp.png"
-	fi
-	rm -f "$HOME/.cache/icon-cache.kcache"
-
-	# Wallpaper: Windows 7's own "Harmony" (img0), applied at the first login.
-	wp="$HOME/.local/share/wallpapers/windows7-harmony.jpg"
-	if [ ! -e "$wp" ]; then
-		mkdir -p "${wp%/*}"
-		curl -fsSL -o "$wp.tmp" "https://archive.org/download/Windows-wallcollection/Img0_(Windows_7).jpg" \
-			&& mv "$wp.tmp" "$wp" || { rm -f "$wp.tmp"; warn "could not download the Windows 7 wallpaper"; }
-	fi
-
-	# Dolphin is the file manager, and stays light like Explorer while other apps are dark.
-	kset --file kde-mimeapps.list --group "Default Applications" --key inode/directory "org.kde.dolphin.desktop;"
-	kset --file dolphinrc --group KDE --key widgetStyle kvantum
-	kset --file dolphinrc --group UiSettings --key ColorScheme Aero
-	# Open/save dialogs of other apps (KDE's portal) match Dolphin, not the dark apps.
-	kset --file xdg-desktop-portal-kderc --group KDE --key widgetStyle kvantum
-	kset --file xdg-desktop-portal-kderc --group UiSettings --key ColorScheme Aero
-
-	# KWin's own [steam] rule (/etc/xdg/kwinrulesrc) forces Steam to a shadow with no title bar; this
-	# overrides just that key so it gets the Windows 7 one. Steam's own buttons stay inside the window.
-	kset --file kwinrulesrc --group steam --key Description "Steam: Windows 7 title bar"
-	kset --file kwinrulesrc --group steam --key decorationpolicy server
-
-	# A running KWin picks up the effect changes now; otherwise they apply at the next login.
-	qdbus6 org.kde.KWin /KWin reconfigure >/dev/null 2>&1 || true
-else
-	warn "AeroThemePlasma is not installed; skipping the Windows 7 look (rerun without --no-packages)"
+# ---------------------------------------------------------------- GNOME
+# The settings themselves (dark style, the extensions) are in the-script-gnome,
+# which also runs at every login: gsettings needs the session bus.
+say "GNOME: the to-do extension and settings"
+glib-compile-schemas "$HOME/.local/share/gnome-shell/extensions/todo@the-script/schemas" \
+	|| warn "could not compile the to-do extension's settings; Super+T will not open it"
+if command -v gnome-shell >/dev/null && [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
+	"$HOME/.local/bin/the-script-gnome" || warn "could not apply the GNOME settings; they apply at the next login"
 fi
 
-# The Windows 7 logon screen. SDDM starts at the next boot; until then nothing changes.
-say "Login: SDDM with the Windows 7 logon screen"
-sudo_place etc/sddm.conf.d/10-win7.conf /etc/sddm.conf.d/10-win7.conf
-if ! systemctl is-enabled -q sddm 2>/dev/null; then
-	sudo systemctl enable sddm || warn "could not enable SDDM; run: sudo systemctl enable sddm"
+# The login screen. GDM takes over at the next boot; a running session is left alone. --force replaces
+# the display-manager link another one (SDDM) holds.
+say "Login: GDM"
+if ! systemctl is-enabled -q gdm 2>/dev/null; then
+	sudo systemctl enable --force gdm || warn "could not enable GDM; run: sudo systemctl enable --force gdm"
 fi
 
 # ---------------------------------------------------------------- Firefox
@@ -600,32 +343,15 @@ systemctl --user enable --now the-script-update.timer \
 say "Steam overlay: follow the display scale"
 systemctl --user enable --now steam-overlay-scale.path \
 	|| warn "could not start steam-overlay-scale.path; after logging in run: systemctl --user enable --now steam-overlay-scale.path"
-if [ -n "${WAYLAND_DISPLAY:-}" ]; then   # the scale can only be read inside the desktop
+if [ "${XDG_CURRENT_DESKTOP:-}" = GNOME ]; then   # the scale can only be read inside the desktop
 	"$HOME/.local/bin/steam-overlay-scale" || warn "could not patch Steam's overlay scale; run steam-overlay-scale to see why"
 fi
-
-# ---------------------------------------------------------------- Steam title bar
-# KWin draws Steam a Windows 7 title bar (kwinrulesrc above). Millennium (aur.txt) loads the
-# the-script theme (~/.local/share/Steam/millennium/themes), which hides Steam's own window buttons and drag areas.
-# Millennium fills in the rest of its config itself. A theme picked in Millennium's settings is kept.
-say "Steam: hide its own window buttons (Millennium theme)"
-python3 - "$HOME/.config/millennium/config.json" <<-'EOF' || warn "could not select Steam's the-script theme in Millennium"
-	import json, os, sys
-	path = sys.argv[1]
-	cfg = json.load(open(path)) if os.path.exists(path) else {}
-	themes = cfg.setdefault("themes", {})
-	if themes.get("activeTheme", "default") == "default":
-	    themes["activeTheme"] = "the-script"
-	    os.makedirs(os.path.dirname(path), exist_ok=True)
-	    json.dump(cfg, open(path, "w"), indent=4)
-EOF
 
 # ---------------------------------------------------------------- OBS replay buffer (removed)
 # Desktops used to start OBS hidden at login with a replay buffer, saved by Alt+F10 (obs-clip). That
 # is gone: its autostart, shortcut and script are retired, and a running replay OBS is closed. OBS
 # itself and its settings stay.
 retire "$HOME/.config/autostart/obs-replay.desktop" "$HOME/.local/share/applications/obs-clip.desktop" "$HOME/.local/bin/obs-clip"
-kset --file kglobalshortcutsrc --group services --group obs-clip.desktop --key _launch --delete
 pkill -f '^/usr/bin/obs --profile Discord --collection Discord --startreplaybuffer' 2>/dev/null || true
 
 # ---------------------------------------------------------------- git identity
@@ -663,17 +389,17 @@ if [ ${#REPLACED[@]} -gt 0 ]; then
 	warn "these files differed from the repo and were replaced or removed (old copies in $BACKUP):"
 	printf '  ~/%s\n' "${REPLACED[@]}" >&2
 fi
-# Installed by the-script-update from a niri desktop: say that a restart switches over.
-if [ "$MIGRATED" -eq 1 ] && [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
-	notify-send -u critical "the-script is installed" "Restart to switch to the Windows 7 desktop: pick AeroThemePlasma on the logon screen." 2>/dev/null || true
+# Installed by the-script-update from an older desktop: say that a restart switches over.
+if { [ "$MIGRATED" -eq 1 ] || [ -e "$KDE_PENDING" ]; } && [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
+	notify-send -u critical "the-script is installed" "Restart to switch to GNOME." 2>/dev/null || true
 fi
 cat <<EOF
 
 Next steps:
-  1. Restart. The Windows 7 logon screen comes up; pick the AeroThemePlasma session (bottom left)
-     the first time, and it is remembered after that.
-  2. The Windows key opens the Start menu, Meta+T the to-do list. See README.md.
+  1. Restart. GDM comes up; log in and you are in GNOME. Coming from KDE, the first login also
+     removes Plasma in the background (a notification says if it fails).
+  2. Super opens the overview, Super+T the to-do list. See README.md.
   3. NVIDIA card? Install the driver yourself first (e.g. 'sudo pacman -S nvidia-open'),
      since the right package depends on your GPU and kernel. It is not part of this repo.
-  4. Display too big/small? System Settings > Display & Monitor > Scale.
+  4. Display too big/small? Settings > Displays > Scale.
 EOF

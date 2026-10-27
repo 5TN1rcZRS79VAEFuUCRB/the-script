@@ -1,11 +1,11 @@
 // Follow the desktop's light/dark setting everywhere, including the home page. Firefox reads it
-// from the xdg-desktop-portal, which reports Plasma's color scheme (dark with the default theme).
+// from the xdg-desktop-portal, which reports GNOME's style (dark, set by the-script-gnome).
 user_pref("browser.theme.toolbar-theme", 2);
 user_pref("browser.theme.content-theme", 2);
 user_pref("layout.css.prefers-color-scheme.content-override", 2);
-// The Windows 7 title bar (SMOD) above the tabs, instead of Firefox drawing its own.
-user_pref("browser.tabs.inTitlebar", 0);
-// Scaling comes from Plasma's per-monitor scale (System Settings > Display). Do not also set
+// Tabs in the title bar, like other GNOME apps (the Windows 7 desktop had them under its own title bar).
+user_pref("browser.tabs.inTitlebar", 1);
+// Scaling comes from GNOME's per-monitor scale (Settings > Displays). Do not also set
 // layout.css.devPixelsPerPx here -- Firefox multiplies the two (2.25x).
 user_pref("layout.css.devPixelsPerPx", "-1.0");
 

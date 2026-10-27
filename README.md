@@ -1,10 +1,8 @@
 # the-script
 
-A one-command setup for my Arch Linux desktop: KDE Plasma made to look like Windows 7 with
-[AeroThemePlasma](https://gitgud.io/aeroshell/atp/aerothemeplasma) (Aero glass, the Start orb,
-the Windows 7 logon screen and icons), apps in dark mode, a to-do list for school on the taskbar,
-and Firefox/KeePassXC/Syncthing/Tailscale/printing set up. Desktop only: nothing from the media
-server is in here.
+A one-command setup for my Arch Linux desktop: plain GNOME in dark mode, with tray icons for
+background apps, a to-do list for school in the top bar, and Firefox/KeePassXC/Syncthing/Tailscale/
+printing set up. Desktop only: nothing from the media server is in here.
 
 ## Quick start
 
@@ -17,34 +15,33 @@ cd the-script
 ./install.sh
 ```
 
-The first run builds AeroThemePlasma from the AUR, which takes a while. Then restart: the Windows 7
-logon screen comes up. Pick the **AeroThemePlasma** session (bottom left) the first time; it is
-remembered after that. The first login applies the theme, the wallpaper and the taskbar layout.
+Then restart: GDM, GNOME's login screen, comes up. On a machine that had the Windows 7 KDE desktop,
+the first GNOME login also removes KDE Plasma and AeroThemePlasma in the background (a notification
+says if it fails); its settings files in `~/.config` are left alone.
 
 ### Options
 
 | Option | What it does |
 | --- | --- |
 | `--steam` | Also install Steam plus the matching 32-bit graphics libraries. Needs `[multilib]` enabled in `/etc/pacman.conf`. |
-| `--no-packages` | Skip the pacman and AUR steps. |
+| `--no-packages` | Skip the pacman step. |
 
 Re-running the installer is safe. Anything it would overwrite is copied to
 `~/.desktop-backup/<timestamp>/` first.
 
-Text too small (e.g. a 4K or laptop screen)? System Settings > Display & Monitor > Scale. On a
-desktop (no battery) the first login turns variable refresh rate (G-SYNC/FreeSync) on for every monitor.
+Text too small (e.g. a 4K or laptop screen)? Settings > Displays > Scale (fractional scales like 125%
+are there too). Variable refresh rate (G-SYNC/FreeSync) is in the same place, per monitor.
 
 ## What gets installed
 
 | Piece | Where it goes |
 | --- | --- |
-| KDE Plasma and AeroThemePlasma (the `aeroshell-*` and `aerothemeplasma-*` AUR packages, built with `yay`) | packages (`packages.txt`, `aur.txt`) |
-| The Windows 7 look: Aero glass and Windows 7 window effects, a dark variant of the Windows 7 theme (`authui7-dark`: the shell, context menus and open/save dialogs stay light, apps go dark; Dolphin stays light like Explorer), Windows 7-era icons for apps the icon theme lacks (the 2009 Firefox logo, Windows Live Messenger's icon for Element), pinned taskbar apps that stay in place, and Windows 7's Harmony wallpaper | `~/.config/kwinrc`, `kdeglobals`, `Kvantum/`, `~/.local/share/plasma/`, `~/.local/share/color-schemes/`, `~/.local/share/icons/Windows 7 Aero/`, `~/.local/share/wallpapers/` |
-| Settings that need a running desktop, applied at every login by `the-script-plasma`: the theme and wallpaper (first login only), the Windows key opening the Start menu, and the to-do widget on the taskbar. AeroThemePlasma's own setup wizard is turned off, since this covers it | `~/.config/autostart/the-script-plasma.desktop`, `x-atpootb.desktop` |
-| The Windows 7 logon screen (SDDM) | `/etc/sddm.conf.d/10-win7.conf`, `systemctl enable sddm` (needs sudo) |
-| School assignments and to-dos on the taskbar (`todo`, `todo-bar`, the `local.todo` widget) | `~/.local/bin/`, `~/.local/share/plasma/plasmoids/local.todo/`, `~/.config/autostart/todo.desktop` |
+| GNOME (`gnome-shell`, Settings, Nautilus, the image viewer and text editor) | packages (`packages.txt`) |
+| Settings applied at every login by `the-script-gnome` (gsettings needs the session): dark style for apps (first login only), and the AppIndicator extension (tray icons for Steam, Discord, Syncthing, KeePassXC) and the to-do extension turned on | `~/.config/autostart/the-script-gnome.desktop` |
+| The login screen (GDM) | `systemctl enable gdm` (needs sudo) |
+| School assignments and to-dos in the top bar (`todo`, `todo-bar`, the `todo@the-script` GNOME Shell extension) | `~/.local/bin/`, `~/.local/share/gnome-shell/extensions/todo@the-script/`, `~/.config/autostart/todo.desktop` |
 | foot (terminal) | `~/.config/foot/` |
-| Firefox settings: follows the desktop's dark mode, the Windows 7 title bar, privacy, no AI or sponsored content (`user.js`) | your Firefox profile directory |
+| Firefox settings: follows the desktop's dark mode, tabs in the title bar, privacy, no AI or sponsored content (`user.js`) | your Firefox profile directory |
 | Firefox as the default browser, so links from other programs open there | `~/.config/mimeapps.list` |
 | Firefox extensions: uBlock Origin and Violentmonkey, installed by a policy (`policies.json`) | `/etc/firefox/policies/` (needs sudo) |
 | Always-visible userscript (`firefox/always-visible.user.js`) — makes pages act focused/visible in the background. Imported into Violentmonkey by hand once (a policy can't seed its scripts) | Violentmonkey |
@@ -52,7 +49,7 @@ desktop (no battery) the first login turns variable refresh rate (G-SYNC/FreeSyn
 | `.local` hostnames over mDNS (`ssh user@machine.local`): Avahi enabled, `mdns_minimal` added to the `hosts:` line | `/etc/nsswitch.conf` (needs sudo) |
 | Printing: CUPS with the Canon MX920 as the default printer (Gutenprint driver; the printer's own driverless mode fails), reached as `488E78000000.local` | CUPS, `systemctl enable cups` (needs sudo) |
 | Syncthing (keeps the KeePassXC database in sync), started now and at every login | `systemctl --user enable syncthing`. Pair devices and share the folder yourself at http://127.0.0.1:8384; keys are never in this repo |
-| Auto-update: every 5 minutes `the-script-update.timer` pulls this clone and, on a new commit, re-runs `install.sh`. "Update the-script" in the Start menu does the same check right away. Failures show a notification (`journalctl --user -u the-script-update`). Needs passwordless sudo, which the installer sets up: anything running as you, and anyone who can push here, gets root | `~/.local/share/applications/the-script-update.desktop`, `~/.local/share/the-script` (link to the clone), `/etc/sudoers.d/10-the-script` (undo: delete it and `systemctl --user disable --now the-script-update.timer`) |
+| Auto-update: every 5 minutes `the-script-update.timer` pulls this clone and, on a new commit, re-runs `install.sh`. "Update the-script" in the app grid does the same check right away. Failures show a notification (`journalctl --user -u the-script-update`). Needs passwordless sudo, which the installer sets up: anything running as you, and anyone who can push here, gets root | `~/.local/share/applications/the-script-update.desktop`, `~/.local/share/the-script` (link to the clone), `/etc/sudoers.d/10-the-script` (undo: delete it and `systemctl --user disable --now the-script-update.timer`) |
 | Steam's in-game overlay follows the display scale (below) | `~/.local/bin/steam-overlay-scale`, `steam-overlay-scale.path` |
 | `discord-compress video.mp4 [MB]`: re-encodes a video under Discord's upload limit (10 MB by default) | `~/.local/bin/` |
 | git commit name and email (GitHub noreply address) | `~/.gitconfig` (only `user.name` and `user.email`) |
@@ -60,23 +57,22 @@ desktop (no battery) the first login turns variable refresh rate (G-SYNC/FreeSyn
 
 ## Keys
 
-Plasma's usual keys apply (System Settings > Keyboard > Shortcuts). The ones set up here:
+GNOME's usual keys apply (Settings > Keyboard > Keyboard Shortcuts). The ones worth knowing:
 
 | Action | Keys |
 | --- | --- |
-| Start menu | `Meta` (the Windows key), or `Ctrl+Esc` |
-| Plasma's own launcher | `Alt+F1` |
-| To-do list | `Meta+T`, or click its text on the taskbar |
-| Screenshot | `Print` (Spectacle), `Meta+Shift+S` for an area |
+| Overview: open windows, search and launch apps | `Super` (the Windows key) |
+| To-do list | `Super+T`, or click its text in the top bar |
+| Screenshot | `Print` (pick an area, a window or the screen) |
 
 ## School assignments and to-dos
 
 The `todo` daemon puts the next Canvas or Schoology assignment, `todo.txt` task or today's workout on
-the taskbar, left of the tray (title and time left, points and a streak of days in a row with
+the top bar, next to Activities (title and time left, points and a streak of days in a row with
 something turned in on time or a finished focus session, where every 7 active days earn a streak
 freeze that saves a missed day; never a count of late work), and sends reminders 3 days, 1 day and 3
-hours before each due date, plus a summary every morning. Click the text or press `Meta+T` for the
-list: start a 10-minute focus session (it opens the assignment and counts down on the taskbar with
+hours before each due date, plus a summary every morning. Click the text or press `Super+T` for the
+list: start a 10-minute focus session (it opens the assignment and counts down in the top bar with
 the task's name; when it ends, a notification says so and the list offers 10 more minutes, a 5-minute
 break, or stopping for now without finishing; **Finished it** ends a session early and checks the
 task off), open an assignment in the browser, or mark Schoology work done. Click a task for its
@@ -94,7 +90,7 @@ work stays listed for a week unless you mark it done (on time or late: you say w
 due before the first sync just gets **Done**, with no points either way. A finished
 focus session is +2. Upcoming work comes first, and on the same day Canvas, then Schoology, then Anki; when nothing is
 due within 2 days, late work moves to the top. When nothing is late and nothing is due within 3 days,
-the taskbar shows a break (`free until Sun 10/11`) instead; it ends when the next 3-day reminder fires.
+the top bar shows a break (`free until Sun 10/11`) instead; it ends when the next 3-day reminder fires.
 
 It needs two things that are never in this repo, both in `~/.local/share/dwm-todo/`:
 

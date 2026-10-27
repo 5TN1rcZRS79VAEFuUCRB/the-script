@@ -178,6 +178,10 @@ elif [ ${#KDE_HAVE[@]} -gt 0 ]; then
 	fi
 fi
 
+# foot was the terminal before Console; its settings are retired. The package stays until you remove it
+# (sudo pacman -Rs foot), as a terminal may still be running in it.
+retire "$HOME/.config/foot/foot.ini"
+
 # ---------------------------------------------------------------- dotfiles + scripts
 say "Installing config files and scripts into $HOME"
 while IFS= read -r -d '' f; do

@@ -40,7 +40,7 @@ are there too). Variable refresh rate (G-SYNC/FreeSync) is in the same place, pe
 | Settings applied at every login by `the-script-gnome` (gsettings needs the session): dark style for apps (first login only), and the AppIndicator extension (tray icons for Steam, Discord, Syncthing, KeePassXC) and the to-do extension turned on | `~/.config/autostart/the-script-gnome.desktop` |
 | The login screen (GDM) | `systemctl enable gdm` (needs sudo) |
 | School assignments and to-dos in the top bar (`todo`, `todo-bar`, the `todo@the-script` GNOME Shell extension) | `~/.local/bin/`, `~/.local/share/gnome-shell/extensions/todo@the-script/`, `~/.config/autostart/todo.desktop` |
-| foot (terminal) | `~/.config/foot/` |
+| Console, GNOME's terminal | package (`packages.txt`) |
 | Firefox settings: follows the desktop's dark mode, tabs in the title bar, privacy, no AI or sponsored content (`user.js`) | your Firefox profile directory |
 | Firefox as the default browser, so links from other programs open there | `~/.config/mimeapps.list` |
 | Firefox extensions: uBlock Origin and Violentmonkey, installed by a policy (`policies.json`) | `/etc/firefox/policies/` (needs sudo) |

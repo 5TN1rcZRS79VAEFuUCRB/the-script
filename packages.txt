@@ -13,7 +13,7 @@ nautilus                  # file manager
 gvfs                      # trash, phones and network shares in Nautilus
 loupe                     # image viewer
 gnome-text-editor
-gnome-backgrounds         # wallpapers (the-script-gnome picks glass-chip)
+archlinux-wallpaper       # Arch wallpapers (the-script-gnome picks archwave)
 python-gobject            # steam-overlay-scale asks GNOME for the display scale through it
 gnome-console             # terminal (Console)
 wl-clipboard              # wl-paste: terminal apps (Claude Code's Ctrl+V) read pasted screenshots with it

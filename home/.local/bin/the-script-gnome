@@ -4,7 +4,7 @@
 # (~/.config/autostart/the-script-gnome.desktop). Each step checks first, so a run where everything is
 # in place changes nothing.
 #
-#   - first run only: dark style for apps and the glass-chip wallpaper (gnome-backgrounds)
+#   - first run only: dark style for apps and the archwave wallpaper (archlinux-wallpaper)
 #   - the AppIndicator extension (tray icons for Steam, Discord, Syncthing, KeePassXC) and the to-do
 #     extension turned on
 #   - once, on machines that had KDE: the installer is run again from GNOME to remove Plasma, which it
@@ -34,11 +34,12 @@ print(repr(cur + add) if add else "")' "$(gsettings get "$schema" "$key")" "$@")
 
 if [ ! -e "$FIRST" ]; then
 	gsettings set org.gnome.desktop.interface color-scheme prefer-dark
-	bg=file:///usr/share/backgrounds/gnome/glass-chip
-	if [ -e "${bg#file://}-d.jxl" ]; then
-		gsettings set org.gnome.desktop.background picture-uri "$bg-l.jxl"
-		gsettings set org.gnome.desktop.background picture-uri-dark "$bg-d.jxl"
-		gsettings set org.gnome.desktop.screensaver picture-uri "$bg-d.jxl"
+	# The Arch logo on a neon grid; archwaveinv is its light-style twin.
+	bg=file:///usr/share/backgrounds/archlinux
+	if [ -e "${bg#file://}/archwave.png" ]; then
+		gsettings set org.gnome.desktop.background picture-uri "$bg/archwaveinv.png"
+		gsettings set org.gnome.desktop.background picture-uri-dark "$bg/archwave.png"
+		gsettings set org.gnome.desktop.screensaver picture-uri "$bg/archwave.png"
 	fi
 	mkdir -p "$STATE" && touch "$FIRST"
 fi

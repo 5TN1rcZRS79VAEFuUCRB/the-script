@@ -7,7 +7,7 @@
 #   - first run only: dark style for apps, a red accent (the ThinkPad colors in ~/.config/gtk-4.0/gtk.css
 #     use it too) and the red Arch logo wallpaper
 #   - the AppIndicator extension (tray icons for Steam, Discord, Syncthing, KeePassXC), the to-do
-#     extension and the volume percentage extension turned on
+#     extension and the volume and brightness percentages extension turned on
 #   - the volume keys in 5% steps
 #   - gray folder icons (Adwaita-ThinkPad, made by install.sh)
 #   - once: the app grid sorted into folders (Chat, Internet, Media, Development, System) and the dash

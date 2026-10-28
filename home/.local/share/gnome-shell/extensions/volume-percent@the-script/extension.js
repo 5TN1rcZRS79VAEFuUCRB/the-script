@@ -1,15 +1,11 @@
-// The output volume as a percentage: after the speaker icon in the top bar, and as the label of the
-// popup the volume keys (and scrolling on the icon) show. Above 100% when Over-Amplification is on.
+// Percentages: the output volume after the speaker icon in the top bar (above 100% when Over-Amplification
+// is on), and the level of every popup with a bar (volume, screen and keyboard brightness) in its label.
 import Clutter from 'gi://Clutter';
 import St from 'gi://St';
 
 import {Extension, InjectionManager} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as Volume from 'resource:///org/gnome/shell/ui/status/volume.js';
-
-// The popup's icons for the output volume; brightness, the microphone and the rest keep no label.
-// Matched anywhere, in case an icon comes as ". GThemedIcon audio-volume-high-symbolic ...".
-const VOLUME_ICON = /\baudio-(volume|headphones|speakers)/;
 
 export default class VolumePercentExtension extends Extension {
     enable() {
@@ -38,9 +34,11 @@ export default class VolumePercentExtension extends Extension {
         this._injections = new InjectionManager();
         this._injections.overrideMethod(Main.osdWindowManager, '_showOsdWindow', orig =>
             function (monitorIndex, icon, label, level, maxLevel) {
-                // The volume keys label it with the device ("Speaker"); scrolling on the icon leaves it blank.
-                if (typeof level === 'number' && level >= 0 && VOLUME_ICON.test(icon?.to_string() ?? '')) {
-                    const percent = /audio-volume-muted/.test(icon.to_string()) ? 'Muted' : `${Math.round(level * 100)}%`;
+                // Popups without a bar (microphone mute, Caps Lock) have no level. The volume keys label it
+                // with the device ("Speaker"); the rest leave it blank.
+                if (typeof level === 'number' && level >= 0) {
+                    const percent = /audio-volume-muted/.test(icon?.to_string() ?? '')
+                        ? 'Muted' : `${Math.round(level * 100)}%`;
                     label = label ? `${label} · ${percent}` : percent;
                 }
                 orig.call(this, monitorIndex, icon, label, level, maxLevel);

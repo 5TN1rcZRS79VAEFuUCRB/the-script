@@ -8,14 +8,26 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as Volume from 'resource:///org/gnome/shell/ui/status/volume.js';
 
 // The popup's icons for the output volume; brightness, the microphone and the rest keep no label.
-const VOLUME_ICON = /^audio-(volume|headphones|speakers)/;
+// Matched anywhere: the volume keys' icon comes as ". GThemedIcon audio-volume-high-symbolic ...".
+const VOLUME_ICON = /\baudio-(volume|headphones|speakers)/;
 
 export default class VolumePercentExtension extends Extension {
     enable() {
         this._control = Volume.getMixerControl();
         this._label = new St.Label({style_class: 'volume-percent', y_align: Clutter.ActorAlign.CENTER});
-        // The speaker indicator hides itself with no output device, and the label with it.
-        Main.panel.statusArea.quickSettings._volumeOutput?.add_child(this._label);
+        // The speaker indicator hides itself with no output device, and the label with it. At login it is
+        // made after extensions are enabled, so wait for it.
+        const quickSettings = Main.panel.statusArea.quickSettings;
+        if (quickSettings._volumeOutput) {
+            quickSettings._volumeOutput.add_child(this._label);
+        } else {
+            quickSettings._indicators.connectObject('child-added', (box, child) => {
+                if (child !== quickSettings._volumeOutput)
+                    return;
+                box.disconnectObject(this);
+                child.add_child(this._label);
+            }, this);
+        }
 
         this._control.connectObject(
             'state-changed', () => this._watchSink(),
@@ -27,12 +39,13 @@ export default class VolumePercentExtension extends Extension {
         this._injections.overrideMethod(Main.osdWindowManager, '_showOsdWindow', orig =>
             function (monitorIndex, icon, label, level, maxLevel) {
                 if (!label && typeof level === 'number' && level >= 0 && VOLUME_ICON.test(icon?.to_string() ?? ''))
-                    label = icon.to_string().includes('muted') ? 'Muted' : `${Math.round(level * 100)}%`;
+                    label = /audio-volume-muted/.test(icon.to_string()) ? 'Muted' : `${Math.round(level * 100)}%`;
                 orig.call(this, monitorIndex, icon, label, level, maxLevel);
             });
     }
 
     disable() {
+        Main.panel.statusArea.quickSettings._indicators.disconnectObject(this);
         this._injections.clear();
         this._injections = null;
         this._sink?.disconnectObject(this);

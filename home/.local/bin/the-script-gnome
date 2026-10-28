@@ -8,6 +8,7 @@
 #     use it too) and the red Arch logo wallpaper
 #   - the AppIndicator extension (tray icons for Steam, Discord, Syncthing, KeePassXC), the to-do
 #     extension and the volume percentage extension turned on
+#   - the volume keys in 5% steps
 #   - gray folder icons (Adwaita-ThinkPad, made by install.sh)
 #   - once: the app grid sorted into folders (Chat, Internet, Media, Development, System) and the dash
 #   - screenshots through the portal without a dialog, for apps outside Flatpak (screenshot)
@@ -51,6 +52,9 @@ fi
 
 gsettings set org.gnome.shell disable-user-extensions false
 add_to_list org.gnome.shell enabled-extensions "${EXTENSIONS[@]}"
+
+# The volume keys in 5% steps (GNOME's default is 6%), so the percentage the extension shows stays round.
+gsettings set org.gnome.settings-daemon.plugins.media-keys volume-step 5
 
 # Once: the app grid sorted into folders, everyday apps first, and the same everyday apps in the dash.
 # Apps a machine lacks are skipped; anything new lands after these. Rearranging by hand is kept.

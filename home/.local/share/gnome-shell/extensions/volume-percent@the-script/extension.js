@@ -8,7 +8,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as Volume from 'resource:///org/gnome/shell/ui/status/volume.js';
 
 // The popup's icons for the output volume; brightness, the microphone and the rest keep no label.
-// Matched anywhere: the volume keys' icon comes as ". GThemedIcon audio-volume-high-symbolic ...".
+// Matched anywhere, in case an icon comes as ". GThemedIcon audio-volume-high-symbolic ...".
 const VOLUME_ICON = /\baudio-(volume|headphones|speakers)/;
 
 export default class VolumePercentExtension extends Extension {
@@ -38,8 +38,11 @@ export default class VolumePercentExtension extends Extension {
         this._injections = new InjectionManager();
         this._injections.overrideMethod(Main.osdWindowManager, '_showOsdWindow', orig =>
             function (monitorIndex, icon, label, level, maxLevel) {
-                if (!label && typeof level === 'number' && level >= 0 && VOLUME_ICON.test(icon?.to_string() ?? ''))
-                    label = /audio-volume-muted/.test(icon.to_string()) ? 'Muted' : `${Math.round(level * 100)}%`;
+                // The volume keys label it with the device ("Speaker"); scrolling on the icon leaves it blank.
+                if (typeof level === 'number' && level >= 0 && VOLUME_ICON.test(icon?.to_string() ?? '')) {
+                    const percent = /audio-volume-muted/.test(icon.to_string()) ? 'Muted' : `${Math.round(level * 100)}%`;
+                    label = label ? `${label} · ${percent}` : percent;
+                }
                 orig.call(this, monitorIndex, icon, label, level, maxLevel);
             });
     }

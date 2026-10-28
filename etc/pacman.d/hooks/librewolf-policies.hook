@@ -1,0 +1,12 @@
+# Re-merges the-script's LibreWolf policies with LibreWolf's own after each update of it, so the
+# copy in /etc keeps up with them (usr/local/libexec/librewolf-policies).
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = librewolf
+
+[Action]
+Description = Merging the-script's LibreWolf policies...
+When = PostTransaction
+Exec = /usr/local/libexec/librewolf-policies

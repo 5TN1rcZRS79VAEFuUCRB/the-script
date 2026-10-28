@@ -11,6 +11,8 @@
 #   - the volume keys in 5% steps
 #   - gray folder icons (Adwaita-ThinkPad, made by install.sh)
 #   - once: the app grid sorted into folders (Chat, Internet, Media, Development, System) and the dash
+#   - once, where the dash had Firefox: LibreWolf in its place
+#   - your Firefox profile copied into LibreWolf, if install.sh could not do it with a browser open
 #   - screenshots through the portal without a dialog, for apps outside Flatpak (screenshot)
 #   - once, on machines that had KDE: the installer is run again from GNOME to remove Plasma, which it
 #     could not do with Plasma running
@@ -62,12 +64,12 @@ if [ ! -e "$STATE/the-script-gnome-app-folders" ]; then
 	python3 - <<-'EOF' && touch "$STATE/the-script-gnome-app-folders"
 	import subprocess
 
-	TOP = ["firefox", "org.gnome.Nautilus", "org.gnome.Console", "org.gnome.TextEditor", "steam", "anki",
+	TOP = ["librewolf", "org.gnome.Nautilus", "org.gnome.Console", "org.gnome.TextEditor", "steam", "anki",
 	       "org.keepassxc.KeePassXC", "org.gnome.Settings"]
-	DASH = ["firefox", "org.gnome.Nautilus", "org.gnome.Console", "io.element.Element", "discord", "steam", "anki"]
+	DASH = ["librewolf", "org.gnome.Nautilus", "org.gnome.Console", "io.element.Element", "discord", "steam", "anki"]
 	FOLDERS = {
 	    "Chat": ["io.element.Element", "discord", "weechat"],
-	    "Internet": ["chromium", "org.torproject.torbrowser-launcher", "proton.vpn.app.gtk"],
+	    "Internet": ["firefox", "chromium", "org.torproject.torbrowser-launcher", "proton.vpn.app.gtk"],
 	    "Media": ["mpv", "com.obsproject.Studio", "org.gnome.Loupe"],
 	    "Development": ["nvim", "cmake-gui", "vmware-workstation", "vmware-netcfg", "btop"],
 	    "System": ["cups", "system-config-printer", "org.freedesktop.IBus.Setup", "org.gnome.ColorProfileViewer",
@@ -98,6 +100,16 @@ if [ ! -e "$STATE/the-script-gnome-app-folders" ]; then
 	EOF
 fi
 
+# Once, where the dash was set up with Firefox: LibreWolf, which replaced it, takes its place.
+if [ ! -e "$STATE/the-script-gnome-librewolf-dash" ] && [ -e /usr/share/applications/librewolf.desktop ]; then
+	cur=$(gsettings get org.gnome.shell favorite-apps)
+	case $cur in
+	*librewolf.desktop*) ;;
+	*"'firefox.desktop'"*) gsettings set org.gnome.shell favorite-apps "${cur/\'firefox.desktop\'/\'librewolf.desktop\'}" ;;
+	esac
+	touch "$STATE/the-script-gnome-librewolf-dash"
+fi
+
 # Gray folders (the Adwaita-ThinkPad icons install.sh makes), unless another icon theme was picked.
 if [ -e "$HOME/.local/share/icons/Adwaita-ThinkPad/index.theme" ] \
 	&& [ "$(gsettings get org.gnome.desktop.interface icon-theme)" = "'Adwaita'" ]; then
@@ -108,6 +120,10 @@ fi
 # They run as you anyway; Flatpak apps still ask.
 gdbus call --session -d org.freedesktop.impl.portal.PermissionStore -o /org/freedesktop/impl/portal/PermissionStore \
 	-m org.freedesktop.impl.portal.PermissionStore.SetPermission screenshot true screenshot '' "['yes']" >/dev/null
+
+# install.sh copies the Firefox profile into LibreWolf only with both closed; if one was open, it is done
+# now, before either is started.
+[ -e "$STATE/the-script-librewolf-import-pending" ] && "$HOME/.local/bin/librewolf-import-firefox"
 
 # install.sh leaves Plasma installed while a Plasma session runs. In GNOME, clearing the installed
 # commit makes the updater run it again now, and that run removes Plasma.

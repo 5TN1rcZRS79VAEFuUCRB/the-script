@@ -1,4 +1,6 @@
-// Follow the desktop's light/dark setting everywhere, including the home page. Firefox reads it
+// LibreWolf is Firefox with privacy defaults; this file is applied on top of them.
+
+// Follow the desktop's light/dark setting everywhere, including the home page. LibreWolf reads it
 // from the xdg-desktop-portal, which reports GNOME's style (dark, set by the-script-gnome).
 user_pref("browser.theme.toolbar-theme", 2);
 user_pref("browser.theme.content-theme", 2);
@@ -11,9 +13,20 @@ user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
 // layout.css.devPixelsPerPx here -- Firefox multiplies the two (2.25x).
 user_pref("layout.css.devPixelsPerPx", "-1.0");
 
+// ---- LibreWolf defaults changed ----
+// Fingerprinting resistance, except that sites see the dark-mode setting, so their own dark themes
+// work. LibreWolf's privacy.resistFingerprinting always tells sites "light"; Firefox's newer
+// fingerprinting protection with every target on covers the same ground and can leave one out.
+user_pref("privacy.resistFingerprinting", false);
+user_pref("privacy.fingerprintingProtection", true);
+user_pref("privacy.fingerprintingProtection.pbmode", true);
+user_pref("privacy.fingerprintingProtection.overrides", "+AllTargets,-CSSPrefersColorScheme");
+// Stay logged in: keep cookies and site data when LibreWolf closes (it deletes them by default).
+user_pref("privacy.sanitize.sanitizeOnShutdown", false);
+
 // ---- Settings carried over from the author's Firefox ----
-// Note: Firefox re-applies everything in this file on each start, so changing one of these in
-// about:preferences only lasts until Firefox is restarted. Edit or delete the line here instead.
+// Note: LibreWolf re-applies everything in this file on each start, so changing one of these in
+// about:preferences only lasts until LibreWolf is restarted. Edit or delete the line here instead.
 
 // No AI features (chatbot, link previews, smart tab groups, translations, local ML)
 user_pref("browser.ai.control.default", "blocked");
@@ -57,7 +70,7 @@ user_pref("browser.toolbars.bookmarks.visibility", "never");
 user_pref("sidebar.visibility", "hide-on-close");
 user_pref("browser.download.useDownloadDir", false);   // ask where to save each download
 
-// Passwords live in KeePassXC, not Firefox; no autofill of addresses or cards
+// Passwords live in KeePassXC, not the browser; no autofill of addresses or cards
 user_pref("signon.rememberSignons", false);
 user_pref("signon.firefoxRelay.feature", "disabled");
 user_pref("extensions.formautofill.addresses.enabled", false);
@@ -71,7 +84,6 @@ user_pref("privacy.trackingprotection.allow_list.convenience.enabled", false);
 user_pref("privacy.trackingprotection.consentmanager.skip.pbmode.enabled", false);
 user_pref("privacy.annotate_channels.strict_list.enabled", true);
 user_pref("privacy.bounceTrackingProtection.mode", 1);
-user_pref("privacy.fingerprintingProtection", true);
 user_pref("privacy.query_stripping.enabled", true);
 user_pref("privacy.query_stripping.enabled.pbmode", true);
 user_pref("privacy.userContext.enabled", false);

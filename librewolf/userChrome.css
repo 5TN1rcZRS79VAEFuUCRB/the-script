@@ -1,4 +1,4 @@
-/* Square corners to match the rest of the desktop (../home/.config/gtk-4.0/gtk.css): Firefox draws its
+/* Square corners to match the rest of the desktop (../home/.config/gtk-4.0/gtk.css): LibreWolf draws its
    own window buttons, tabs and address bar, and rounds them all. Needs the userChrome pref in user.js. */
 .titlebar-button > .toolbarbutton-icon {
   border-radius: 0 !important;

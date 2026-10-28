@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+#
+# librewolf-import-firefox: copies your Firefox profile (bookmarks, history, logins to sites, open tabs,
+# extensions and their settings) into LibreWolf, once. Run by install.sh. Neither browser may be open
+# while it copies; if one is, it waits for the next login (the-script-gnome runs it again then).
+# The LibreWolf profile it replaces is kept in ~/.desktop-backup.
+
+set -euo pipefail
+
+STATE="$HOME/.local/state"
+DONE="$STATE/the-script-librewolf-imported"
+PENDING="$STATE/the-script-librewolf-import-pending"
+
+[ -e "$DONE" ] && exit 0
+
+profile() { # dirs...: the first default-release profile in them
+	local base d
+	for base in "$@"; do
+		for d in "$base"/*.default-release; do
+			[ -d "$d" ] && { printf '%s\n' "$d"; return 0; }
+		done
+	done
+	return 1
+}
+ff_profile() { profile "$HOME/.config/mozilla/firefox" "$HOME/.mozilla/firefox"; }
+lw_profile() { profile "$HOME/.config/librewolf/librewolf" "$HOME/.librewolf"; }
+
+FF="$(ff_profile || true)"
+if [ -z "$FF" ]; then
+	echo "No Firefox profile to import"
+	mkdir -p "$STATE" && touch "$DONE"
+	exit 0
+fi
+
+if pgrep -x 'firefox|librewolf' >/dev/null; then
+	echo "Firefox or LibreWolf is open; your Firefox profile is copied into LibreWolf at the next login"
+	mkdir -p "$STATE" && touch "$PENDING"
+	exit 0
+fi
+
+LW="$(lw_profile || true)"
+if [ -z "$LW" ]; then
+	timeout 20 librewolf --headless --no-remote about:blank >/dev/null 2>&1 || true
+	LW="$(lw_profile || true)"
+	[ -n "$LW" ] || { echo "librewolf-import-firefox: could not create a LibreWolf profile" >&2; exit 1; }
+fi
+
+backup="$HOME/.desktop-backup/$(date +%Y%m%d-%H%M%S)/${LW#"$HOME"/}"
+mkdir -p "${backup%/*}"
+mv "$LW" "$backup"
+# Not copied: Firefox's lock, crash reports and telemetry. compatibility.ini and addonStartup.json.lz4
+# name Firefox's install and this profile's old path; without them LibreWolf looks the extensions up again.
+mkdir -p "$LW"
+tar -C "$FF" --exclude=lock --exclude=.parentlock --exclude=crashes --exclude=minidumps \
+	--exclude=datareporting --exclude=saved-telemetry-pings --exclude=compatibility.ini \
+	--exclude=addonStartup.json.lz4 -cf - . | tar -C "$LW" -xf -
+# the-script's settings, which install.sh put in the LibreWolf profile, replace Firefox's copies.
+for f in user.js chrome/userChrome.css; do
+	if [ -e "$backup/$f" ]; then install -Dm644 "$backup/$f" "$LW/$f"; fi
+done
+echo "Copied $FF into $LW (the old LibreWolf profile is in ${backup%/*})"
+mkdir -p "$STATE"
+rm -f "$PENDING"
+touch "$DONE"

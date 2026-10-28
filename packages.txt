@@ -53,7 +53,7 @@ libnotify
 xdg-utils
 
 # --- apps ---
-firefox
+librewolf        # the browser: Firefox with privacy defaults (librewolf/user.js changes a few)
 element-desktop
 keepassxc
 syncthing        # keeps the KeePassXC database in sync between machines

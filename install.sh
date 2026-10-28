@@ -73,9 +73,11 @@ retire() { # path...
 
 # Root-owned files: an existing different one is kept next to it as .bak-<date>.
 sudo_place() { # src dest
+	local mode=644
+	[ -x "$1" ] && mode=755
 	cmp -s "$1" "$2" 2>/dev/null && return
 	[ -e "$2" ] && sudo cp -a "$2" "$2.bak-$(date +%Y%m%d-%H%M%S)"
-	sudo install -Dm644 "$1" "$2"
+	sudo install -Dm"$mode" "$1" "$2"
 	echo "Installed $2"
 }
 
@@ -269,10 +271,10 @@ if ! systemctl is-enabled -q gdm 2>/dev/null; then
 	sudo systemctl enable --force gdm || warn "could not enable GDM; run: sudo systemctl enable --force gdm"
 fi
 
-# ---------------------------------------------------------------- Firefox
-find_ff_profile() {
+# ---------------------------------------------------------------- LibreWolf
+find_lw_profile() {
 	local base d
-	for base in "$HOME/.config/mozilla/firefox" "$HOME/.mozilla/firefox"; do
+	for base in "$HOME/.config/librewolf/librewolf" "$HOME/.librewolf"; do
 		for d in "$base"/*.default-release; do
 			[ -d "$d" ] && { printf '%s\n' "$d"; return 0; }
 		done
@@ -280,36 +282,43 @@ find_ff_profile() {
 	return 1
 }
 
-say "Firefox settings"
-if command -v firefox >/dev/null; then
-	FF_PROFILE="$(find_ff_profile || true)"
-	if [ -z "$FF_PROFILE" ]; then
-		echo "No Firefox profile yet; starting Firefox headless once to create it..."
-		timeout 20 firefox --headless --no-remote about:blank >/dev/null 2>&1 || true
-		FF_PROFILE="$(find_ff_profile || true)"
+say "LibreWolf settings"
+if command -v librewolf >/dev/null; then
+	# Once: your Firefox profile (bookmarks, logins to sites, extensions) becomes LibreWolf's, or at the
+	# next login if a browser is open now. Firefox itself stays installed until you remove it.
+	"$HOME/.local/bin/librewolf-import-firefox" || warn "could not copy your Firefox profile into LibreWolf"
+	LW_PROFILE="$(find_lw_profile || true)"
+	if [ -z "$LW_PROFILE" ]; then
+		echo "No LibreWolf profile yet; starting LibreWolf headless once to create it..."
+		timeout 20 librewolf --headless --no-remote about:blank >/dev/null 2>&1 || true
+		LW_PROFILE="$(find_lw_profile || true)"
 	fi
-	if [ -n "$FF_PROFILE" ]; then
-		place firefox/user.js "$FF_PROFILE/user.js"
-		place firefox/userChrome.css "$FF_PROFILE/chrome/userChrome.css"
-		echo "Installed user.js and userChrome.css into $FF_PROFILE (restart Firefox to apply)"
+	if [ -n "$LW_PROFILE" ]; then
+		place librewolf/user.js "$LW_PROFILE/user.js"
+		place librewolf/userChrome.css "$LW_PROFILE/chrome/userChrome.css"
+		echo "Installed user.js and userChrome.css into $LW_PROFILE (restart LibreWolf to apply)"
 	else
-		warn "could not find/create a Firefox profile. Start Firefox once, close it, then run:"
+		warn "could not find/create a LibreWolf profile. Start LibreWolf once, close it, then run:"
 		warn "  ./install.sh --no-packages"
 	fi
-	# Extensions (uBlock Origin, Violentmonkey) come from a system-wide Firefox policy, so they are
-	# installed automatically the next time Firefox starts. Needs root because it lives in /etc.
+	# Violentmonkey comes from a system-wide policy, so it is installed automatically the next time
+	# LibreWolf starts (uBlock Origin comes with LibreWolf). A policy file in /etc replaces LibreWolf's
+	# own instead of adding to it, so librewolf-policies merges the two, and a pacman hook merges them
+	# again after each LibreWolf update. Needs root because it lives in /etc.
 	# The Always-visible userscript ships in this repo, but Violentmonkey keeps its scripts in its
 	# own storage, which a policy cannot seed, so it is imported by hand once (see the line printed).
-	sudo_place firefox/policies.json /etc/firefox/policies/policies.json
-	# Links opened from other programs (todo, chat apps) go to Firefox, not another installed browser.
-	{ xdg-settings set default-web-browser firefox.desktop && xdg-mime default firefox.desktop text/html; } \
-		|| warn "could not make Firefox the default browser; run: xdg-settings set default-web-browser firefox.desktop"
-	echo "Violentmonkey will auto-install; import the userscript once by opening this in Firefox:"
-	echo "  file://$PWD/firefox/always-visible.user.js   (Violentmonkey shows an install page)"
+	sudo_place librewolf/policies.json /usr/local/share/the-script/librewolf-policies.json
+	sudo_place usr/local/libexec/librewolf-policies /usr/local/libexec/librewolf-policies
+	sudo_place etc/pacman.d/hooks/librewolf-policies.hook /etc/pacman.d/hooks/librewolf-policies.hook
+	sudo /usr/local/libexec/librewolf-policies || warn "could not write LibreWolf's policies"
+	# Links opened from other programs (todo, chat apps) go to LibreWolf, not another installed browser.
+	{ xdg-settings set default-web-browser librewolf.desktop && xdg-mime default librewolf.desktop text/html; } \
+		|| warn "could not make LibreWolf the default browser; run: xdg-settings set default-web-browser librewolf.desktop"
+	echo "Violentmonkey will auto-install; if the userscript is not in it yet, open this in LibreWolf:"
+	echo "  file://$PWD/librewolf/always-visible.user.js   (Violentmonkey shows an install page)"
 else
-	warn "firefox is not installed; skipping its settings"
+	warn "librewolf is not installed; skipping its settings"
 fi
-
 # On a text console (Ctrl+Alt+F2) nothing turns the monitors off. The udev rule keeps
 # them off when a DisplayPort monitor's hotplug on going to sleep lights the console again.
 say "Console: monitors off after 10 minutes idle"

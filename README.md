@@ -1,7 +1,7 @@
 # the-script
 
 A one-command setup for my Arch Linux desktop: plain GNOME in dark mode, with tray icons for
-background apps, a to-do list for school in the top bar, and Firefox/KeePassXC/Syncthing/Tailscale/
+background apps, a to-do list for school in the top bar, and LibreWolf/KeePassXC/Syncthing/Tailscale/
 printing set up. Desktop only: nothing from the media server is in here.
 
 ## Quick start
@@ -39,15 +39,16 @@ are there too). Variable refresh rate (G-SYNC/FreeSync) is in the same place, pe
 | GNOME (`gnome-shell`, Settings, Nautilus, the image viewer and text editor) | packages (`packages.txt`) |
 | ThinkPad look for apps: matte black and charcoal, the TrackPoint's red as the accent, square corners (delete both files for stock GNOME) | `~/.config/gtk-4.0/gtk.css`, `~/.config/gtk-3.0/gtk.css` |
 | Gray folder icons to match (`Adwaita-ThinkPad`: Adwaita's folder icons recolored, remade on every run) | `~/.local/share/icons/Adwaita-ThinkPad/` |
-| Settings applied at every login by `the-script-gnome` (gsettings needs the session): dark style for apps, a red accent and a minimal wallpaper (`~/.local/share/backgrounds/arch.svg`: the Arch logo in the theme's red on near-black) (first login only), the AppIndicator extension (tray icons for Steam, Discord, Syncthing, KeePassXC), the to-do extension and the volume and brightness percentages extension turned on, the volume keys in 5% steps, and once, the app grid sorted into folders (Chat, Internet, Media, Development, System) with everyday apps first and in the dash | `~/.config/autostart/the-script-gnome.desktop` |
+| Settings applied at every login by `the-script-gnome` (gsettings needs the session): dark style for apps, a red accent and a minimal wallpaper (`~/.local/share/backgrounds/arch.svg`: the Arch logo in the theme's red on near-black) (first login only), the AppIndicator extension (tray icons for Steam, Discord, Syncthing, KeePassXC), the to-do extension and the volume and brightness percentages extension turned on, the volume keys in 5% steps, and once, the app grid sorted into folders (Chat, Internet, Media, Development, System) with everyday apps first and in the dash (and once, LibreWolf in Firefox's place in the dash) | `~/.config/autostart/the-script-gnome.desktop` |
 | The login screen (GDM) | `systemctl enable gdm` (needs sudo) |
 | The volume as a percentage next to the speaker icon, and a percentage in the volume, screen brightness and keyboard backlight popups (the `volume-percent@the-script` GNOME Shell extension) | `~/.local/share/gnome-shell/extensions/volume-percent@the-script/` |
 | School assignments and to-dos in the top bar (`todo`, `todo-bar`, the `todo@the-script` GNOME Shell extension) | `~/.local/bin/`, `~/.local/share/gnome-shell/extensions/todo@the-script/`, `~/.config/autostart/todo.desktop` |
 | Console, GNOME's terminal | package (`packages.txt`) |
-| Firefox settings: follows the desktop's dark mode, tabs in the title bar, privacy, no AI or sponsored content (`user.js`) | your Firefox profile directory |
-| Firefox as the default browser, so links from other programs open there | `~/.config/mimeapps.list` |
-| Firefox extensions: uBlock Origin and Violentmonkey, installed by a policy (`policies.json`) | `/etc/firefox/policies/` (needs sudo) |
-| Always-visible userscript (`firefox/always-visible.user.js`) — makes pages act focused/visible in the background. Imported into Violentmonkey by hand once (a policy can't seed its scripts) | Violentmonkey |
+| LibreWolf (Firefox with privacy defaults) settings: follows the desktop's dark mode, tabs in the title bar, no AI or sponsored content, fingerprinting protection that still lets sites see dark mode, and cookies kept when it closes so you stay logged in (`user.js`) | your LibreWolf profile directory |
+| Your Firefox profile (bookmarks, history, site logins, open tabs, extensions) copied into LibreWolf once, by `librewolf-import-firefox`; if a browser is open, at the next login instead. The LibreWolf profile it replaces goes to the backup folder. Firefox stays installed until you remove it (`sudo pacman -Rs firefox`) | `~/.config/librewolf/librewolf/` |
+| LibreWolf as the default browser, so links from other programs open there | `~/.config/mimeapps.list` |
+| LibreWolf extensions: uBlock Origin (comes with LibreWolf) and Violentmonkey, installed by a policy (`policies.json`). A policy file in /etc replaces LibreWolf's own, so `librewolf-policies` merges the two, again after each LibreWolf update (a pacman hook) | `/etc/librewolf/policies/`, `/usr/local/libexec/librewolf-policies`, `/etc/pacman.d/hooks/librewolf-policies.hook` (needs sudo) |
+| Always-visible userscript (`librewolf/always-visible.user.js`) — makes pages act focused/visible in the background. Imported into Violentmonkey by hand once (a policy can't seed its scripts) | Violentmonkey |
 | The text console (Ctrl+Alt+F2) powers the monitors off after 10 minutes without a key press, and keeps them off when a DisplayPort monitor's sleep hotplug would light the console again | `/etc/systemd/system/console-blank.service`, `/etc/udev/rules.d/90-console-reblank.rules`, `/usr/local/libexec/console-reblank` (needs sudo) |
 | `.local` hostnames over mDNS (`ssh user@machine.local`): Avahi enabled, `mdns_minimal` added to the `hosts:` line | `/etc/nsswitch.conf` (needs sudo) |
 | Printing: CUPS with the Canon MX920 as the default printer (Gutenprint driver; the printer's own driverless mode fails), reached as `488E78000000.local` | CUPS, `systemctl enable cups` (needs sudo) |
@@ -145,7 +146,7 @@ Steam update replaces the library. Restart a running game to see the change. 32-
 
 The installer copies files *from* this repo *to* your home directory. To keep the repo current
 after changing your live setup, copy the changed file back into the matching path under
-`home/` or `firefox/` and commit it.
+`home/` or `librewolf/` and commit it.
 
 History: commit `a8ea1cd` is the last dwm version of this setup, and the repo was `niri-script` (the
 niri window manager) before it became `the-script`. Installing the-script over niri-script retires

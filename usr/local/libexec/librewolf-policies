@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+#
+# librewolf-policies: writes /etc/librewolf/policies/policies.json as LibreWolf's own policies
+# (telemetry off, uBlock Origin, ...) with the-script's added (Violentmonkey). LibreWolf reads the
+# file in /etc instead of its own, not as well as, so the two are merged here. Run by install.sh and,
+# after each LibreWolf update, by /etc/pacman.d/hooks/librewolf-policies.hook.
+
+import json
+import os
+
+BASE = "/usr/lib/librewolf/distribution/policies.json"
+OURS = "/usr/local/share/the-script/librewolf-policies.json"
+DEST = "/etc/librewolf/policies/policies.json"
+
+
+def merge(into, add):
+    for k, v in add.items():
+        if isinstance(v, dict) and isinstance(into.get(k), dict):
+            merge(into[k], v)
+        else:
+            into[k] = v
+
+
+with open(BASE) as f:
+    policies = json.load(f)
+with open(OURS) as f:
+    merge(policies, json.load(f))
+
+os.makedirs(os.path.dirname(DEST), exist_ok=True)
+with open(DEST + ".tmp", "w") as f:
+    json.dump(policies, f, indent=2)
+    f.write("\n")
+os.chmod(DEST + ".tmp", 0o644)
+os.replace(DEST + ".tmp", DEST)

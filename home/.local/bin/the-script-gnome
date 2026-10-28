@@ -69,7 +69,7 @@ if [ ! -e "$STATE/the-script-gnome-app-folders" ]; then
 	DASH = ["librewolf", "org.gnome.Nautilus", "org.gnome.Console", "io.element.Element", "discord", "steam", "anki"]
 	FOLDERS = {
 	    "Chat": ["io.element.Element", "discord", "weechat"],
-	    "Internet": ["firefox", "chromium", "org.torproject.torbrowser-launcher", "proton.vpn.app.gtk"],
+	    "Internet": ["org.torproject.torbrowser-launcher", "proton.vpn.app.gtk"],
 	    "Media": ["mpv", "com.obsproject.Studio", "org.gnome.Loupe"],
 	    "Development": ["nvim", "cmake-gui", "vmware-workstation", "vmware-netcfg", "btop"],
 	    "System": ["cups", "system-config-printer", "org.freedesktop.IBus.Setup", "org.gnome.ColorProfileViewer",

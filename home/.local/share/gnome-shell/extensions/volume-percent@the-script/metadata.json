@@ -1,0 +1,7 @@
+{
+  "uuid": "volume-percent@the-script",
+  "name": "Volume percentage",
+  "description": "The volume as a percentage next to the speaker icon and in the volume keys' popup",
+  "shell-version": ["49", "50", "51", "52", "53"],
+  "version": 1
+}

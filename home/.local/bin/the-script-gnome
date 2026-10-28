@@ -6,8 +6,8 @@
 #
 #   - first run only: dark style for apps, a red accent (the ThinkPad colors in ~/.config/gtk-4.0/gtk.css
 #     use it too) and the red Arch logo wallpaper
-#   - the AppIndicator extension (tray icons for Steam, Discord, Syncthing, KeePassXC) and the to-do
-#     extension turned on
+#   - the AppIndicator extension (tray icons for Steam, Discord, Syncthing, KeePassXC), the to-do
+#     extension and the volume percentage extension turned on
 #   - gray folder icons (Adwaita-ThinkPad, made by install.sh)
 #   - once: the app grid sorted into folders (Chat, Internet, Media, Development, System) and the dash
 #   - screenshots through the portal without a dialog, for apps outside Flatpak (screenshot)
@@ -19,7 +19,7 @@ set -uo pipefail
 STATE="$HOME/.local/state"
 FIRST="$STATE/the-script-gnome-first-run"
 KDE_PENDING="$STATE/the-script-kde-pending"
-EXTENSIONS=(appindicatorsupport@rgcjonas.gmail.com todo@the-script)
+EXTENSIONS=(appindicatorsupport@rgcjonas.gmail.com todo@the-script volume-percent@the-script)
 
 # gsettings without a session bus writes to memory and drops it.
 [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ] || { echo "the-script-gnome: no session bus; settings not applied" >&2; exit 1; }

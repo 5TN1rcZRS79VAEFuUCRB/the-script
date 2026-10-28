@@ -68,13 +68,13 @@ if [ ! -e "$STATE/the-script-gnome-app-folders" ]; then
 	       "org.keepassxc.KeePassXC", "org.gnome.Settings"]
 	DASH = ["librewolf", "org.gnome.Nautilus", "org.gnome.Console", "io.element.Element", "discord", "steam", "anki"]
 	FOLDERS = {
-	    "Chat": ["io.element.Element", "discord", "weechat"],
-	    "Internet": ["org.torproject.torbrowser-launcher", "proton.vpn.app.gtk"],
+	    "Chat": ["io.element.Element", "discord"],
+	    "Internet": ["proton.vpn.app.gtk"],
 	    "Media": ["mpv", "com.obsproject.Studio", "org.gnome.Loupe"],
 	    "Development": ["nvim", "cmake-gui", "vmware-workstation", "vmware-netcfg", "btop"],
 	    "System": ["cups", "system-config-printer", "org.freedesktop.IBus.Setup", "org.gnome.ColorProfileViewer",
 	               "qt5ct", "qt6ct", "avahi-discover", "bssh", "bvnc", "xgps", "xgpsspeed", "qv4l2", "qvidcap",
-	               "the-script-update", "org.torproject.torbrowser-launcher.settings"],
+	               "the-script-update"],
 	}
 
 

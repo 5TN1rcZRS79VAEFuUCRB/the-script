@@ -34,3 +34,20 @@
 radio {
   border-radius: 9999px;
 }
+
+/* Window buttons get the faint square the GTK 4 apps have; GTK 3 leaves them bare. Electron apps
+   (Element) draw their window buttons through GTK 3, so this covers them too. */
+button.titlebutton {
+  border-color: transparent;
+  background-image: none;
+  background-color: alpha(currentColor, 0.1);
+  box-shadow: none;
+}
+
+button.titlebutton:hover {
+  background-color: alpha(currentColor, 0.15);
+}
+
+button.titlebutton:active {
+  background-color: alpha(currentColor, 0.3);
+}

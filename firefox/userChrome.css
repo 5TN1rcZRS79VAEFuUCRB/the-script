@@ -1,0 +1,5 @@
+/* Firefox draws its own window buttons, round ones like stock GNOME's. Square them to match the
+   rest of the desktop (../home/.config/gtk-4.0/gtk.css). Needs the userChrome pref in user.js. */
+.titlebar-button > .toolbarbutton-icon {
+  border-radius: 0 !important;
+}

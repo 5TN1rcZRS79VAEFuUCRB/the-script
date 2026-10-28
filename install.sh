@@ -290,7 +290,8 @@ if command -v firefox >/dev/null; then
 	fi
 	if [ -n "$FF_PROFILE" ]; then
 		place firefox/user.js "$FF_PROFILE/user.js"
-		echo "Installed user.js into $FF_PROFILE (restart Firefox to apply)"
+		place firefox/userChrome.css "$FF_PROFILE/chrome/userChrome.css"
+		echo "Installed user.js and userChrome.css into $FF_PROFILE (restart Firefox to apply)"
 	else
 		warn "could not find/create a Firefox profile. Start Firefox once, close it, then run:"
 		warn "  ./install.sh --no-packages"

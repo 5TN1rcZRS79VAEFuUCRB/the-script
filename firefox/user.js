@@ -5,6 +5,8 @@ user_pref("browser.theme.content-theme", 2);
 user_pref("layout.css.prefers-color-scheme.content-override", 2);
 // Tabs in the title bar, like other GNOME apps (the Windows 7 desktop had them under its own title bar).
 user_pref("browser.tabs.inTitlebar", 1);
+// Square window buttons, from userChrome.css (install.sh puts it in the profile's chrome folder).
+user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
 // Scaling comes from GNOME's per-monitor scale (Settings > Displays). Do not also set
 // layout.css.devPixelsPerPx here -- Firefox multiplies the two (2.25x).
 user_pref("layout.css.devPixelsPerPx", "-1.0");

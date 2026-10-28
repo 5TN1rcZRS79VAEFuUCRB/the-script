@@ -5,7 +5,7 @@
 # in place changes nothing.
 #
 #   - first run only: dark style for apps, a red accent (the ThinkPad colors in ~/.config/gtk-4.0/gtk.css
-#     use it too) and Lenovo's ThinkPad 20th Anniversary wallpaper
+#     use it too) and the red Arch logo wallpaper
 #   - the AppIndicator extension (tray icons for Steam, Discord, Syncthing, KeePassXC) and the to-do
 #     extension turned on
 #   - gray folder icons (Adwaita-ThinkPad, made by install.sh)
@@ -39,12 +39,12 @@ print(repr(cur + add) if add else "")' "$(gsettings get "$schema" "$key")" "$@")
 if [ ! -e "$FIRST" ]; then
 	gsettings set org.gnome.desktop.interface color-scheme prefer-dark
 	gsettings set org.gnome.desktop.interface accent-color red
-	# Lenovo's ThinkPad 20th Anniversary wallpaper (install.sh downloads it), dark and light.
-	bg="$HOME/.local/share/backgrounds/thinkpad-20"
-	if [ -e "$bg-dark.png" ]; then
-		gsettings set org.gnome.desktop.background picture-uri "file://$bg-light.png"
-		gsettings set org.gnome.desktop.background picture-uri-dark "file://$bg-dark.png"
-		gsettings set org.gnome.desktop.screensaver picture-uri "file://$bg-dark.png"
+	# The Arch logo in the theme's red on its near-black (~/.local/share/backgrounds), in light style too.
+	bg="file://$HOME/.local/share/backgrounds/arch.svg"
+	if [ -e "${bg#file://}" ]; then
+		for k in "background picture-uri" "background picture-uri-dark" "screensaver picture-uri"; do
+			gsettings set org.gnome.desktop.${k% *} ${k#* } "$bg"
+		done
 	fi
 	mkdir -p "$STATE" && touch "$FIRST"
 fi

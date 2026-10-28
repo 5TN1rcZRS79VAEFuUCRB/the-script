@@ -222,23 +222,8 @@ if command -v gnome-shell >/dev/null && [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]; 
 	"$HOME/.local/bin/the-script-gnome" || warn "could not apply the GNOME settings; they apply at the next login"
 fi
 
-# The wallpaper: Lenovo's own ThinkPad 20th Anniversary artwork (2012; the logo, and the first ThinkPad
-# beside a 2012 one), dark and light. Lenovo's Flickr copy is gone, so it comes from laptopretrospective.com's
-# archive of the set; Lenovo's files, so downloaded here rather than kept in the repo.
-bgdir="$HOME/.local/share/backgrounds"
-if [ ! -e "$bgdir/thinkpad-20-dark.png" ] || [ ! -e "$bgdir/thinkpad-20-light.png" ]; then
-	tmp="$(mktemp -d)"
-	if curl -fsSL -o "$tmp/tp20.zip" https://laptopretrospective.com/wp-content/uploads/2021/05/ThinkPad-20th-Anniversary.zip \
-		&& unzip -q -j -d "$tmp" "$tmp/tp20.zip" '*/ThinkPad_20_1200_B_N_1.png' '*/ThinkPad_20_1200_W_N_1.png'; then
-		mkdir -p "$bgdir"
-		install -m644 "$tmp/ThinkPad_20_1200_B_N_1.png" "$bgdir/thinkpad-20-dark.png"
-		install -m644 "$tmp/ThinkPad_20_1200_W_N_1.png" "$bgdir/thinkpad-20-light.png"
-	else
-		warn "could not download the ThinkPad wallpaper; GNOME keeps its own"
-	fi
-	rm -rf "$tmp"
-fi
-retire "$bgdir/thinkpad.svg"   # the-script's drawn wallpaper before this
+# Wallpapers the-script used before its own arch.svg.
+retire "$HOME"/.local/share/backgrounds/{thinkpad.svg,thinkpad-20-dark.png,thinkpad-20-light.png}
 
 # Folder icons in gray instead of Adwaita's blue, to go with the ThinkPad colors (gtk.css): an icon theme
 # with just Adwaita's folder icons, recolored, over Adwaita itself. Remade on every run so it follows

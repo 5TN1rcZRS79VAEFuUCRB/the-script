@@ -85,7 +85,7 @@ actions.
 
 Your own tasks go in `~/.local/share/dwm-todo/todo.txt`, one per line (`2026-10-13 21:00 Poster board`; with
 no time, due at 11:59 pm) and are marked done from the list like Schoology work. A workout is a task every
-Sunday, Monday, Wednesday and Friday: pick it and **Finished** to score it. It can only be checked off that day: not ahead, not late.
+Monday, Wednesday and Friday, named for that day's Hevy routine: pick it and **Finished** to score it. It can only be checked off that day: not ahead, not late.
 
 Points: on time +10, late +3, missing 0 (no penalties); +5 more for turning work in 24 hours or more early;
 about 1 in 4 completions pays double (decided per task, so every machine agrees); every 100 points is a level.

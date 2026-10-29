@@ -21,8 +21,8 @@ Setup, in ~/.local/share/dwm-todo/ (share that folder with Syncthing to keep mac
 Points: on time +10, late +3, missing 0 (no penalties: they teach avoiding the tracker); +5 more for
 turning work in 24 hours or more early; about 1 in 4 completions pays double, decided per task so every
 machine agrees. Canvas reports status itself (nothing due before the first sync counts); Schoology's feed
-can't, so you mark those (and todo.txt tasks) done from the menu. A workout is a task every Sunday, Monday,
-Wednesday and Friday, checked off from the menu that day only. A finished focus session is +2. Every 100 points is a level.
+can't, so you mark those (and todo.txt tasks) done from the menu. A workout is a task every Monday, Wednesday
+and Friday (named for that day's Hevy routine), checked off from the menu that day only. A finished focus session is +2. Every 100 points is a level.
 The streak is days in a row with something turned in on time or a finished focus session; every 7 active
 days earn a streak freeze (up to 2), which a missed day uses up instead of ending the streak. Reminders go out 3 days and 1 day before a due date, then every 30 minutes in the last 3 hours, plus a summary each morning.
 """
@@ -84,7 +84,7 @@ PRIORITY = {"canvas": 1, "schoology": 2, "todo": 2, "anki": 3, "workout": 4}  # 
 MANUAL = ("schoology", "todo", "workout")  # nothing reports these done: they're checked off from the menu
 LATE_FIRST = 2 * 86400  # nothing due within this long: late work moves to the top
 MANUAL_LATE = 7 * 86400  # late manual work stays listed this long (nothing can say it was turned in)
-WORKOUT_DAYS = (6, 0, 2, 4)  # date.weekday(): Sunday, Monday, Wednesday, Friday
+WORKOUT_DAYS = {0: "Full Body A (squat)", 2: "Full Body B (deadlift)", 4: "Full Body C (pull)"}  # date.weekday() -> Hevy routine
 BREAK = 3 * 86400  # nothing late and nothing due within this long: a break (ends when the 3-day reminder fires)
 
 
@@ -278,9 +278,9 @@ def todo_tasks():
 
 def workout_task():
     """Only ever today's, on a workout day: it can't be done ahead for another day, and a missed day just goes away."""
-    if date.today().weekday() not in WORKOUT_DAYS:
+    if (routine := WORKOUT_DAYS.get(date.today().weekday())) is None:
         return None
-    return {"id": f"workout:{date.today().isoformat()}", "source": "workout", "title": "Workout",
+    return {"id": f"workout:{date.today().isoformat()}", "source": "workout", "title": f"Workout: {routine}",
             "course": "", "due": tonight(), "status": "todo", "url": ""}
 
 

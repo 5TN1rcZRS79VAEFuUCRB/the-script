@@ -7,6 +7,16 @@
       }
     },
     "SearchEngines": {
+      "Add": [
+        {
+          "Name": "Startpage",
+          "URLTemplate": "https://eu.startpage.com/sp/search?q={searchTerms}",
+          "Method": "GET",
+          "SuggestURLTemplate": "https://eu.startpage.com/suggestions?format=opensearch&q={searchTerms}",
+          "IconURL": "https://www.startpage.com/favicon.ico",
+          "Alias": "@sp"
+        }
+      ],
       "Default": "Startpage"
     }
   }

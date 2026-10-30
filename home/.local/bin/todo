@@ -80,7 +80,7 @@ FREEZE_EVERY, MAX_FREEZES = 7, 2  # active days that earn a streak freeze, and h
 # Bar icons (Symbols Nerd Font): timer; graduation cap, warning, coffee, star, flame
 TIMER = "󰔛"
 CAP, WARN, COFFEE, STAR, FIRE = "", "", "󰅶", "", "󰈸"
-PRIORITY = {"canvas": 1, "schoology": 2, "todo": 2, "workout": 3}  # breaks ties on the same day; Anki always goes last
+PRIORITY = {"canvas": 1, "schoology": 2, "todo": 2, "workout": 3, "anki": 4}  # breaks ties on the same day
 MANUAL = ("schoology", "todo", "workout")  # nothing reports these done: they're checked off from the menu
 LATE_FIRST = 2 * 86400  # nothing due within this long: late work moves to the top
 MANUAL_LATE = 7 * 86400  # late manual work stays listed this long (nothing can say it was turned in)
@@ -547,21 +547,18 @@ def mark_done(t, on_time=None):
 
 def todo(tasks, s, now):
     """Unfinished work (the bar shows only the first, never a count of late work): upcoming first, by day, then
-    PRIORITY (Canvas, Schoology, workout) on the same day; then overdue,
-    most recent first (likeliest to still be accepted). With nothing due soon, overdue goes first.
-    Anki is the lowest priority: it comes after everything else."""
+    PRIORITY (Canvas, Schoology, workout, Anki) on the same day; then overdue,
+    most recent first (likeliest to still be accepted). With nothing due soon, overdue goes first."""
     keep = [t for t in tasks if t["id"] not in s["hidden"] and (
         t["status"] in ("todo", "missing") if t["source"] not in MANUAL
         else t["id"] not in s["scores"] and t["due"] > now - (0 if t["source"] == "workout" else MANUAL_LATE))]
-    anki = [t for t in keep if t["source"] == "anki"]
-    keep = [t for t in keep if t["source"] != "anki"]
     day = lambda t: time.strftime("%Y%m%d", time.localtime(t["due"]))
     items = sorted(keep, key=lambda t: (False, day(t), PRIORITY[t["source"]], t["due"]) if t["due"] >= now
                    else (True, -t["due"]))
     n = sum(t["due"] >= now for t in items)
     if not n or items[0]["due"] - now > LATE_FIRST:
         items = items[n:] + items[:n]
-    return items + anki
+    return items
 
 
 def left(secs, units=2):
@@ -934,7 +931,7 @@ def selftest():
     assert [x["id"] for x in todo(tasks, s, now)] == ["c_today", "s_today", "c_tomorrow", "late"]
     same_day = [t("w", "workout", 1), t("a", "anki", 11), t("s", "schoology", 1), t("c", "canvas", 6)]
     assert [x["id"] for x in todo(same_day, s, now)] == ["c", "s", "w", "a"]  # same day: Canvas, Schoology, workout, Anki
-    assert [x["id"] for x in todo(tasks + same_day[1:2], s, now)] == ["c_today", "s_today", "c_tomorrow", "late", "a"]
+    assert [x["id"] for x in todo(tasks + same_day[1:2], s, now)] == ["c_today", "s_today", "a", "c_tomorrow", "late"]
     old = [t("s_6d", "schoology", -6 * 24), t("s_8d", "schoology", -8 * 24)]
     assert [x["id"] for x in todo(old, s, now)] == ["s_6d"]  # late Schoology work stays a week
     global state, notify

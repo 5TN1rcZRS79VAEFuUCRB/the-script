@@ -59,9 +59,10 @@ add_to_list org.gnome.shell enabled-extensions "${EXTENSIONS[@]}"
 gsettings set org.gnome.settings-daemon.plugins.media-keys volume-step 5
 
 # Once: the app grid sorted into folders, everyday apps first, and the same everyday apps in the dash.
-# Apps a machine lacks are skipped; anything new lands after these. Rearranging by hand is kept.
-if [ ! -e "$STATE/the-script-gnome-app-folders" ]; then
-	python3 - <<-'EOF' && touch "$STATE/the-script-gnome-app-folders"
+# Apps a machine lacks are skipped; anything new lands after these. Rearranging by hand is kept
+# (until the -N in the state file name is bumped, which redoes it once everywhere).
+if [ ! -e "$STATE/the-script-gnome-app-folders-2" ]; then
+	python3 - <<-'EOF' && touch "$STATE/the-script-gnome-app-folders-2"
 	import subprocess
 
 	TOP = ["librewolf", "org.gnome.Nautilus", "org.gnome.Console", "org.gnome.TextEditor", "steam", "anki",
@@ -72,9 +73,9 @@ if [ ! -e "$STATE/the-script-gnome-app-folders" ]; then
 	    "Internet": ["proton.vpn.app.gtk"],
 	    "Media": ["mpv", "com.obsproject.Studio", "org.gnome.Loupe"],
 	    "Development": ["nvim", "cmake-gui", "vmware-workstation", "vmware-netcfg", "btop"],
+	    "Games": ["org.prismlauncher.PrismLauncher", "org.vinegarhq.Sober", "autosober"],
 	    "System": ["cups", "system-config-printer", "org.freedesktop.IBus.Setup", "org.gnome.ColorProfileViewer",
-	               "qt5ct", "qt6ct", "avahi-discover", "bssh", "bvnc", "xgps", "xgpsspeed", "qv4l2", "qvidcap",
-	               "the-script-update"],
+	               "org.openrgb.OpenRGB", "avahi-discover", "bssh", "bvnc", "the-script-update"],
 	}
 
 

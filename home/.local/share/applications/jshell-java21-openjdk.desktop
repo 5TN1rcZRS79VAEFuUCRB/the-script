@@ -1,0 +1,5 @@
+# Hides a tool that came in as a dependency (Java, hwloc, gpsd, v4l-utils): Hidden=true masks the system launcher.
+[Desktop Entry]
+Type=Application
+Name=jshell-java21-openjdk
+Hidden=true

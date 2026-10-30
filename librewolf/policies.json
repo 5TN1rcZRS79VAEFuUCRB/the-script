@@ -10,9 +10,9 @@
       "Add": [
         {
           "Name": "Startpage",
-          "URLTemplate": "https://eu.startpage.com/sp/search?q={searchTerms}",
+          "URLTemplate": "https://www.startpage.com/sp/search?q={searchTerms}",
           "Method": "GET",
-          "SuggestURLTemplate": "https://eu.startpage.com/suggestions?format=opensearch&q={searchTerms}",
+          "SuggestURLTemplate": "https://www.startpage.com/suggestions?format=opensearch&q={searchTerms}",
           "IconURL": "https://www.startpage.com/favicon.ico",
           "Alias": "@sp"
         }

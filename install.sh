@@ -402,6 +402,15 @@ ln -sfn "$PWD" "$HOME/.local/share/the-script"
 systemctl --user enable --now the-script-update.timer \
 	|| warn "could not start the auto-update timer; after logging in run: systemctl --user enable --now the-script-update.timer"
 
+# ---------------------------------------------------------------- presence
+# Tells arch-server once a minute whether this computer is in use; its presence-collector works out
+# your bed and wake times from that (run there: presence-collector report).
+say "Presence: report when this computer is in use to arch-server"
+systemctl --user enable presence.service >/dev/null 2>&1 || warn "could not enable presence.service"
+if [ "${XDG_CURRENT_DESKTOP:-}" = GNOME ] || systemctl --user -q is-active graphical-session.target 2>/dev/null; then
+	systemctl --user restart presence.service || warn "could not start presence; run: systemctl --user restart presence"
+fi
+
 # ---------------------------------------------------------------- Steam overlay scale
 # Steam's in-game overlay ignores the display scale (tiny at 4K); steam-overlay-scale fixes that at
 # login, and the .path unit re-applies it whenever a Steam update replaces the patched library.

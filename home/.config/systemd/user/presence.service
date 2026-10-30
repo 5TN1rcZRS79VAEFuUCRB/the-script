@@ -1,0 +1,13 @@
+# Tells arch-server when this computer is in use, for working out a sleep schedule (see ~/.local/bin/presence).
+[Unit]
+Description=Report when this computer is in use to arch-server
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+ExecStart=%h/.local/bin/presence
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=graphical-session.target

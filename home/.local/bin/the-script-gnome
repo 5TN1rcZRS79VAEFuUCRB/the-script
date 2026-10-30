@@ -62,7 +62,10 @@ gsettings set org.gnome.settings-daemon.plugins.media-keys volume-step 5
 # Apps a machine lacks are skipped; anything new lands after these. Rearranging by hand is kept
 # (until the -N in the state file name is bumped, which redoes it once everywhere).
 if [ ! -e "$STATE/the-script-gnome-app-folders-2" ]; then
+	# The dash is only set on a fresh machine; the -2 rerun leaves a dash that is already set up alone.
+	[ -e "$STATE/the-script-gnome-app-folders" ] || export THE_SCRIPT_SET_DASH=1
 	python3 - <<-'EOF' && touch "$STATE/the-script-gnome-app-folders-2"
+	import os
 	import subprocess
 
 	TOP = ["librewolf", "org.gnome.Nautilus", "org.gnome.Console", "org.gnome.TextEditor", "steam", "anki",
@@ -97,7 +100,8 @@ if [ ! -e "$STATE/the-script-gnome-app-folders-2" ]; then
 	order = [f"{a}.desktop" for a in TOP] + list(FOLDERS)
 	gset("org.gnome.shell", "app-picker-layout",
 	     "[{" + ", ".join(f"{i!r}: <{{'position': <{n}>}}>" for n, i in enumerate(order)) + "}]")
-	gset("org.gnome.shell", "favorite-apps", strv(f"{a}.desktop" for a in DASH))
+	if os.environ.get("THE_SCRIPT_SET_DASH"):
+	    gset("org.gnome.shell", "favorite-apps", strv(f"{a}.desktop" for a in DASH))
 	EOF
 fi
 

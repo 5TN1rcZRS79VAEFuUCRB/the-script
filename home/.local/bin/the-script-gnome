@@ -61,24 +61,27 @@ gsettings set org.gnome.settings-daemon.plugins.media-keys volume-step 5
 # Once: the app grid sorted into folders, everyday apps first, and the same everyday apps in the dash.
 # Apps a machine lacks are skipped; anything new lands after these. Rearranging by hand is kept
 # (until the -N in the state file name is bumped, which redoes it once everywhere).
-if [ ! -e "$STATE/the-script-gnome-app-folders-2" ]; then
-	# The dash is only set on a fresh machine; the -2 rerun leaves a dash that is already set up alone.
+if [ ! -e "$STATE/the-script-gnome-app-folders-3" ]; then
+	# The dash is only set on a fresh machine; a rerun leaves a dash that is already set up alone.
 	[ -e "$STATE/the-script-gnome-app-folders" ] || export THE_SCRIPT_SET_DASH=1
-	python3 - <<-'EOF' && touch "$STATE/the-script-gnome-app-folders-2"
+	python3 - <<-'EOF' && touch "$STATE/the-script-gnome-app-folders-3"
 	import os
 	import subprocess
 
 	TOP = ["librewolf", "org.gnome.Nautilus", "org.gnome.Console", "org.gnome.TextEditor", "steam", "anki",
-	       "org.keepassxc.KeePassXC", "org.gnome.Settings"]
+	       "local.braingym", "org.keepassxc.KeePassXC", "org.gnome.Settings"]
 	DASH = ["librewolf", "org.gnome.Nautilus", "org.gnome.Console", "io.element.Element", "discord", "steam", "anki"]
 	FOLDERS = {
 	    "Chat": ["io.element.Element", "discord"],
 	    "Internet": ["proton.vpn.app.gtk"],
+	    "Office": ["libreoffice-writer", "libreoffice-calc", "libreoffice-impress", "libreoffice-draw",
+	               "libreoffice-math", "libreoffice-base", "libreoffice-startcenter"],
 	    "Media": ["mpv", "com.obsproject.Studio", "org.gnome.Loupe"],
 	    "Development": ["nvim", "cmake-gui", "vmware-workstation", "vmware-netcfg", "btop"],
 	    "Games": ["org.prismlauncher.PrismLauncher", "org.vinegarhq.Sober", "autosober"],
 	    "System": ["cups", "system-config-printer", "org.freedesktop.IBus.Setup", "org.gnome.ColorProfileViewer",
-	               "org.openrgb.OpenRGB", "avahi-discover", "bssh", "bvnc", "the-script-update"],
+	               "org.openrgb.OpenRGB", "avahi-discover", "bssh", "bvnc", "qt5ct", "qt6ct",
+	               "the-script-update"],
 	}
 
 

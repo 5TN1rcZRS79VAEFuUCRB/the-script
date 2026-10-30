@@ -223,6 +223,20 @@ glib-compile-schemas "$HOME/.local/share/gnome-shell/extensions/todo@the-script/
 if command -v gnome-shell >/dev/null && [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
 	"$HOME/.local/bin/the-script-gnome" || warn "could not apply the GNOME settings; they apply at the next login"
 fi
+# Settings' pointer speed sliders show their value, and the mouse's DPI under them:
+# ~/.local/share/dbus-1/services/org.gnome.Settings.service starts Settings through
+# settings-pointer-speed. The udev rule lets it read the DPI from a Razer or Endgame Gear mouse.
+if command -v gnome-control-center >/dev/null; then
+	sudo_place usr/local/libexec/settings-pointer-speed /usr/local/libexec/settings-pointer-speed
+	sudo_place etc/udev/rules.d/70-mouse-dpi.rules /etc/udev/rules.d/70-mouse-dpi.rules
+	# The same rule under the dwm-era name.
+	[ -e /etc/udev/rules.d/70-dwm-mouse-dpi.rules ] && sudo rm -f /etc/udev/rules.d/70-dwm-mouse-dpi.rules
+	sudo udevadm control --reload && sudo udevadm trigger --subsystem-match=hidraw \
+		|| warn "could not reload udev rules; the DPI shows after a reboot"
+	# The session bus reads service files at its start; this picks up the Settings one now.
+	gdbus call --session -d org.freedesktop.DBus -o /org/freedesktop/DBus -m org.freedesktop.DBus.ReloadConfig \
+		>/dev/null 2>&1 || true
+fi
 
 # Wallpapers the-script used before its own arch.svg.
 retire "$HOME"/.local/share/backgrounds/{thinkpad.svg,thinkpad-20-dark.png,thinkpad-20-light.png}

@@ -1,0 +1,5 @@
+# GNOME Settings started through /usr/local/libexec/settings-pointer-speed: numbers on the pointer speed
+# sliders and the mouse's DPI. Delete this file for stock Settings.
+[D-BUS Service]
+Name=org.gnome.Settings
+Exec=/usr/local/libexec/settings-pointer-speed --gapplication-service

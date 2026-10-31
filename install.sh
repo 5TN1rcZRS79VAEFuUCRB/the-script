@@ -252,8 +252,8 @@ done
 # The settings that need a running session (Breeze Dark, the todo widget on the taskbar) are in
 # the-script-plasma, run at every login.
 
-# The black hole wallpaper first downloaded here was an upscale; NASA's own render replaced it.
-rm -f "$HOME/.local/share/wallpapers/black-hole.png"
+# Black hole wallpapers the-script set for a few minutes.
+rm -f "$HOME"/.local/share/wallpapers/{black-hole,nasa-black-hole}.png
 
 say "Plasma: settings and the login screen"
 if command -v plasmashell >/dev/null && pgrep -x plasmashell >/dev/null; then

@@ -236,6 +236,22 @@ PlasmoidItem {
                     highlight: PlasmaExtras.Highlight {}
                     highlightMoveDuration: Kirigami.Units.shortDuration
                     highlightResizeDuration: Kirigami.Units.shortDuration
+                    // The highlight follows the mouse. A new model puts the current row back on the
+                    // first, and leaving the list would leave it where it was: neither shows a highlight.
+                    onModelChanged: Qt.callLater(() => currentIndex = -1)
+                    Connections {
+                        target: root
+                        function onExpandedChanged() {
+                            list.currentIndex = -1
+                        }
+                    }
+                    HoverHandler {
+                        onHoveredChanged: {
+                            if (!hovered) {
+                                list.currentIndex = -1
+                            }
+                        }
+                    }
 
                     PlasmaExtras.PlaceholderMessage {
                         anchors.centerIn: parent

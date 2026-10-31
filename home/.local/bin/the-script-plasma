@@ -65,6 +65,20 @@ if [ ! -e "$STATE/the-script-plasma-cursor-3" ] && plasma-apply-cursortheme Adwa
 	mkdir -p "$STATE" && touch "$STATE/the-script-plasma-cursor-3"
 fi
 
+# The tray shows only the volume, network, notifications and battery (and the camera, a plugged-in drive or
+# playing media while there is one). Steam, Element, the microphone and the rest are behind its arrow.
+# Plasma only reads this at start, so the shell is restarted.
+TRAY_HIDDEN=steam,Element_status_icon_1,plasmashell_microphone,org.kde.plasma.clipboard,org.kde.plasma.bluetooth,org.kde.kscreen,org.kde.plasma.brightness,org.kde.plasma.keyboardlayout,org.kde.plasma.manage-inputmethod,org.kde.plasma.mediacontroller,org.kde.plasma.dwellclicker
+tidy_tray() {
+	local ids; ids=$(js 'var p = panels()[0]; var t = p.widgets("org.kde.plasma.systemtray")[0]; print(p.id + " " + t.id);')
+	sleep 2   # let the shell save what it was just told
+	systemctl --user stop plasma-plasmashell
+	kwriteconfig6 --file "$APPLETSRC" --group Containments --group "${ids% *}" --group Applets \
+		--group "${ids#* }" --group General --key hiddenItems "$TRAY_HIDDEN"
+	systemctl --user start plasma-plasmashell
+	mkdir -p "$STATE" && touch "$STATE/the-script-plasma-tray-1"
+}
+
 # The panel is made on the first start of the shell; wait for it (and its tray).
 for _ in $(seq 60); do
 	tray=$(js 'var p = panels()[0]; var t = p ? p.widgets("org.kde.plasma.systemtray")[0] : null; print(t ? t.id : "");' 2>/dev/null)
@@ -75,7 +89,7 @@ done
 
 # Once: the taskbar rebuilt in this layout. Rearranging it afterwards is kept (until the -N in the state
 # file name is bumped). Widgets added by a script don't read the settings it writes (the logo, the pinned
-# apps) until the shell restarts.
+# apps) until the shell restarts, which tidy_tray does.
 if [ ! -e "$STATE/the-script-plasma-panel-1" ]; then
 	keys kwin 'Edit Tiles'   # Meta+T by default
 	js 'var old = panels()[0];
@@ -100,8 +114,7 @@ if [ ! -e "$STATE/the-script-plasma-panel-1" ]; then
 		p.addWidget("org.kde.plasma.systemtray");
 		p.addWidget("org.kde.plasma.digitalclock");' >/dev/null \
 		&& mkdir -p "$STATE" && touch "$STATE/the-script-plasma-panel-1"
-	sleep 2   # let the shell save them
-	systemctl --user restart plasma-plasmashell
+	tidy_tray
 	exit 0   # the todo widget is already in place
 fi
 # The first version of that set the logo by name, which no icon theme has, so the button was blank.
@@ -113,6 +126,8 @@ js 'panels().forEach(function (p) {
 			}
 		});
 	});' >/dev/null
+
+[ -e "$STATE/the-script-plasma-tray-1" ] || { tidy_tray; exit 0; }
 
 # The todo widget. Plasma reads the panel's order only at start, so a new one is moved left of the
 # tray with the shell stopped. local.niritodo is its name from before the-script.

@@ -425,6 +425,15 @@ if [ "${XDG_CURRENT_DESKTOP:-}" = GNOME ] || systemctl --user -q is-active graph
 	systemctl --user restart presence.service || warn "could not start presence; run: systemctl --user restart presence"
 fi
 
+# ---------------------------------------------------------------- display wake
+# A DisplayPort monitor (the Odyssey G8 at 4K 240 Hz on NVIDIA) can wake from a long sleep with no
+# picture; display-wake switches its refresh rate and back after every such wake to bring it back.
+say "Display wake: bring the picture back after a long monitor sleep"
+systemctl --user enable display-wake.service >/dev/null 2>&1 || warn "could not enable display-wake.service"
+if [ "${XDG_CURRENT_DESKTOP:-}" = GNOME ] || systemctl --user -q is-active graphical-session.target 2>/dev/null; then
+	systemctl --user restart display-wake.service || warn "could not start display-wake; run: systemctl --user restart display-wake"
+fi
+
 # ---------------------------------------------------------------- Steam overlay scale
 # Steam's in-game overlay ignores the display scale (tiny at 4K); steam-overlay-scale fixes that at
 # login, and the .path unit re-applies it whenever a Steam update replaces the patched library.

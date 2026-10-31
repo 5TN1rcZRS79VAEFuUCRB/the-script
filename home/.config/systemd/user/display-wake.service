@@ -1,0 +1,13 @@
+# Brings the picture back when a DisplayPort monitor wakes from a long sleep black (see ~/.local/bin/display-wake).
+[Unit]
+Description=Retrain DisplayPort monitors after a long sleep
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+ExecStart=%h/.local/bin/display-wake
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=graphical-session.target

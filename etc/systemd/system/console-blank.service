@@ -1,5 +1,5 @@
 # The text console (Ctrl+Alt+F2) powers the monitors off after 10 minutes without a key press,
-# like GNOME's power settings do in the desktop; a key press wakes them.
+# like Plasma's power settings do in the desktop; a key press wakes them.
 # The setting is kernel-wide, so writing it to tty1 once per boot covers every console.
 [Unit]
 Description=Power the monitors off after 10 minutes idle at the text console

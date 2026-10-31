@@ -2,7 +2,7 @@
 #
 # librewolf-import-firefox: copies your Firefox profile (bookmarks, history, logins to sites, open tabs,
 # extensions and their settings) into LibreWolf, once. Run by install.sh. Neither browser may be open
-# while it copies; if one is, it waits for the next login (the-script-gnome runs it again then).
+# while it copies; if one is, it waits for the next login (the-script-plasma runs it again then).
 # The LibreWolf profile it replaces is kept in ~/.desktop-backup.
 
 set -euo pipefail

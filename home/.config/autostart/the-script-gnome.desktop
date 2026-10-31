@@ -1,7 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=the-script desktop setup
-Comment=GNOME settings that need a session bus (the-script-gnome)
-Exec=sh -c "exec ~/.local/bin/the-script-gnome"
-OnlyShowIn=GNOME;
-NoDisplay=true

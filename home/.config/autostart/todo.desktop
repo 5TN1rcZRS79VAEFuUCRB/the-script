@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=todo daemon
-Comment=Sync assignments, refresh the top bar text and send reminders
+Comment=Sync assignments, refresh the taskbar text and send reminders
 Exec=sh -c "exec ~/.local/bin/todo daemon"
-OnlyShowIn=GNOME;
+OnlyShowIn=KDE;
 NoDisplay=true

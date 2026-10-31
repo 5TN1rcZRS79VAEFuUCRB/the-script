@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+#
+# the-script-plasma: Plasma settings that need a running session, run at every login
+# (~/.config/autostart/the-script-plasma.desktop). Each step checks first, so a login where
+# everything is in place changes nothing.
+#
+#   - first login only: Breeze Dark, and on a desktop variable refresh rate always on (games included)
+#   - the todo widget on the taskbar left of the tray, opened by Meta+T
+#   - your Firefox profile copied into LibreWolf, if install.sh could not do it with a browser open
+#   - once, on machines that had GNOME: the installer is run again from Plasma to remove GNOME, which it
+#     could not do with GNOME running
+
+set -uo pipefail
+
+STATE="$HOME/.local/state"
+FIRST="$STATE/the-script-plasma-breeze"
+GNOME_PENDING="$STATE/the-script-remove-gnome"
+APPLETSRC="$HOME/.config/plasma-org.kde.plasma.desktop-appletsrc"
+
+js() { qdbus6 org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "$1"; }
+# kglobalaccel keys are Qt key codes; none clears the shortcut.
+keys() { # component action keys...
+	local c=$1 a=$2; shift 2
+	local list; list=$(printf '([%s],),' "$@"); list="[${list%,}]"
+	[ $# -gt 0 ] || list="@a(ai) []"
+	gdbus call --session -d org.kde.kglobalaccel -o /kglobalaccel \
+		-m org.kde.KGlobalAccel.setForeignShortcutKeys "['$c','$a','','']" "$list" >/dev/null
+}
+
+# install.sh copies the Firefox profile into LibreWolf only with both closed; if one was open, it is done
+# now, before either is started.
+[ -e "$STATE/the-script-librewolf-import-pending" ] && "$HOME/.local/bin/librewolf-import-firefox"
+
+# install.sh leaves GNOME installed while a GNOME session runs. In Plasma, clearing the installed
+# commit makes the updater run it again now, and that run removes GNOME.
+if [ -e "$GNOME_PENDING" ] && ! pgrep -x gnome-shell >/dev/null; then
+	rm -f "$STATE/the-script-installed"
+	systemctl --user start --no-block the-script-update.service
+fi
+
+# Only marked done once the theme applies.
+if [ ! -e "$FIRST" ] && plasma-apply-lookandfeel -a org.kde.breezedark.desktop; then
+	if ! compgen -G '/sys/class/power_supply/BAT*' >/dev/null; then
+		for o in $(kscreen-doctor -j | python3 -c 'import json, sys; print(*(o["name"] for o in json.load(sys.stdin)["outputs"] if o.get("connected")))'); do
+			kscreen-doctor "output.$o.vrrpolicy.always" >/dev/null
+		done
+	fi
+	mkdir -p "$STATE" && touch "$FIRST"
+fi
+
+# The panel is made on the first start of the shell; wait for it (and its tray).
+for _ in $(seq 60); do
+	tray=$(js 'var p = panels()[0]; var t = p ? p.widgets("org.kde.plasma.systemtray")[0] : null; print(t ? t.id : "");' 2>/dev/null)
+	[ -n "$tray" ] && break
+	sleep 1
+done
+[ -n "$tray" ] || { echo "the-script-plasma: no panel with a system tray" >&2; exit 1; }
+
+# The todo widget. Plasma reads the panel's order only at start, so a new one is moved left of the
+# tray with the shell stopped. local.niritodo is its name from before the-script.
+if [ -z "$(js 'print(panels()[0].widgets("local.todo").length || "");')" ]; then
+	keys kwin 'Edit Tiles'   # Meta+T by default
+	read -r panel todo ids < <(js 'var p = panels()[0];
+		p.widgets("local.niritodo").forEach(function (w) { w.remove(); });
+		var w = p.addWidget("local.todo"); w.globalShortcut = "Meta+T";
+		print(p.id + " " + w.id + " " + p.widgetIds.join(";"));')
+	sleep 2   # let the shell save the new widget
+	systemctl --user stop plasma-plasmashell
+	# A panel never rearranged has no saved order yet: then it is the order the widgets were added in.
+	order=$(kreadconfig6 --file "$APPLETSRC" --group Containments --group "$panel" --group General --key AppletOrder)
+	order=${order:-$ids}
+	order=$(python3 -c 'import sys
+o, todo, tray, live = sys.argv[1].split(";"), sys.argv[2], sys.argv[3], sys.argv[4].split(";")
+o = [i for i in o if i in live and i != todo]
+o.insert(o.index(tray) if tray in o else len(o), todo)
+print(";".join(o))' "$order" "$todo" "$tray" "$ids")
+	kwriteconfig6 --file "$APPLETSRC" --group Containments --group "$panel" --group General --key AppletOrder "$order"
+	systemctl --user start plasma-plasmashell
+fi

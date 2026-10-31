@@ -1,8 +1,7 @@
 # the-script
 
-A one-command setup for my Arch Linux desktop: plain GNOME in dark mode, with tray icons for
-background apps, a to-do list for school in the top bar, and LibreWolf/KeePassXC/Syncthing/Tailscale/
-printing set up. Desktop only: nothing from the media server is in here.
+A one-command setup for my Arch Linux desktop: plain KDE Plasma in Breeze Dark, with a to-do list for
+school on the taskbar, and LibreWolf/KeePassXC/Syncthing/Tailscale/printing set up. Desktop only: nothing from the media server is in here.
 
 ## Quick start
 
@@ -15,9 +14,9 @@ cd the-script
 ./install.sh
 ```
 
-Then restart: GDM, GNOME's login screen, comes up. On a machine that had the Windows 7 KDE desktop,
-the first GNOME login also removes KDE Plasma and AeroThemePlasma in the background (a notification
-says if it fails); its settings files in `~/.config` are left alone.
+Then restart: SDDM, Plasma's login screen, comes up. On a machine that had GNOME, the first Plasma
+login also removes GNOME in the background (a notification says if it fails); its settings are left
+alone. A machine still on the Windows 7 desktop loses AeroThemePlasma and keeps Plasma.
 
 ### Options
 
@@ -29,58 +28,55 @@ says if it fails); its settings files in `~/.config` are left alone.
 Re-running the installer is safe. Anything it would overwrite is copied to
 `~/.desktop-backup/<timestamp>/` first.
 
-Text too small (e.g. a 4K or laptop screen)? Settings > Displays > Scale (fractional scales like 125%
-are there too). Variable refresh rate (G-SYNC/FreeSync) is in the same place, per monitor.
+Text too small (e.g. a 4K or laptop screen)? System Settings > Display & Monitor > Scale (fractional
+scales like 125% are there too). Variable refresh rate (G-SYNC/FreeSync) is in the same place, per
+monitor; on a desktop the first login turns it on always, games included. Games through Proton (X11
+apps) see the monitor's real resolution and refresh rate at any scale, as long as System Settings >
+Display & Monitor > Legacy Applications (X11) stays on "Apply scaling themselves".
 
 ## What gets installed
 
 | Piece | Where it goes |
 | --- | --- |
-| GNOME (`gnome-shell`, Settings, Nautilus, the image viewer and text editor) | packages (`packages.txt`) |
-| ThinkPad look for apps: matte black and charcoal, the TrackPoint's red as the accent, square corners (delete both files for stock GNOME) | `~/.config/gtk-4.0/gtk.css`, `~/.config/gtk-3.0/gtk.css` |
-| Gray folder icons to match (`Adwaita-ThinkPad`: Adwaita's folder icons recolored, remade on every run) | `~/.local/share/icons/Adwaita-ThinkPad/` |
-| Settings applied at every login by `the-script-gnome` (gsettings needs the session): dark style for apps, a red accent and a minimal wallpaper (`~/.local/share/backgrounds/arch.svg`: the Arch logo in the theme's red on near-black) (first login only), the AppIndicator extension (tray icons for Steam, Discord, Syncthing, KeePassXC), the to-do extension and the volume and brightness percentages extension turned on, the volume keys in 5% steps, and once, the app grid sorted into folders (Chat, Internet, Media, Development, System) with everyday apps first and in the dash (and once, LibreWolf in Firefox's place in the dash) | `~/.config/autostart/the-script-gnome.desktop` |
-| The login screen (GDM) | `systemctl enable gdm` (needs sudo) |
-| The volume as a percentage next to the speaker icon, and a percentage in the volume, screen brightness and keyboard backlight popups (the `volume-percent@the-script` GNOME Shell extension) | `~/.local/share/gnome-shell/extensions/volume-percent@the-script/` |
-| The pointer speed as a number (-1.00 slow to 1.00 fast) on the mouse, touchpad and pointing stick sliders in Settings, and a Razer or Endgame Gear mouse's DPI under the mouse slider (read from the mouse when Settings starts): `settings-pointer-speed` starts Settings with a changed copy of its mouse page, made from the program each time. Delete the service file for stock Settings | `~/.local/share/dbus-1/services/org.gnome.Settings.service`, `/usr/local/libexec/settings-pointer-speed`, `/etc/udev/rules.d/70-mouse-dpi.rules` (needs sudo) |
-| `mouse-dpi`: measures a mouse's real DPI as you slide it 10 cm along a ruler, next to the DPI it is set to, to compare two mice set alike (needs sudo to read the mouse) | `~/.local/bin/mouse-dpi` |
-| School assignments and to-dos in the top bar (`todo`, `todo-bar`, the `todo@the-script` GNOME Shell extension) | `~/.local/bin/`, `~/.local/share/gnome-shell/extensions/todo@the-script/`, `~/.config/autostart/todo.desktop` |
-| Console, GNOME's terminal | package (`packages.txt`) |
+| KDE Plasma (Plasma, System Settings, Dolphin, Konsole, Kate, Gwenview, Spectacle) | packages (`packages.txt`) |
+| Settings applied at every login by `the-script-plasma` (they need the running session): Breeze Dark and, on a desktop, variable refresh rate always on (first login only), and the to-do widget on the taskbar left of the tray, opened by `Meta+T` | `~/.config/autostart/the-script-plasma.desktop` |
+| The login screen (SDDM) | `systemctl enable sddm` (needs sudo) |
+| `mouse-dpi`: measures a mouse's real DPI as you slide it 10 cm along a ruler, next to the DPI it is set to (read from a Razer or Endgame Gear mouse), to compare two mice set alike (needs sudo to read the mouse) | `~/.local/bin/mouse-dpi` |
+| School assignments and to-dos on the taskbar (`todo`, `todo-bar`, the `local.todo` Plasma widget) | `~/.local/bin/`, `~/.local/share/plasma/plasmoids/local.todo/`, `~/.config/autostart/todo.desktop` |
 | LibreWolf (Firefox with privacy defaults) settings: follows the desktop's dark mode, tabs in the title bar, no AI or sponsored content, fingerprinting protection that still lets sites see dark mode, and cookies kept when it closes so you stay logged in (`user.js`) | your LibreWolf profile directory |
 | Your Firefox profile (bookmarks, history, site logins, open tabs, extensions) copied into LibreWolf once, by `librewolf-import-firefox`; if a browser is open, at the next login instead. The LibreWolf profile it replaces goes to the backup folder. Firefox stays installed until you remove it (`sudo pacman -Rs firefox`) | `~/.config/librewolf/librewolf/` |
 | LibreWolf as the default browser, so links from other programs open there | `~/.config/mimeapps.list` |
-| KeePassXC and OBS through X11 (XWayland), so GNOME draws their square title bar like other apps' instead of Qt's rounded one (Anki already uses X11) | `~/.local/share/applications/` (`org.keepassxc.KeePassXC.desktop`, `com.obsproject.Studio.desktop`) |
 | LibreWolf extensions: uBlock Origin (comes with LibreWolf) and Violentmonkey, installed by a policy (`policies.json`), which also makes Startpage (Google's results without the tracking) the default search engine. A policy file in /etc replaces LibreWolf's own, so `librewolf-policies` merges the two, again after each LibreWolf update (a pacman hook) | `/etc/librewolf/policies/`, `/usr/local/libexec/librewolf-policies`, `/etc/pacman.d/hooks/librewolf-policies.hook` (needs sudo) |
 | Always-visible userscript (`librewolf/always-visible.user.js`) — makes pages act focused/visible in the background. Imported into Violentmonkey by hand once (a policy can't seed its scripts) | Violentmonkey |
 | The text console (Ctrl+Alt+F2) powers the monitors off after 10 minutes without a key press, and keeps them off when a DisplayPort monitor's sleep hotplug would light the console again | `/etc/systemd/system/console-blank.service`, `/etc/udev/rules.d/90-console-reblank.rules`, `/usr/local/libexec/console-reblank` (needs sudo) |
 | `.local` hostnames over mDNS (`ssh user@machine.local`): Avahi enabled, `mdns_minimal` added to the `hosts:` line | `/etc/nsswitch.conf` (needs sudo) |
 | Printing: CUPS with the Canon MX920 as the default printer (Gutenprint driver; the printer's own driverless mode fails), reached as `488E78000000.local` | CUPS, `systemctl enable cups` (needs sudo) |
 | Syncthing (keeps the KeePassXC database in sync), started now and at every login | `systemctl --user enable syncthing`. Pair devices and share the folder yourself at http://127.0.0.1:8384; keys are never in this repo |
-| Auto-update: every 5 minutes `the-script-update.timer` pulls this clone and, on a new commit, re-runs `install.sh`. "Update the-script" in the app grid does the same check right away. Failures show a notification (`journalctl --user -u the-script-update`). Needs passwordless sudo, which the installer sets up: anything running as you, and anyone who can push here, gets root | `~/.local/share/applications/the-script-update.desktop`, `~/.local/share/the-script` (link to the clone), `/etc/sudoers.d/10-the-script` (undo: delete it and `systemctl --user disable --now the-script-update.timer`) |
+| Auto-update: every 5 minutes `the-script-update.timer` pulls this clone and, on a new commit, re-runs `install.sh`. "Update the-script" in the launcher does the same check right away. Failures show a notification (`journalctl --user -u the-script-update`). Needs passwordless sudo, which the installer sets up: anything running as you, and anyone who can push here, gets root | `~/.local/share/applications/the-script-update.desktop`, `~/.local/share/the-script` (link to the clone), `/etc/sudoers.d/10-the-script` (undo: delete it and `systemctl --user disable --now the-script-update.timer`) |
 | Steam's in-game overlay follows the display scale (below) | `~/.local/bin/steam-overlay-scale`, `steam-overlay-scale.path` |
-| `screenshot [file.png]`: saves a screenshot of the whole screen with no dialog, through the desktop portal (the-script-gnome lets apps outside Flatpak do that without asking) | `~/.local/bin/` |
+| `screenshot [file.png]`: saves a screenshot of the whole screen with no dialog, through Spectacle | `~/.local/bin/` |
 | `discord-compress video.mp4 [MB]`: re-encodes a video under Discord's upload limit (10 MB by default) | `~/.local/bin/` |
 | git commit name and email (GitHub noreply address) | `~/.gitconfig` (only `user.name` and `user.email`) |
 | Tailscale, and `ssh arch-server` over it (no browser login; run `sudo tailscale up` once per machine) | `~/.ssh/config.d/`, `~/.ssh/known_hosts.d/`, plus an `Include` line at the top of your own `~/.ssh/config` |
 
 ## Keys
 
-GNOME's usual keys apply (Settings > Keyboard > Keyboard Shortcuts). The ones worth knowing:
+Plasma's usual keys apply (System Settings > Keyboard > Shortcuts). The ones worth knowing:
 
 | Action | Keys |
 | --- | --- |
-| Overview: open windows, search and launch apps | `Super` (the Windows key) |
-| To-do list | `Super+T`, or click its text in the top bar |
-| Screenshot | `Print` (pick an area, a window or the screen) |
+| Launcher: search and start apps | `Meta` (the Windows key) |
+| To-do list | `Meta+T`, or click its text on the taskbar (KWin's tile editor gives up `Meta+T` for it) |
+| Screenshot | `Print` (Spectacle), `Meta+Shift+S` for an area |
 
 ## School assignments and to-dos
 
 The `todo` daemon puts the next Canvas or Schoology assignment, `todo.txt` task or today's workout on
-the top bar, next to Activities (title and time left, points and a streak of days in a row with
+the taskbar, left of the tray (title and time left, points and a streak of days in a row with
 something turned in on time or a finished focus session, where every 7 active days earn a streak
 freeze that saves a missed day; never a count of late work), and sends reminders 3 days, 1 day and 3
-hours before each due date, plus a summary every morning. Click the text or press `Super+T` for the
-list: start a 10-minute focus session (it opens the assignment and counts down in the top bar with
+hours before each due date, plus a summary every morning. Click the text or press `Meta+T` for the
+list: start a 10-minute focus session (it opens the assignment and counts down on the taskbar with
 the task's name; when it ends, a notification says so and the list offers 10 more minutes, a 5-minute
 break, or stopping for now without finishing; **Finished it** ends a session early and checks the
 task off), open an assignment in the browser, or mark Schoology work done. Click a task for its
@@ -98,7 +94,7 @@ work stays listed for a week unless you mark it done (on time or late: you say w
 due before the first sync just gets **Done**, with no points either way. A finished
 focus session is +2. Upcoming work comes first, and on the same day Canvas, then Schoology, then the workout, then Anki; when nothing is
 due within 2 days, late work moves to the top. When nothing is late and nothing is due within 3 days,
-the top bar shows a break (`free until Sun 10/11`) instead; it ends when the next 3-day reminder fires.
+the taskbar shows a break (`free until Sun 10/11`) instead; it ends when the next 3-day reminder fires.
 
 It needs two things that are never in this repo, both in `~/.local/share/dwm-todo/`:
 
@@ -130,14 +126,6 @@ To keep points, marked-done work, the token and the config the same on several m
 `tasks.json`, `lock`, `daemon.lock` and `*.tmp`, so each machine fetches its own assignment list. Before
 sharing to a machine that already ran `todo`, delete its `state.json` so the empty one doesn't win.
 
-## Monitor wake
-
-A Samsung Odyssey G8 at 4K 240 Hz (compressed DSC over DisplayPort) on NVIDIA can wake from a long
-GNOME sleep with no picture. `display-wake` (started at login by `display-wake.service`, on arch-server and arch-desktop only) waits for the
-monitors to wake after more than a minute asleep, then switches every DisplayPort monitor to another
-refresh rate and straight back, which brings the picture back; expect a short flicker on wake. What it
-did goes to `journalctl --user -u display-wake`.
-
 ## Steam overlay scale
 
 Steam's in-game overlay (Shift+Tab) ignores the display scale, so on a scaled 4K monitor it is drawn
@@ -162,7 +150,8 @@ after changing your live setup, copy the changed file back into the matching pat
 History: commit `a8ea1cd` is the last dwm version of this setup, and the repo was `niri-script` (the
 niri window manager) before it became `the-script`. Installing the-script over niri-script retires
 the niri helper scripts and services into the backup folder; niri's own settings in `~/.config` are
-left in place, unused. The to-do data folder keeps its old name, `~/.local/share/dwm-todo`, because
+left in place, unused. After that it was a Windows 7-style Plasma desktop (AeroThemePlasma), then plain
+GNOME for a few days (from `cf21cfb`), and now plain Plasma. The to-do data folder keeps its old name, `~/.local/share/dwm-todo`, because
 Syncthing points at it on every machine.
 
 ## License

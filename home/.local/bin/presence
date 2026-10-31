@@ -4,11 +4,12 @@ presence: tells arch-server once a minute how long this computer has gone withou
 something (a video, a fullscreen game) is holding off the idle screen. presence-collector there works
 out from that when you go to bed and get up (on arch-server: presence-collector report).
 
-Started with the GNOME session by presence.service. Pings that can't be sent (server or network down)
+Started with the Plasma session by presence.service. Pings that can't be sent (server or network down)
 wait in ~/.local/state/presence/queue and go out later, up to a week's worth.
 """
 import os
 import subprocess
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -25,15 +26,36 @@ def gdbus(dest, path, method, *args):
     return out.stdout.strip() if out.returncode == 0 else None
 
 
-def reading():
-    """Seconds since the last input, and 1 if idle is being held off; None outside a GNOME session."""
-    idle = gdbus("org.gnome.Mutter.IdleMonitor", "/org/gnome/Mutter/IdleMonitor/Core",
-                 "org.gnome.Mutter.IdleMonitor.GetIdletime")          # "(uint64 63099,)", in ms
-    if not idle:
+class Idle:
+    """Watches for input through swayidle (KWin's idle protocol; Plasma has no idle time on D-Bus under
+    Wayland): it says "idle" a second after the last input and "active" at the next one. While an app
+    holds off the idle screen it never says "idle", which the inhibit flag covers anyway."""
+
+    def __init__(self):
+        self.since = None       # when input stopped, or None while in use
+        self.proc = subprocess.Popen(["swayidle", "timeout", "1", "echo idle", "resume", "echo active"],
+                                     stdout=subprocess.PIPE, text=True)
+        threading.Thread(target=self.watch, daemon=True).start()
+
+    def watch(self):
+        for line in self.proc.stdout:
+            self.since = time.time() - 1 if line.strip() == "idle" else None
+
+    def seconds(self):
+        """Seconds since the last input; None if swayidle has stopped (no session)."""
+        if self.proc.poll() is not None:
+            return None
+        return int(time.time() - self.since) if self.since else 0
+
+
+def reading(idle):
+    """Seconds since the last input, and 1 if idle is being held off; None outside a Plasma session."""
+    secs = idle.seconds()
+    if secs is None:
         return None
-    inhibit = gdbus("org.gnome.SessionManager", "/org/gnome/SessionManager",
-                    "org.gnome.SessionManager.IsInhibited", "8")      # 8: inhibit idle
-    return int(idle.split()[1].rstrip(",)")) // 1000, int(inhibit == "(true,)")
+    inhibit = gdbus("org.kde.Solid.PowerManagement.PolicyAgent", "/org/kde/Solid/PowerManagement/PolicyAgent",
+                    "org.kde.Solid.PowerManagement.PolicyAgent.HasInhibition", "4")  # 4: screen dimming/off
+    return secs, int(inhibit == "(true,)")
 
 
 def main():
@@ -44,8 +66,9 @@ def main():
     except FileNotFoundError:
         queue = []
     saved = bool(queue)
+    idle = Idle()
     while True:
-        r = reading()
+        r = reading(idle)
         if r:
             queue.append(f"{SERVER}/ping?d={DEVICE}&idle={r[0]}&inhibit={r[1]}&t={int(time.time())}")
         sent = 0

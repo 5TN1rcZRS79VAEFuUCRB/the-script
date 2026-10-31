@@ -1,0 +1,13 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Category": "Utilities",
+        "Description": "Assignments, focus timer, points and streak from the todo daemon",
+        "Icon": "task-due",
+        "Id": "local.todo",
+        "License": "GPL-3.0-or-later",
+        "Name": "To-do",
+        "Version": "3.0"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

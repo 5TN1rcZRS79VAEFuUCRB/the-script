@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=the-script desktop setup
+Comment=Plasma settings that need a running session (the-script-plasma)
+Exec=sh -c "exec ~/.local/bin/the-script-plasma"
+OnlyShowIn=KDE;
+NoDisplay=true

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# the-script: recreates this GNOME desktop on an Arch Linux machine. Run as your normal user (it
+# the-script: recreates this KDE Plasma desktop on an Arch Linux machine. Run as your normal user (it
 # calls sudo where it needs root):  ./install.sh
 # Safe to re-run; anything it would overwrite is backed up first.
 
@@ -136,63 +136,85 @@ fi
 [ "$(systemctl --user show -p ActiveState --value niri-update.service 2>/dev/null)" = activating ] \
 	|| retire "$HOME/.config/systemd/user/niri-update.service"
 
-# ---------------------------------------------------------------- leftovers from KDE Plasma
-# the-script was a Windows 7-style KDE Plasma desktop (AeroThemePlasma) before it moved to GNOME. With
-# Plasma running, removing it would pull the session out from under you, so it stays until a run from
-# GNOME: the-script-gnome starts that run at the first GNOME login. Plasma's own settings in ~/.config
-# (kwinrc, kdeglobals, ...) stay where they are, unused.
-KDE_PKGS=(aeroshell-libplasma-git aeroshell-workspace-git aeroshell-kwin-components-git aeroshell-smod-git
+# ---------------------------------------------------------------- leftovers from AeroThemePlasma
+# the-script was a Windows 7-style KDE Plasma desktop (AeroThemePlasma) before GNOME, and is plain Plasma
+# now. A machine that never left the Windows 7 desktop loses its add-ons here; Plasma itself stays.
+# aeroshell-libplasma-git stands in for libplasma, so libplasma replaces it (--ask=4: yes to the conflict).
+AERO_PKGS=(aeroshell-libplasma-git aeroshell-workspace-git aeroshell-kwin-components-git aeroshell-smod-git
 	aerothemeplasma-desktop-git aerothemeplasma-sounds-git aerothemeplasma-icons-git uac-polkit-agent-git
-	ttf-selawik millennium plasma-desktop plasma-workspace plasma-nm plasma-pa plasma5support kvantum
-	sddm sddm-kcm xdg-desktop-portal-kde dolphin spectacle kscreen)
-# Installed only to build AeroThemePlasma: removed too, unless something else needs them.
-KDE_BUILD=(extra-cmake-modules qt6-virtualkeyboard qt6-5compat plasma-wayland-protocols)
-mapfile -t KDE_HAVE < <(pacman -Qq "${KDE_PKGS[@]}" 2>/dev/null || true)
-KDE_PENDING="$HOME/.local/state/the-script-kde-pending"
-if [ ${#KDE_HAVE[@]} -gt 0 ] && pgrep -x 'plasmashell|kwin_wayland|kwin_x11' >/dev/null; then
-	say "KDE Plasma is running: it is removed after you log into GNOME"
-	mkdir -p "${KDE_PENDING%/*}" && touch "$KDE_PENDING"
-elif [ ${#KDE_HAVE[@]} -gt 0 ]; then
-	say "Removing KDE Plasma and AeroThemePlasma"
-	retire "$HOME"/.config/autostart/{the-script-plasma.desktop,x-atpootb.desktop} "$HOME/.local/bin/the-script-plasma" \
-		"$HOME"/.local/share/plasma/plasmoids/{local.todo,io.gitgud.wackyideas.seventasks} \
+	ttf-selawik millennium kvantum)
+mapfile -t AERO_HAVE < <(pacman -Qq "${AERO_PKGS[@]}" 2>/dev/null || true)
+AERO=0
+if [ ${#AERO_HAVE[@]} -gt 0 ]; then
+	say "Removing AeroThemePlasma (Plasma stays)"
+	AERO=1
+	retire "$HOME"/.config/autostart/x-atpootb.desktop \
+		"$HOME"/.local/share/plasma/plasmoids/io.gitgud.wackyideas.seventasks \
 		"$HOME/.local/share/plasma/look-and-feel/authui7-dark" "$HOME/.local/share/color-schemes/Windows7AeroDark.colors" \
 		"$HOME"/.config/Kvantum/{Windows7AeroDark,Windows7AeroKWin} "$HOME/.local/share/icons/Windows 7 Aero" \
 		"$HOME/.local/share/wallpapers/windows7-harmony.jpg" "$HOME/.config/fontconfig/conf.d/50-segoe-ui-selawik.conf" \
 		"$HOME/.local/share/Steam/millennium/themes/the-script"
 	sudo rm -f /etc/sddm.conf.d/10-win7.conf /etc/pacman.d/hooks/element-msn-icon.hook
 	# Element's own icon file still had Windows Live Messenger's icon copied over it, and on some machines a
-	# NoExtract line in pacman.conf kept updates from replacing it (a reinstall then leaves no icon at all,
-	# three dots in the top bar). Without that line, reinstalling the same version puts Element's icon back;
-	# if a newer one is out, that update does it instead (pacman -S of one package alone would be a partial
-	# upgrade).
+	# NoExtract line in pacman.conf kept updates from replacing it. Without that line, reinstalling the
+	# same version puts Element's icon back; if a newer one is out, that update does it instead.
 	sudo sed -i '\|^NoExtract *= *usr/lib/element/build/icon.png$|d' /etc/pacman.conf
 	sudo rm -f /usr/lib/element/build/icon.png.orig
 	if pacman -Qkk element-desktop 2>&1 | grep -q 'build/icon.png' \
 		&& [ "$(pacman -Q element-desktop | cut -d' ' -f2)" = "$(pacman -Si element-desktop 2>/dev/null | awk '/^Version/ {print $3}')" ]; then
 		sudo pacman -S --noconfirm element-desktop >/dev/null || warn "could not restore Element's icon"
 	fi
-	sudo systemctl disable sddm 2>/dev/null || true
-	# What packages.txt lists stays even where Plasma pulled it in first (the emoji font, for one).
-	mapfile -t keep < <(pacman -Qq $(listed packages.txt) 2>/dev/null || true)
-	[ ${#keep[@]} -eq 0 ] || sudo pacman -D -q --asexplicit "${keep[@]}" >/dev/null
-	if sudo pacman -Rs --noconfirm "${KDE_HAVE[@]}"; then
-		mapfile -t build < <(pacman -Qq "${KDE_BUILD[@]}" 2>/dev/null || true)
-		if [ ${#build[@]} -gt 0 ]; then
-			sudo pacman -D -q --asdeps "${build[@]}" >/dev/null
-			mapfile -t build < <(pacman -Qdtq | grep -xF -f <(printf '%s\n' "${build[@]}") || true)
-			[ ${#build[@]} -eq 0 ] || sudo pacman -Rs --noconfirm "${build[@]}" || true
-		fi
-		rm -f "$KDE_PENDING"
-	else
-		rm -f "$KDE_PENDING"   # not retried at every login; the notification says how
-		warn "could not remove Plasma; run: sudo pacman -Rs ${KDE_HAVE[*]}"
-		notify-send -u critical "the-script: KDE Plasma was not removed" "Run: sudo pacman -Rs ${KDE_HAVE[*]}" 2>/dev/null || true
+	# Plasma's own look comes back at the next login (the-script-plasma).
+	kwriteconfig6 --file kdeglobals --group KDE --key DefaultLightLookAndFeel --delete 2>/dev/null || true
+	kwriteconfig6 --file kdeglobals --group KDE --key DefaultDarkLookAndFeel --delete 2>/dev/null || true
+	if printf '%s\n' "${AERO_HAVE[@]}" | grep -qx aeroshell-libplasma-git; then
+		sudo pacman -S --noconfirm --ask=4 libplasma || warn "could not put libplasma back in place of aeroshell-libplasma-git"
+	fi
+	mapfile -t AERO_HAVE < <(pacman -Qq "${AERO_PKGS[@]}" 2>/dev/null || true)
+	if [ ${#AERO_HAVE[@]} -gt 0 ] && ! sudo pacman -Rs --noconfirm "${AERO_HAVE[@]}"; then
+		warn "could not remove AeroThemePlasma; run: sudo pacman -Rs ${AERO_HAVE[*]}"
 	fi
 fi
 
-# foot was the terminal before Console; its settings are retired. The package stays until you remove it
-# (sudo pacman -Rs foot), as a terminal may still be running in it.
+# ---------------------------------------------------------------- leftovers from GNOME
+# the-script was GNOME before it went back to Plasma. Its scripts, extensions and the ThinkPad look are
+# retired now (a running GNOME keeps what it loaded until you log out). Removing GNOME itself with GNOME
+# running would pull the session out from under you, so that waits for a run from Plasma:
+# the-script-plasma starts one at the first Plasma login. GNOME's own settings (dconf) stay, unused.
+retire "$HOME/.local/bin/the-script-gnome" "$HOME/.config/autostart/the-script-gnome.desktop" \
+	"$HOME"/.local/share/gnome-shell/extensions/{todo,volume-percent}@the-script \
+	"$HOME"/.config/gtk-{3,4}.0/gtk.css "$HOME/.local/share/dbus-1/services/org.gnome.Settings.service" \
+	"$HOME"/.local/share/applications/{org.keepassxc.KeePassXC,com.obsproject.Studio}.desktop \
+	"$HOME"/.local/share/backgrounds/{arch.svg,thinkpad.svg,thinkpad-20-dark.png,thinkpad-20-light.png}
+rm -rf "$HOME/.local/share/icons/Adwaita-ThinkPad"   # made by install.sh, not yours
+rm -f "$HOME"/.local/state/the-script-{gnome-first-run,gnome-librewolf-dash,gnome-app-folders,gnome-app-folders-3,kde-pending}
+sudo rm -f /usr/local/libexec/settings-pointer-speed /etc/udev/rules.d/{70-mouse-dpi,70-dwm-mouse-dpi}.rules
+# display-wake brought a DisplayPort monitor's picture back after a long GNOME sleep; niri and Plasma
+# never needed it.
+systemctl --user disable --now display-wake.service >/dev/null 2>&1 || true
+retire "$HOME/.local/bin/display-wake" "$HOME/.config/systemd/user/display-wake.service"
+
+GNOME_PKGS=(gnome-shell gdm gnome-control-center gnome-bluetooth-3.0 gnome-shell-extension-appindicator
+	xdg-desktop-portal-gnome nautilus loupe gnome-text-editor gnome-console)
+mapfile -t GNOME_HAVE < <(pacman -Qq "${GNOME_PKGS[@]}" 2>/dev/null || true)
+GNOME_PENDING="$HOME/.local/state/the-script-remove-gnome"
+if [ ${#GNOME_HAVE[@]} -gt 0 ] && pgrep -x gnome-shell >/dev/null; then
+	say "GNOME is running: it is removed after you log into Plasma"
+	mkdir -p "${GNOME_PENDING%/*}" && touch "$GNOME_PENDING"
+elif [ ${#GNOME_HAVE[@]} -gt 0 ]; then
+	say "Removing GNOME"
+	# What packages.txt lists stays even where GNOME pulled it in first.
+	mapfile -t keep < <(pacman -Qq $(listed packages.txt) 2>/dev/null || true)
+	[ ${#keep[@]} -eq 0 ] || sudo pacman -D -q --asexplicit "${keep[@]}" >/dev/null
+	rm -f "$GNOME_PENDING"   # not retried at every login; the notification says how
+	if ! sudo pacman -Rs --noconfirm "${GNOME_HAVE[@]}"; then
+		warn "could not remove GNOME; run: sudo pacman -Rs ${GNOME_HAVE[*]}"
+		notify-send -u critical "the-script: GNOME was not removed" "Run: sudo pacman -Rs ${GNOME_HAVE[*]}" 2>/dev/null || true
+	fi
+fi
+
+# foot was the terminal before Console and Konsole; its settings are retired. The package stays until you
+# remove it (sudo pacman -Rs foot), as a terminal may still be running in it.
 retire "$HOME/.config/foot/foot.ini"
 
 # ---------------------------------------------------------------- dotfiles + scripts
@@ -214,75 +236,17 @@ done
 [ "$was_running" -eq 0 ] || systemd-run --user --collect -q "$HOME/.local/bin/todo" daemon \
 	|| warn "could not restart the todo daemon; run: todo daemon &"
 
-# ---------------------------------------------------------------- GNOME
-# The settings themselves (dark style, the extensions) are in the-script-gnome,
-# which also runs at every login: gsettings needs the session bus.
-say "GNOME: the to-do extension and settings"
-glib-compile-schemas "$HOME/.local/share/gnome-shell/extensions/todo@the-script/schemas" \
-	|| warn "could not compile the to-do extension's settings; Super+T will not open it"
-if command -v gnome-shell >/dev/null && [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
-	"$HOME/.local/bin/the-script-gnome" || warn "could not apply the GNOME settings; they apply at the next login"
+# ---------------------------------------------------------------- Plasma
+# The settings that need a running session (Breeze Dark, the todo widget on the taskbar) are in
+# the-script-plasma, run at every login.
+say "Plasma: settings and the login screen"
+if command -v plasmashell >/dev/null && pgrep -x plasmashell >/dev/null; then
+	"$HOME/.local/bin/the-script-plasma" || warn "could not apply the Plasma settings; they apply at the next login"
 fi
-# Settings' pointer speed sliders show their value, and the mouse's DPI under them:
-# ~/.local/share/dbus-1/services/org.gnome.Settings.service starts Settings through
-# settings-pointer-speed. The udev rule lets it read the DPI from a Razer or Endgame Gear mouse.
-if command -v gnome-control-center >/dev/null; then
-	sudo_place usr/local/libexec/settings-pointer-speed /usr/local/libexec/settings-pointer-speed
-	sudo_place etc/udev/rules.d/70-mouse-dpi.rules /etc/udev/rules.d/70-mouse-dpi.rules
-	# The same rule under the dwm-era name.
-	[ -e /etc/udev/rules.d/70-dwm-mouse-dpi.rules ] && sudo rm -f /etc/udev/rules.d/70-dwm-mouse-dpi.rules
-	sudo udevadm control --reload && sudo udevadm trigger --subsystem-match=hidraw \
-		|| warn "could not reload udev rules; the DPI shows after a reboot"
-	# The session bus reads service files at its start; this picks up the Settings one now.
-	gdbus call --session -d org.freedesktop.DBus -o /org/freedesktop/DBus -m org.freedesktop.DBus.ReloadConfig \
-		>/dev/null 2>&1 || true
-fi
-
-# Wallpapers the-script used before its own arch.svg.
-retire "$HOME"/.local/share/backgrounds/{thinkpad.svg,thinkpad-20-dark.png,thinkpad-20-light.png}
-
-# Folder icons in gray instead of Adwaita's blue, to go with the ThinkPad colors (gtk.css): an icon theme
-# with just Adwaita's folder icons, recolored, over Adwaita itself. Remade on every run so it follows
-# Adwaita updates; the-script-gnome selects it.
-icons="$HOME/.local/share/icons/Adwaita-ThinkPad"
-rm -rf "$icons"
-python3 - /usr/share/icons/Adwaita/scalable "$icons" <<-'EOF' || warn "could not make the gray folder icons; folders stay blue"
-	import glob, os, re, sys
-
-	src, dst = sys.argv[1:3]
-	icons = (glob.glob(f"{src}/places/folder*.svg") + glob.glob(f"{src}/places/user-home.svg")
-	         + glob.glob(f"{src}/places/user-desktop.svg") + glob.glob(f"{src}/mimetypes/inode-directory.svg")
-	         + glob.glob(f"{src}/status/folder-open.svg"))
-	assert icons, "Adwaita has no folder icons"
-
-
-	def gray(m):
-	    r, g, b = (int(m.group(1)[i:i + 2], 16) for i in (0, 2, 4))
-	    if b - r < 25:              # already neutral (the paper inside, shadows)
-	        return m.group(0)
-	    y = round((0.2126 * r + 0.7152 * g + 0.0722 * b) * 0.85)
-	    return "#%02x%02x%02x" % (y, y, y)
-
-
-	for f in icons:
-	    rel = os.path.relpath(f, src)
-	    os.makedirs(os.path.dirname(f"{dst}/scalable/{rel}"), exist_ok=True)
-	    with open(f) as i, open(f"{dst}/scalable/{rel}", "w") as o:
-	        o.write(re.sub(r"#([0-9a-fA-F]{6})\b", gray, i.read()))
-	ctx = {"places": "Places", "mimetypes": "MimeTypes", "status": "Status"}
-	dirs = sorted({os.path.dirname(os.path.relpath(f, src)) for f in icons})
-	with open(f"{dst}/index.theme", "w") as o:
-	    o.write("[Icon Theme]\nName=Adwaita-ThinkPad\nComment=Adwaita with gray folders (the-script)\n"
-	            "Inherits=Adwaita,hicolor\nDirectories=" + ",".join(f"scalable/{d}" for d in dirs) + "\n")
-	    for d in dirs:
-	        o.write(f"\n[scalable/{d}]\nContext={ctx[d]}\nSize=128\nMinSize=8\nMaxSize=512\nType=Scalable\n")
-EOF
-
-# The login screen. GDM takes over at the next boot; a running session is left alone. --force replaces
-# the display-manager link another one (SDDM) holds.
-say "Login: GDM"
-if ! systemctl is-enabled -q gdm 2>/dev/null; then
-	sudo systemctl enable --force gdm || warn "could not enable GDM; run: sudo systemctl enable --force gdm"
+# SDDM takes over at the next boot; a running session is left alone. --force replaces the
+# display-manager link another one (GDM) holds.
+if ! systemctl is-enabled -q sddm 2>/dev/null; then
+	sudo systemctl enable --force sddm || warn "could not enable SDDM; run: sudo systemctl enable --force sddm"
 fi
 
 # ---------------------------------------------------------------- LibreWolf
@@ -421,23 +385,8 @@ systemctl --user enable --now the-script-update.timer \
 # your bed and wake times from that (run there: presence-collector report).
 say "Presence: report when this computer is in use to arch-server"
 systemctl --user enable presence.service >/dev/null 2>&1 || warn "could not enable presence.service"
-if [ "${XDG_CURRENT_DESKTOP:-}" = GNOME ] || systemctl --user -q is-active graphical-session.target 2>/dev/null; then
+if [ "${XDG_CURRENT_DESKTOP:-}" = KDE ] || systemctl --user -q is-active graphical-session.target 2>/dev/null; then
 	systemctl --user restart presence.service || warn "could not start presence; run: systemctl --user restart presence"
-fi
-
-# ---------------------------------------------------------------- display wake
-# A DisplayPort monitor (the Odyssey G8 at 4K 240 Hz on NVIDIA) can wake from a long sleep with no
-# picture; display-wake switches its refresh rate and back after every such wake to bring it back.
-# Only the desktops (arch-server, arch-desktop) get it; the laptop leaves it off.
-case "$(cat /etc/hostname)" in arch-server|arch-desktop) wake=1 ;; *) wake= ;; esac
-if [ -n "$wake" ]; then
-	say "Display wake: bring the picture back after a long monitor sleep"
-	systemctl --user enable display-wake.service >/dev/null 2>&1 || warn "could not enable display-wake.service"
-	if [ "${XDG_CURRENT_DESKTOP:-}" = GNOME ] || systemctl --user -q is-active graphical-session.target 2>/dev/null; then
-		systemctl --user restart display-wake.service || warn "could not start display-wake; run: systemctl --user restart display-wake"
-	fi
-else
-	systemctl --user disable --now display-wake.service >/dev/null 2>&1 || true
 fi
 
 # ---------------------------------------------------------------- Steam overlay scale
@@ -446,7 +395,7 @@ fi
 say "Steam overlay: follow the display scale"
 systemctl --user enable --now steam-overlay-scale.path \
 	|| warn "could not start steam-overlay-scale.path; after logging in run: systemctl --user enable --now steam-overlay-scale.path"
-if [ "${XDG_CURRENT_DESKTOP:-}" = GNOME ]; then   # the scale can only be read inside the desktop
+if [ "${XDG_CURRENT_DESKTOP:-}" = KDE ]; then   # the scale can only be read inside the desktop
 	"$HOME/.local/bin/steam-overlay-scale" || warn "could not patch Steam's overlay scale; run steam-overlay-scale to see why"
 fi
 
@@ -493,16 +442,16 @@ if [ ${#REPLACED[@]} -gt 0 ]; then
 	printf '  ~/%s\n' "${REPLACED[@]}" >&2
 fi
 # Installed by the-script-update from an older desktop: say that a restart switches over.
-if { [ "$MIGRATED" -eq 1 ] || [ -e "$KDE_PENDING" ]; } && [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
-	notify-send -u critical "the-script is installed" "Restart to switch to GNOME." 2>/dev/null || true
+if { [ "$MIGRATED" -eq 1 ] || [ "$AERO" -eq 1 ] || [ -e "$GNOME_PENDING" ]; } && [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
+	notify-send -u critical "the-script is installed" "Restart to switch to KDE Plasma." 2>/dev/null || true
 fi
 cat <<EOF
 
 Next steps:
-  1. Restart. GDM comes up; log in and you are in GNOME. Coming from KDE, the first login also
-     removes Plasma in the background (a notification says if it fails).
-  2. Super opens the overview, Super+T the to-do list. See README.md.
+  1. Restart. SDDM comes up; log in and you are in KDE Plasma. Coming from GNOME, the first login
+     also removes GNOME in the background (a notification says if it fails).
+  2. Meta opens the launcher, Meta+T the to-do list. See README.md.
   3. NVIDIA card? Install the driver yourself first (e.g. 'sudo pacman -S nvidia-open'),
      since the right package depends on your GPU and kernel. It is not part of this repo.
-  4. Display too big/small? Settings > Displays > Scale.
+  4. Display too big/small? System Settings > Display & Monitor > Scale.
 EOF

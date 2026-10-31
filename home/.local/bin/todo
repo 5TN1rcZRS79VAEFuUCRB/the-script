@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-todo: Canvas + Schoology assignments, your own to-dos and workouts in the top bar, with points,
-a streak and reminders. The top bar extension (~/.local/share/gnome-shell/extensions/todo@the-script)
-shows the bar text (todo-bar) and opens the menu on click or Super+T.
+todo: Canvas + Schoology assignments, your own to-dos and workouts on the taskbar, with points,
+a streak and reminders. The taskbar widget (~/.local/share/plasma/plasmoids/local.todo) shows the
+bar text (todo-bar) and opens the menu on click or Meta+T.
 
   todo daemon    sync every 5 min, refresh the bar and send reminders every minute (started at login)
   todo sync      sync once and print the bar text and any errors
-  todo json      the menu as JSON: next task, 10-minute focus timer, open / mark done (read by the extension)
+  todo json      the menu as JSON: next task, 10-minute focus timer, open / mark done (read by the widget)
   todo do ACTION [ID]  run one action from that JSON
   todo selftest  check the feed parser, ordering and scoring
 
@@ -752,7 +752,7 @@ def timer(secs, icon, text):
 
 
 def focus(t, reopen=True):
-    """One 10-minute session. When it ends, a notification points to Super+T for more or a break:
+    """One 10-minute session. When it ends, a notification points to Meta+T for more or a break:
     nothing pops up that grabs the keyboard while you're typing."""
     if reopen:
         open_url(t)
@@ -767,7 +767,7 @@ def focus(t, reopen=True):
         s["focus_next"] = time.time()
         pts = total(s)
     tick()
-    notify(f"Session done: +2 pts ({pts})", "Super+T: 10 more minutes or a 5-minute break", urgent=True)
+    notify(f"Session done: +2 pts ({pts})", "Meta+T: 10 more minutes or a 5-minute break", urgent=True)
 
 
 def rest(t):
@@ -776,7 +776,7 @@ def rest(t):
     if timer(REST_SECS, COFFEE, "break"):
         with state() as s:
             s["focus_next"] = time.time()
-        notify(f"Break's over: {t['title']}", "Super+T: 10 more minutes", urgent=True)
+        notify(f"Break's over: {t['title']}", "Meta+T: 10 more minutes", urgent=True)
 
 
 def workout_done(listed):
@@ -889,7 +889,7 @@ def run_action(act, t):
 
 
 def menu_json():
-    """The menu as JSON for the top bar extension."""
+    """The menu as JSON for the taskbar widget."""
     close_sticky()
     ((run, freezes), (lvl, to_next), pts), top, items, since, now = menu_rows()
     row = lambda text, a: {"text": text, "act": a[0], "id": a[1]["id"] if a[1] else ""}

@@ -1,4 +1,0 @@
-# Lets the logged-in user read a Razer (1532) or Endgame Gear (3367) mouse's DPI over hidraw, for the
-# DPI under Settings' mouse speed slider (/usr/local/libexec/settings-pointer-speed). uaccess only
-# takes effect in rules ordered before 73-seat-late.rules.
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1532|3367", TAG+="uaccess"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# todo-bar: the top bar extension's text (~/.local/share/gnome-shell/extensions/todo@the-script), which runs this
+# todo-bar: the taskbar widget's text (~/.local/share/plasma/plasmoids/local.todo), which runs this
 # every second: next assignment, points and streak from the todo daemon, or the running focus/break
 # countdown in its place ("<icon> 7:32 <task>").
 

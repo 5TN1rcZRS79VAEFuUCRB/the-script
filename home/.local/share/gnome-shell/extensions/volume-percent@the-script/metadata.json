@@ -1,7 +1,0 @@
-{
-  "uuid": "volume-percent@the-script",
-  "name": "Volume and brightness percentages",
-  "description": "The volume as a percentage next to the speaker icon, and a percentage in the volume and brightness popups",
-  "shell-version": ["49", "50", "51", "52", "53"],
-  "version": 1
-}

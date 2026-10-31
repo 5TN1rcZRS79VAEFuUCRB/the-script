@@ -7,8 +7,8 @@
 #   - first login only: Breeze Dark, and on a desktop variable refresh rate always on (games included)
 #   - once: the star trails wallpaper on the desktop and the lock screen, and GNOME's black
 #     Adwaita cursor in place of Breeze's
-#   - once: the taskbar rebuilt as a floating bar: the launcher with the Arch logo on the left, the
-#     task icons in the middle, the todo widget, tray and clock on the right (the pinned apps carry over)
+#   - once: the taskbar rebuilt as a floating bar: the launcher with the Arch logo and the task icons
+#     on the left, the todo widget, tray and clock on the right (the pinned apps carry over)
 #   - the todo widget on the taskbar left of the tray, opened by Meta+T
 #   - your Firefox profile copied into LibreWolf, if install.sh could not do it with a browser open
 #   - once, on machines that had GNOME: the installer is run again from Plasma to remove GNOME, which it
@@ -92,7 +92,6 @@ if [ ! -e "$STATE/the-script-plasma-panel-1" ]; then
 		var k = p.addWidget("org.kde.plasma.kickoff");
 		k.currentConfigGroup = ["General"];
 		k.writeConfig("icon", "archlinux-logo");
-		p.addWidget("org.kde.plasma.panelspacer");
 		var tasks = p.addWidget("org.kde.plasma.icontasks");
 		if (launchers) { tasks.currentConfigGroup = ["General"]; tasks.writeConfig("launchers", launchers); }
 		p.addWidget("org.kde.plasma.panelspacer");

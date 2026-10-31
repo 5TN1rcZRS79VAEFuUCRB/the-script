@@ -428,8 +428,9 @@ fi
 # ---------------------------------------------------------------- display wake
 # A DisplayPort monitor (the Odyssey G8 at 4K 240 Hz on NVIDIA) can wake from a long sleep with no
 # picture; display-wake switches its refresh rate and back after every such wake to bring it back.
-# Only arch-server has that monitor; everywhere else it stays off.
-if [ "$(cat /etc/hostname)" = arch-server ]; then
+# Only the desktops (arch-server, arch-desktop) get it; the laptop leaves it off.
+case "$(cat /etc/hostname)" in arch-server|arch-desktop) wake=1 ;; *) wake= ;; esac
+if [ -n "$wake" ]; then
 	say "Display wake: bring the picture back after a long monitor sleep"
 	systemctl --user enable display-wake.service >/dev/null 2>&1 || warn "could not enable display-wake.service"
 	if [ "${XDG_CURRENT_DESKTOP:-}" = GNOME ] || systemctl --user -q is-active graphical-session.target 2>/dev/null; then

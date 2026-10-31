@@ -101,23 +101,39 @@ fi
 
 # The tray shows the volume, network, notifications, battery and apps running in the background (and the
 # camera, a plugged-in drive or playing media while there is one); the microphone indicator and the
-# rest are behind its arrow. The clock is in 12 pt text instead of filling the panel's height.
+# rest are behind its arrow. The clock's text is about 15 px instead of filling the panel's height.
 # The menu (the Arch logo) switches categories on hover, has no green dots on newly installed apps and icon-only
 # Sleep, Restart and Shut Down buttons (named in their tooltips) with Lock next to them.
 # Plasma only reads these at start, so the shell is restarted.
+# The clock turns its point size into pixels by the screen's physical DPI, not by Plasma's scale, so 12 pt
+# is 15 px on a 24" 1080p monitor but 21 px on a T14's 14" 1920x1200 screen. This gives the point size
+# that comes out at about 15 px on the main screen (12 if its size is unknown).
+clock_points() {
+	kscreen-doctor -j 2>/dev/null | python3 -c 'import json, sys
+outs = [o for o in json.load(sys.stdin)["outputs"] if o.get("enabled")]
+outs.sort(key=lambda o: o.get("priority") or 99)
+pt = 12
+if outs and outs[0].get("sizeMM", {}).get("width"):
+    o = outs[0]
+    mode = next(m for m in o["modes"] if m["id"] == o["currentModeId"])
+    dpi = mode["size"]["width"] / o.get("scale", 1) / (o["sizeMM"]["width"] / 25.4)
+    pt = max(6, round(15 * 72 / dpi))
+print(pt)' 2>/dev/null || echo 12
+}
 TRAY_HIDDEN=plasmashell_microphone,org.kde.plasma.clipboard,org.kde.plasma.bluetooth,org.kde.kscreen,org.kde.plasma.brightness,org.kde.plasma.keyboardlayout,org.kde.plasma.manage-inputmethod,org.kde.plasma.mediacontroller,org.kde.plasma.dwellclicker
 tidy_tray() {
 	local panel tray clock kickoff
 	read -r panel tray clock kickoff < <(js 'var p = panels()[0]; var t = p.widgets("org.kde.plasma.systemtray")[0];
 		var c = p.widgets("org.kde.plasma.digitalclock")[0]; var k = p.widgets("org.kde.plasma.kickoff")[0];
 		print(p.id + " " + t.id + " " + (c ? c.id : "-") + " " + (k ? k.id : "-"));')
+	local size; size=$(clock_points)
 	sleep 2   # let the shell save what it was just told
 	systemctl --user stop plasma-plasmashell
 	kwriteconfig6 --file "$APPLETSRC" --group Containments --group "$panel" --group Applets \
 		--group "$tray" --group General --key hiddenItems "$TRAY_HIDDEN"
 	# The clock's default weight, 50, is from Qt 5's scale: in Qt 6 it is thinner than Thin.
 	local key
-	for key in autoFontAndSize=false fontSize=12 fontWeight=400; do
+	for key in autoFontAndSize=false fontSize="$size" fontWeight=400; do
 		[ "$clock" != - ] && kwriteconfig6 --file "$APPLETSRC" --group Containments --group "$panel" --group Applets \
 			--group "$clock" --group Configuration --group Appearance --key "${key%=*}" "${key#*=}"
 	done
@@ -127,7 +143,7 @@ tidy_tray() {
 			--group "$kickoff" --group Configuration --group General --key "${key%%=*}" "${key#*=}"
 	done
 	systemctl --user start plasma-plasmashell
-	mkdir -p "$STATE" && touch "$STATE/the-script-plasma-tray-4"
+	mkdir -p "$STATE" && touch "$STATE/the-script-plasma-tray-5"
 }
 
 # The panel is made on the first start of the shell; wait for it (and its tray).
@@ -174,7 +190,7 @@ js 'panels().forEach(function (p) {
 		});
 	});' >/dev/null
 
-[ -e "$STATE/the-script-plasma-tray-4" ] || { tidy_tray; exit 0; }
+[ -e "$STATE/the-script-plasma-tray-5" ] || { tidy_tray; exit 0; }
 
 # Once, on taskbars built before $PINNED: they kept Plasma's default pins, Discover's blank icon among
 # them. Pins rearranged by hand (no Discover in them) are left alone. Plasma reads them only at start.

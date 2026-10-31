@@ -1,0 +1,8 @@
+# Hides a launcher nobody opens from the menu (dependencies of Java, hwloc, gpsd, v4l-utils, Qt, CMake, CUPS;
+# KDE System Settings and KWrite are a second System Settings and Kate). A launcher of the same name with NoDisplay=true replaces the
+# system one; Hidden=true kept it out of the menu but not out of Plasma's search.
+[Desktop Entry]
+Type=Application
+Name=KWrite
+Exec=true
+NoDisplay=true

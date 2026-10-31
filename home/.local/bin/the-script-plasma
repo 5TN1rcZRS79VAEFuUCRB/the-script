@@ -68,10 +68,10 @@ fi
 # Once: the search. Meta opens KRunner in the middle of the screen, Spotlight-style (the Arch logo
 # still opens the menu), and typing on the desktop starts a search too. Apps, settings and the calculator
 # come first; files, windows, places and recent documents follow, and anything else offers a DuckDuckGo
-# search. Baloo indexes only the names of files in Desktop, Documents, Downloads, Music, Pictures and
-# Videos, not what is in them, so code and logs elsewhere in home don't fill the results. The runners for KWin's console, the Plasma script console, shortcuts, help pages and
+# search. Baloo indexes only the names of files in Desktop, Documents, Music, Pictures and Videos, not
+# what is in them, so code, logs and unpacked downloads don't fill the results. The runners for KWin's console, the Plasma script console, shortcuts, help pages and
 # Discover (not installed) are off.
-if [ ! -e "$STATE/the-script-plasma-search-1" ]; then
+if [ ! -e "$STATE/the-script-plasma-search-2" ]; then
 	k() { kwriteconfig6 --file krunnerrc "$@"; }
 	k --group General --key FreeFloating true
 	k --group General --key ActivateWhenTypingOnDesktop true
@@ -81,14 +81,14 @@ if [ ! -e "$STATE/the-script-plasma-search-1" ]; then
 		k --group Plugins --key "${r}Enabled" false
 	done
 	kwriteconfig6 --file baloofilerc --group General --key folders \
-		"$(printf "$HOME/%s/," Desktop Documents Downloads Music Pictures Videos | sed 's/,$//')"
+		"$(printf "$HOME/%s/," Desktop Documents Music Pictures Videos | sed 's/,$//')"
 	kwriteconfig6 --file baloofilerc --group General --key "only basic indexing" true
 	balooctl6 purge >/dev/null 2>&1   # drop the old index of everything; it rebuilds by itself
 	kwriteconfig6 --file kuriikwsfilterrc --group General --key DefaultWebShortcut duckduckgo
 	kwriteconfig6 --file kwinrc --group ModifierOnlyShortcuts --key Meta "org.kde.krunner,/App,,toggleDisplay"
 	qdbus6 org.kde.KWin /KWin reconfigure >/dev/null 2>&1
 	pkill -x krunner   # D-Bus starts it again with the new settings
-	mkdir -p "$STATE" && touch "$STATE/the-script-plasma-search-1"
+	mkdir -p "$STATE" && touch "$STATE/the-script-plasma-search-2"
 fi
 
 # The tray shows the volume, network, notifications, battery and apps running in the background (and the

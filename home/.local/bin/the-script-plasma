@@ -8,7 +8,8 @@
 #   - once: the star trails wallpaper on the desktop and the lock screen, and GNOME's black
 #     Adwaita cursor in place of Breeze's
 #   - once: the taskbar rebuilt as a floating bar: the launcher with the Arch logo and the task icons
-#     on the left, the todo widget, tray and clock on the right (the pinned apps carry over)
+#     on the left, the todo widget, tray and clock on the right
+#   - once: the pinned apps set to Settings, Files, Konsole, LibreWolf and Element, in that order
 #   - the todo widget on the taskbar left of the tray, opened by Meta+T
 #   - your Firefox profile copied into LibreWolf, if install.sh could not do it with a browser open
 #   - once, on machines that had GNOME: the installer is run again from Plasma to remove GNOME, which it
@@ -21,6 +22,9 @@ FIRST="$STATE/the-script-plasma-breeze"
 WALLPAPER="$HOME/.local/share/wallpapers/the-script.jpg"
 GNOME_PENDING="$STATE/the-script-remove-gnome"
 APPLETSRC="$HOME/.config/plasma-org.kde.plasma.desktop-appletsrc"
+# The taskbar's pinned apps. Plasma's own default pins Discover, which the-script doesn't install, so its
+# icon was blank.
+PINNED=applications:systemsettings.desktop,preferred://filemanager,applications:org.kde.konsole.desktop,preferred://browser,applications:io.element.Element.desktop
 
 js() { qdbus6 org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "$1"; }
 # kglobalaccel keys are Qt key codes; none clears the shortcut.
@@ -140,12 +144,7 @@ done
 if [ ! -e "$STATE/the-script-plasma-panel-1" ]; then
 	keys kwin 'Edit Tiles'   # Meta+T by default
 	js 'var old = panels()[0];
-		var launchers = "";
-		if (old) {
-			var t = old.widgets("org.kde.plasma.icontasks")[0];
-			if (t) { t.currentConfigGroup = ["General"]; launchers = t.readConfig("launchers", ""); }
-			old.remove();
-		}
+		if (old) old.remove();
 		var p = new Panel;
 		p.location = "bottom";
 		p.height = 44;
@@ -155,12 +154,13 @@ if [ ! -e "$STATE/the-script-plasma-panel-1" ]; then
 		k.currentConfigGroup = ["General"];
 		k.writeConfig("icon", "/usr/share/pixmaps/archlinux-logo.svg");
 		var tasks = p.addWidget("org.kde.plasma.icontasks");
-		if (launchers) { tasks.currentConfigGroup = ["General"]; tasks.writeConfig("launchers", launchers); }
+		tasks.currentConfigGroup = ["General"];
+		tasks.writeConfig("launchers", "'"$PINNED"'");
 		p.addWidget("org.kde.plasma.panelspacer");
 		p.addWidget("local.todo").globalShortcut = "Meta+T";
 		p.addWidget("org.kde.plasma.systemtray");
 		p.addWidget("org.kde.plasma.digitalclock");' >/dev/null \
-		&& mkdir -p "$STATE" && touch "$STATE/the-script-plasma-panel-1"
+		&& mkdir -p "$STATE" && touch "$STATE/the-script-plasma-panel-1" "$STATE/the-script-plasma-pins-1"
 	tidy_tray
 	exit 0   # the todo widget is already in place
 fi
@@ -175,6 +175,21 @@ js 'panels().forEach(function (p) {
 	});' >/dev/null
 
 [ -e "$STATE/the-script-plasma-tray-4" ] || { tidy_tray; exit 0; }
+
+# Once, on taskbars built before $PINNED: they kept Plasma's default pins, Discover's blank icon among
+# them. Pins rearranged by hand (no Discover in them) are left alone. Plasma reads them only at start.
+if [ ! -e "$STATE/the-script-plasma-pins-1" ]; then
+	read -r panel tasks < <(js 'var p = panels()[0]; var t = p.widgets("org.kde.plasma.icontasks")[0];
+		if (t) t.currentConfigGroup = ["General"];
+		print(t && t.readConfig("launchers", "").indexOf("org.kde.discover") >= 0 ? p.id + " " + t.id : "");')
+	if [ -n "${tasks:-}" ]; then
+		systemctl --user stop plasma-plasmashell
+		kwriteconfig6 --file "$APPLETSRC" --group Containments --group "$panel" --group Applets \
+			--group "$tasks" --group Configuration --group General --key launchers "$PINNED"
+		systemctl --user start plasma-plasmashell
+	fi
+	mkdir -p "$STATE" && touch "$STATE/the-script-plasma-pins-1"
+fi
 
 # The todo widget. Plasma reads the panel's order only at start, so a new one is moved left of the
 # tray with the shell stopped. local.niritodo is its name from before the-script.

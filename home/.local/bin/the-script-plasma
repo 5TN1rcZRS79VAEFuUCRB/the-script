@@ -65,12 +65,14 @@ if [ ! -e "$STATE/the-script-plasma-cursor-3" ] && plasma-apply-cursortheme Adwa
 	mkdir -p "$STATE" && touch "$STATE/the-script-plasma-cursor-3"
 fi
 
-# Once: the search, in the menu (Meta) and in KRunner (Alt+Space, or typing on the desktop, in the middle
-# of the screen), which share their search plugins. Apps, settings and the calculator come first; files, windows, places and recent documents follow, and anything else offers a DuckDuckGo
-# search. Baloo indexes only the names of files in Desktop, Documents, Music, Pictures and Videos, not
-# what is in them, so code, logs and unpacked downloads don't fill the results. The runners for KWin's console, the Plasma script console, shortcuts, help pages and
-# Discover (not installed) are off.
-if [ ! -e "$STATE/the-script-plasma-search-3" ]; then
+# Once: the search. Meta opens KRunner in the middle of the screen, Spotlight-style (so do Alt+Space and
+# typing on the desktop); the menu is on the Arch logo and Alt+F1, and its search uses the same plugins.
+# Apps, settings and the calculator come first; files, windows, places and recent documents follow, and
+# anything else offers a DuckDuckGo search. Baloo indexes only the names of files in Desktop, Documents,
+# Music, Pictures and Videos, not what is in them, so code, logs and unpacked downloads don't fill the
+# results. The runners for KWin's console, the Plasma script console, shortcuts, help pages and Discover
+# (not installed) are off.
+if [ ! -e "$STATE/the-script-plasma-search-4" ]; then
 	k() { kwriteconfig6 --file krunnerrc "$@"; }
 	k --group General --key FreeFloating true
 	k --group General --key ActivateWhenTypingOnDesktop true
@@ -84,17 +86,19 @@ if [ ! -e "$STATE/the-script-plasma-search-3" ]; then
 	kwriteconfig6 --file baloofilerc --group General --key "only basic indexing" true
 	balooctl6 purge >/dev/null 2>&1   # drop the old index of everything; it rebuilds by itself
 	kwriteconfig6 --file kuriikwsfilterrc --group General --key DefaultWebShortcut duckduckgo
-	# search-2 had Meta open KRunner instead of the menu.
+	# Meta on its own is a global shortcut like any other: taken from the menu, given to KRunner.
+	keys plasmashell 'activate application launcher' 150994992              # Alt+F1
+	keys org.kde.krunner.desktop _launch 16777250 134217760 150994993 16777362   # Meta, Alt+Space, Alt+F2, Search
+	# search-2 tried this through kwinrc, which Plasma 6 ignores.
 	kwriteconfig6 --file kwinrc --group ModifierOnlyShortcuts --key Meta --delete
-	qdbus6 org.kde.KWin /KWin reconfigure >/dev/null 2>&1
 	pkill -x krunner   # D-Bus starts it again with the new settings
-	mkdir -p "$STATE" && touch "$STATE/the-script-plasma-search-3"
+	mkdir -p "$STATE" && touch "$STATE/the-script-plasma-search-4"
 fi
 
 # The tray shows the volume, network, notifications, battery and apps running in the background (and the
 # camera, a plugged-in drive or playing media while there is one); the microphone indicator and the
 # rest are behind its arrow. The clock is in 12 pt text instead of filling the panel's height.
-# The menu (Meta) switches categories on hover, has no green dots on newly installed apps and icon-only
+# The menu (the Arch logo) switches categories on hover, has no green dots on newly installed apps and icon-only
 # Sleep, Restart and Shut Down buttons (named in their tooltips) with Lock next to them.
 # Plasma only reads these at start, so the shell is restarted.
 TRAY_HIDDEN=plasmashell_microphone,org.kde.plasma.clipboard,org.kde.plasma.bluetooth,org.kde.kscreen,org.kde.plasma.brightness,org.kde.plasma.keyboardlayout,org.kde.plasma.manage-inputmethod,org.kde.plasma.mediacontroller,org.kde.plasma.dwellclicker

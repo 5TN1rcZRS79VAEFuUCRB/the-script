@@ -1,5 +1,8 @@
-# Hides a tool that came in as a dependency (Java, hwloc, gpsd, v4l-utils): Hidden=true masks the system launcher.
+# Hides a launcher nobody opens from the menu (dependencies of Java, hwloc, gpsd, v4l-utils, Qt, CMake, CUPS;
+# KDE System Settings is a second System Settings). A launcher of the same name with NoDisplay=true replaces the
+# system one; Hidden=true kept it out of the menu but not out of Plasma's search.
 [Desktop Entry]
 Type=Application
 Name=xgpsspeed
-Hidden=true
+Exec=true
+NoDisplay=true

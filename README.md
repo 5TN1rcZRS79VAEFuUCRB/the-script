@@ -40,7 +40,7 @@ Display & Monitor > Legacy Applications (X11) stays on "Apply scaling themselves
 | Piece | Where it goes |
 | --- | --- |
 | KDE Plasma (Plasma, System Settings, Dolphin, Konsole, Kate, Gwenview, Spectacle) | packages (`packages.txt`) |
-| Settings applied at every login by `the-script-plasma` (they need the running session): Breeze Dark and, on a desktop, variable refresh rate always on (first login only), the wallpaper on the desktop and lock screen and the classic black Vanilla-DMZ-AA cursor (once each), and the to-do widget on the taskbar left of the tray, opened by `Meta+T` | `~/.config/autostart/the-script-plasma.desktop` |
+| Settings applied at every login by `the-script-plasma` (they need the running session): Breeze Dark and, on a desktop, variable refresh rate always on (first login only), the wallpaper on the desktop and lock screen and GNOME's black Adwaita cursor (once each), and the to-do widget on the taskbar left of the tray, opened by `Meta+T` | `~/.config/autostart/the-script-plasma.desktop` |
 | Wallpaper: star trails over La Hague lighthouse at sunset, by Antoine Lamielle ([Wikimedia Commons](https://commons.wikimedia.org/wiki/File:2017-04_Circumpolar_trails_sunset_at_La_Hague_lighthouse.jpg), CC BY-SA 4.0), cropped to 3840x2160 | `~/.local/share/wallpapers/the-script.jpg` |
 | The login screen (SDDM) | `systemctl enable sddm` (needs sudo) |
 | `mouse-dpi`: measures a mouse's real DPI as you slide it 10 cm along a ruler, next to the DPI it is set to (read from a Razer or Endgame Gear mouse), to compare two mice set alike (needs sudo to read the mouse) | `~/.local/bin/mouse-dpi` |

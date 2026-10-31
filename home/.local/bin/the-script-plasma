@@ -5,8 +5,8 @@
 # everything is in place changes nothing.
 #
 #   - first login only: Breeze Dark, and on a desktop variable refresh rate always on (games included)
-#   - once: the star trails wallpaper on the desktop and the lock screen, and the classic black
-#     Vanilla-DMZ-AA cursor in place of Breeze's
+#   - once: the star trails wallpaper on the desktop and the lock screen, and GNOME's black
+#     Adwaita cursor in place of Breeze's
 #   - the todo widget on the taskbar left of the tray, opened by Meta+T
 #   - your Firefox profile copied into LibreWolf, if install.sh could not do it with a browser open
 #   - once, on machines that had GNOME: the installer is run again from Plasma to remove GNOME, which it
@@ -59,8 +59,8 @@ if [ ! -e "$STATE/the-script-plasma-wallpaper-3" ] && [ -s "$WALLPAPER" ] && pla
 	done
 	mkdir -p "$STATE" && touch "$STATE/the-script-plasma-wallpaper-3"
 fi
-if [ ! -e "$STATE/the-script-plasma-cursor-2" ] && plasma-apply-cursortheme Vanilla-DMZ-AA >/dev/null; then
-	mkdir -p "$STATE" && touch "$STATE/the-script-plasma-cursor-2"
+if [ ! -e "$STATE/the-script-plasma-cursor-3" ] && plasma-apply-cursortheme Adwaita >/dev/null; then
+	mkdir -p "$STATE" && touch "$STATE/the-script-plasma-cursor-3"
 fi
 
 # The panel is made on the first start of the shell; wait for it (and its tray).

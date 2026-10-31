@@ -4,6 +4,7 @@
 # (~/.config/autostart/the-script-plasma.desktop). Each step checks first, so a login where
 # everything is in place changes nothing.
 #
+#   - notifications not held back while something is fullscreen
 #   - first login only: Breeze Dark, and on a desktop variable refresh rate always on (games included)
 #   - once: the star trails wallpaper on the desktop and the lock screen, and GNOME's black
 #     Adwaita cursor in place of Breeze's
@@ -39,6 +40,9 @@ keys() { # component action keys...
 # install.sh copies the Firefox profile into LibreWolf only with both closed; if one was open, it is done
 # now, before either is started.
 [ -e "$STATE/the-script-librewolf-import-pending" ] && "$HOME/.local/bin/librewolf-import-firefox"
+
+# Plasma turns on Do Not Disturb while anything is fullscreen (a video, a game); notifications show anyway.
+kwriteconfig6 --notify --file plasmanotifyrc --group DoNotDisturb --key WhenFullscreen false
 
 # install.sh leaves GNOME installed while a GNOME session runs. In Plasma, clearing the installed
 # commit makes the updater run it again now, and that run removes GNOME.

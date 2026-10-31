@@ -236,8 +236,8 @@ PlasmoidItem {
                     highlight: PlasmaExtras.Highlight {}
                     highlightMoveDuration: Kirigami.Units.shortDuration
                     highlightResizeDuration: Kirigami.Units.shortDuration
-                    // The highlight follows the mouse. A new model puts the current row back on the
-                    // first, and leaving the list would leave it where it was: neither shows a highlight.
+                    // The highlight follows the mouse. A new model puts the current row back on the first:
+                    // no highlight until the mouse is over one.
                     onModelChanged: Qt.callLater(() => currentIndex = -1)
                     Connections {
                         target: root
@@ -265,8 +265,10 @@ PlasmoidItem {
                     // task is remembered by id and opened again.
                     delegate: PlasmaExtras.ExpandableListItem {
                         id: row
-                        required property var modelData
-                        required property int index
+                        // Not `required property int index`: that would hide ExpandableListItem's own index,
+                        // which it reads to move the hover highlight, so every row highlighted the first.
+                        readonly property var modelData: model.modelData
+                        index: model.index
                         width: ListView.view.width - ListView.view.leftMargin - ListView.view.rightMargin
                         icon: root.sourceIcon[modelData.source] || "view-calendar-tasks"
                         iconEmblem: modelData.late ? "emblem-important" : ""

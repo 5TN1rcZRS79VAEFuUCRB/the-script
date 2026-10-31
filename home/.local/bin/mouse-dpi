@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+"""
+mouse-dpi [cm]: measures a mouse's real DPI. Slide it along a ruler (10 cm unless given) three times;
+the raw counts the sensor sent over that distance are its actual DPI, which can be a few percent off
+the DPI it is set to. Two mice set to the same DPI then show whether one really moves the cursor
+further. Next to it is the set DPI, read from a Razer or Endgame Gear mouse by settings-pointer-speed.
+
+Reading /dev/input needs root, so it restarts itself with sudo. The cursor moves as usual meanwhile.
+"""
+import glob
+import importlib.machinery
+import importlib.util
+import math
+import os
+import select
+import struct
+import sys
+
+ROUNDS = 3
+EVENT = struct.Struct("llHHi")  # struct input_event: time, type, code, value
+EV_REL, REL_X, REL_Y = 2, 0, 1
+SETTINGS = "/usr/local/libexec/settings-pointer-speed"
+
+
+def set_dpi():
+    try:
+        loader = importlib.machinery.SourceFileLoader("settings_pointer_speed", SETTINGS)
+        module = importlib.util.module_from_spec(importlib.util.spec_from_loader(loader.name, loader))
+        loader.exec_module(module)
+        return module.dpi()
+    except Exception:
+        return None
+
+
+def mice():
+    # One mouse can have several event nodes (Razer's -if01- one too); counts from all of them add up.
+    found = {}
+    for link in sorted(glob.glob("/dev/input/by-id/*-event-mouse")):
+        name = os.path.basename(link).removeprefix("usb-").split("-event-mouse")[0]
+        name = name.split("-if")[0].replace("_", " ")
+        found.setdefault(name, []).append(os.path.realpath(link))
+    return found
+
+
+def wait_enter(fds, counts):
+    # Adds up movement per mouse until Enter is pressed.
+    while True:
+        ready, _, _ = select.select([sys.stdin, *fds], [], [])
+        for fd in ready:
+            if fd is sys.stdin:
+                sys.stdin.readline()
+                return
+            data = os.read(fd, EVENT.size * 64)
+            for i in range(0, len(data) - EVENT.size + 1, EVENT.size):
+                _, _, kind, code, value = EVENT.unpack_from(data, i)
+                if kind == EV_REL and code in (REL_X, REL_Y):
+                    counts[fds[fd]][code] += value
+
+
+def main():
+    cm = float(sys.argv[1]) if len(sys.argv) > 1 else 10.0
+    found = mice()
+    if not found:
+        sys.exit("mouse-dpi: no mouse found")
+    fds = {}
+    try:
+        for name, nodes in found.items():
+            for node in nodes:
+                fds[os.open(node, os.O_RDONLY | os.O_NONBLOCK)] = name
+    except PermissionError:
+        os.execvp("sudo", ["sudo", sys.executable, os.path.abspath(__file__), *sys.argv[1:]])
+
+    configured = set_dpi()
+    results = []
+    print(f"Lay a ruler on the mousepad and slide the mouse exactly {cm:g} cm along it, {ROUNDS} times.")
+    for n in range(1, ROUNDS + 1):
+        input(f"\n{n}/{ROUNDS}: line the mouse's edge up with 0 and press Enter.")
+        counts = {name: [0, 0] for name in found}
+        print(f"     Slide it to {cm:g} cm, then press Enter.", end="", flush=True)
+        wait_enter(fds, counts)
+        name, (x, y) = max(counts.items(), key=lambda c: math.hypot(*c[1]))
+        dpi = math.hypot(x, y) / (cm / 2.54)
+        results.append((name, dpi))
+        print(f"     {name}: {math.hypot(x, y):.0f} counts = {dpi:.0f} DPI")
+
+    name = results[-1][0]
+    dpis = [d for n, d in results if n == name]
+    average = sum(dpis) / len(dpis)
+    spread = max(dpis) - min(dpis)
+    print(f"\n{name}: {average:.0f} DPI measured (rounds within {spread:.0f} of each other)", end="")
+    if configured and "x" not in configured:
+        print(f", set to {configured} ({(average / int(configured) - 1) * 100:+.1f}%)")
+    else:
+        print()
+    if spread > average * 0.03:
+        print("The rounds differ by more than 3%: slide along the ruler's edge and stop exactly on the mark.")
+
+
+try:
+    main()
+except KeyboardInterrupt:
+    print()

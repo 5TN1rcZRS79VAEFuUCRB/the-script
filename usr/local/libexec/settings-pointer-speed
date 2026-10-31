@@ -115,9 +115,11 @@ def overlay():
     return path
 
 
-env = dict(os.environ)
-try:
-    env["G_RESOURCE_OVERLAYS"] = f"{PAGE}={overlay()}"
-except (OSError, LookupError, UnicodeError) as e:
-    print(f"settings-pointer-speed: {e}; Settings keeps its own sliders", file=sys.stderr)
-os.execve(PROGRAM, [PROGRAM, *sys.argv[1:]], env)
+# mouse-dpi loads this file for dpi(); only running it starts Settings.
+if __name__ == "__main__":
+    env = dict(os.environ)
+    try:
+        env["G_RESOURCE_OVERLAYS"] = f"{PAGE}={overlay()}"
+    except (OSError, LookupError, UnicodeError) as e:
+        print(f"settings-pointer-speed: {e}; Settings keeps its own sliders", file=sys.stderr)
+    os.execve(PROGRAM, [PROGRAM, *sys.argv[1:]], env)

@@ -5,7 +5,7 @@
 # everything is in place changes nothing.
 #
 #   - first login only: Breeze Dark, and on a desktop variable refresh rate always on (games included)
-#   - once: the wallpaper on the desktop and the lock screen, if this repo has one, and the classic black
+#   - once: the star trails wallpaper on the desktop and the lock screen, and the classic black
 #     Vanilla-DMZ-AA cursor in place of Breeze's
 #   - the todo widget on the taskbar left of the tray, opened by Meta+T
 #   - your Firefox profile copied into LibreWolf, if install.sh could not do it with a browser open
@@ -52,12 +52,12 @@ if [ ! -e "$FIRST" ] && plasma-apply-lookandfeel -a org.kde.breezedark.desktop; 
 fi
 
 # Once each; changing them afterwards is kept (until the -N in the state file name is bumped).
-if [ ! -e "$STATE/the-script-plasma-wallpaper-2" ] && [ -s "$WALLPAPER" ] && plasma-apply-wallpaperimage "$WALLPAPER" >/dev/null; then
+if [ ! -e "$STATE/the-script-plasma-wallpaper-3" ] && [ -s "$WALLPAPER" ] && plasma-apply-wallpaperimage "$WALLPAPER" >/dev/null; then
 	for key in Image PreviewImage; do
 		kwriteconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper --group org.kde.image --group General \
 			--key "$key" "file://$WALLPAPER"
 	done
-	mkdir -p "$STATE" && touch "$STATE/the-script-plasma-wallpaper-2"
+	mkdir -p "$STATE" && touch "$STATE/the-script-plasma-wallpaper-3"
 fi
 if [ ! -e "$STATE/the-script-plasma-cursor-2" ] && plasma-apply-cursortheme Vanilla-DMZ-AA >/dev/null; then
 	mkdir -p "$STATE" && touch "$STATE/the-script-plasma-cursor-2"

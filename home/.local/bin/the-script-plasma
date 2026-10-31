@@ -73,8 +73,9 @@ for _ in $(seq 60); do
 done
 [ -n "$tray" ] || { echo "the-script-plasma: no panel with a system tray" >&2; exit 1; }
 
-# Once: the taskbar rebuilt in this layout, since Plasma only takes a new order of widgets with the shell
-# stopped. Rearranging it afterwards is kept (until the -N in the state file name is bumped).
+# Once: the taskbar rebuilt in this layout. Rearranging it afterwards is kept (until the -N in the state
+# file name is bumped). Widgets added by a script don't read the settings it writes (the logo, the pinned
+# apps) until the shell restarts.
 if [ ! -e "$STATE/the-script-plasma-panel-1" ]; then
 	keys kwin 'Edit Tiles'   # Meta+T by default
 	js 'var old = panels()[0];
@@ -99,6 +100,8 @@ if [ ! -e "$STATE/the-script-plasma-panel-1" ]; then
 		p.addWidget("org.kde.plasma.systemtray");
 		p.addWidget("org.kde.plasma.digitalclock");' >/dev/null \
 		&& mkdir -p "$STATE" && touch "$STATE/the-script-plasma-panel-1"
+	sleep 2   # let the shell save them
+	systemctl --user restart plasma-plasmashell
 	exit 0   # the todo widget is already in place
 fi
 # The first version of that set the logo by name, which no icon theme has, so the button was blank.

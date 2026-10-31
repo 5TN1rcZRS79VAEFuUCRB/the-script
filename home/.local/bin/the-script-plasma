@@ -7,6 +7,8 @@
 #   - first login only: Breeze Dark, and on a desktop variable refresh rate always on (games included)
 #   - once: the star trails wallpaper on the desktop and the lock screen, and GNOME's black
 #     Adwaita cursor in place of Breeze's
+#   - once: the taskbar rebuilt as a floating bar: the launcher with the Arch logo on the left, the
+#     task icons in the middle, the todo widget, tray and clock on the right (the pinned apps carry over)
 #   - the todo widget on the taskbar left of the tray, opened by Meta+T
 #   - your Firefox profile copied into LibreWolf, if install.sh could not do it with a browser open
 #   - once, on machines that had GNOME: the installer is run again from Plasma to remove GNOME, which it
@@ -70,6 +72,36 @@ for _ in $(seq 60); do
 	sleep 1
 done
 [ -n "$tray" ] || { echo "the-script-plasma: no panel with a system tray" >&2; exit 1; }
+
+# Once: the taskbar rebuilt in this layout, since Plasma only takes a new order of widgets with the shell
+# stopped. Rearranging it afterwards is kept (until the -N in the state file name is bumped).
+if [ ! -e "$STATE/the-script-plasma-panel-1" ]; then
+	keys kwin 'Edit Tiles'   # Meta+T by default
+	js 'var old = panels()[0];
+		var launchers = "";
+		if (old) {
+			var t = old.widgets("org.kde.plasma.icontasks")[0];
+			if (t) { t.currentConfigGroup = ["General"]; launchers = t.readConfig("launchers", ""); }
+			old.remove();
+		}
+		var p = new Panel;
+		p.location = "bottom";
+		p.height = 44;
+		p.floating = true;
+		p.opacity = "adaptive";
+		var k = p.addWidget("org.kde.plasma.kickoff");
+		k.currentConfigGroup = ["General"];
+		k.writeConfig("icon", "archlinux-logo");
+		p.addWidget("org.kde.plasma.panelspacer");
+		var tasks = p.addWidget("org.kde.plasma.icontasks");
+		if (launchers) { tasks.currentConfigGroup = ["General"]; tasks.writeConfig("launchers", launchers); }
+		p.addWidget("org.kde.plasma.panelspacer");
+		p.addWidget("local.todo").globalShortcut = "Meta+T";
+		p.addWidget("org.kde.plasma.systemtray");
+		p.addWidget("org.kde.plasma.digitalclock");' >/dev/null \
+		&& mkdir -p "$STATE" && touch "$STATE/the-script-plasma-panel-1"
+	exit 0   # the todo widget is already in place
+fi
 
 # The todo widget. Plasma reads the panel's order only at start, so a new one is moved left of the
 # tray with the shell stopped. local.niritodo is its name from before the-script.

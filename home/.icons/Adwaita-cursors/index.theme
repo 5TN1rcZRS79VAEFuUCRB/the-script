@@ -1,0 +1,6 @@
+# GNOME's Adwaita cursors under a name Plasma lists. Adwaita's own index.theme says Hidden=true, so
+# System Settings skips it, and Plasma only looks for cursor themes in ~/.icons and /usr/share/icons.
+# install.sh links cursors/ to Adwaita's, so package updates come through.
+[Icon Theme]
+Name=Adwaita
+Comment=GNOME's cursors

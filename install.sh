@@ -235,6 +235,8 @@ while IFS= read -r -d '' f; do
 	place "$f" "$HOME/${f#home/}"
 done < <(find home -type f -print0)
 systemctl --user daemon-reload 2>/dev/null || true
+# The Adwaita cursors Plasma can list (~/.icons/Adwaita-cursors/index.theme says why).
+ln -sfn /usr/share/icons/Adwaita/cursors "$HOME/.icons/Adwaita-cursors/cursors"
 
 # The todo daemon outlives a logout, so a running one would keep the old code: restart it. The
 # autostart entry at the next login then finds it running. niri-todo is its name from niri-script.

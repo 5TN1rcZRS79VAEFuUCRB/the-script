@@ -59,7 +59,7 @@ if [ ! -e "$STATE/the-script-plasma-wallpaper-3" ] && [ -s "$WALLPAPER" ] && pla
 	done
 	mkdir -p "$STATE" && touch "$STATE/the-script-plasma-wallpaper-3"
 fi
-if [ ! -e "$STATE/the-script-plasma-cursor-3" ] && plasma-apply-cursortheme Adwaita >/dev/null; then
+if [ ! -e "$STATE/the-script-plasma-cursor-3" ] && plasma-apply-cursortheme Adwaita-cursors >/dev/null; then
 	mkdir -p "$STATE" && touch "$STATE/the-script-plasma-cursor-3"
 fi
 

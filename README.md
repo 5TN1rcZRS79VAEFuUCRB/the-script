@@ -132,7 +132,7 @@ sharing to a machine that already ran `todo`, delete its `state.json` so the emp
 ## Monitor wake
 
 A Samsung Odyssey G8 at 4K 240 Hz (compressed DSC over DisplayPort) on NVIDIA can wake from a long
-GNOME sleep with no picture. `display-wake` (started at login by `display-wake.service`) waits for the
+GNOME sleep with no picture. `display-wake` (started at login by `display-wake.service`, on arch-server only) waits for the
 monitors to wake after more than a minute asleep, then switches every DisplayPort monitor to another
 refresh rate and straight back, which brings the picture back; expect a short flicker on wake. What it
 did goes to `journalctl --user -u display-wake`.

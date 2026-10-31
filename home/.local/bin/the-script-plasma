@@ -91,7 +91,7 @@ if [ ! -e "$STATE/the-script-plasma-panel-1" ]; then
 		p.opacity = "adaptive";
 		var k = p.addWidget("org.kde.plasma.kickoff");
 		k.currentConfigGroup = ["General"];
-		k.writeConfig("icon", "archlinux-logo");
+		k.writeConfig("icon", "/usr/share/pixmaps/archlinux-logo.svg");
 		var tasks = p.addWidget("org.kde.plasma.icontasks");
 		if (launchers) { tasks.currentConfigGroup = ["General"]; tasks.writeConfig("launchers", launchers); }
 		p.addWidget("org.kde.plasma.panelspacer");
@@ -101,6 +101,15 @@ if [ ! -e "$STATE/the-script-plasma-panel-1" ]; then
 		&& mkdir -p "$STATE" && touch "$STATE/the-script-plasma-panel-1"
 	exit 0   # the todo widget is already in place
 fi
+# The first version of that set the logo by name, which no icon theme has, so the button was blank.
+js 'panels().forEach(function (p) {
+		p.widgets("org.kde.plasma.kickoff").forEach(function (k) {
+			k.currentConfigGroup = ["General"];
+			if (k.readConfig("icon", "") == "archlinux-logo") {
+				k.writeConfig("icon", "/usr/share/pixmaps/archlinux-logo.svg");
+			}
+		});
+	});' >/dev/null
 
 # The todo widget. Plasma reads the panel's order only at start, so a new one is moved left of the
 # tray with the shell stopped. local.niritodo is its name from before the-script.

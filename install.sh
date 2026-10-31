@@ -252,14 +252,8 @@ done
 # The settings that need a running session (Breeze Dark, the todo widget on the taskbar) are in
 # the-script-plasma, run at every login.
 
-# The wallpaper: a black hole (wallhaven.cc/w/pojl63), downloaded rather than kept in the repo.
-# the-script-plasma sets it on the desktop and the lock screen once.
-WALLPAPER="$HOME/.local/share/wallpapers/black-hole.png"
-if ! sha256sum -c --status <<<"0f4992d80dfaeeef605f0d2622bdf33efa289dbcdeda1d18aceb47756f805e98  $WALLPAPER" 2>/dev/null; then
-	mkdir -p "${WALLPAPER%/*}"
-	{ curl -fsSL -o "$WALLPAPER.tmp" https://w.wallhaven.cc/full/po/wallhaven-pojl63.png && mv "$WALLPAPER.tmp" "$WALLPAPER"; } \
-		|| { rm -f "$WALLPAPER.tmp"; warn "could not download the wallpaper; the next run tries again"; }
-fi
+# The black hole wallpaper first downloaded here was an upscale; NASA's own render replaced it.
+rm -f "$HOME/.local/share/wallpapers/black-hole.png"
 
 say "Plasma: settings and the login screen"
 if command -v plasmashell >/dev/null && pgrep -x plasmashell >/dev/null; then

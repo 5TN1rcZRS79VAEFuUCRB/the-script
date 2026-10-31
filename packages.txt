@@ -14,6 +14,7 @@ power-profiles-daemon     # power modes in the battery applet
 bluedevil                 # Bluetooth in the tray
 kscreen                   # System Settings > Display; kscreen-doctor sets VRR and reads the scale
 breeze-gtk                # GTK apps (LibreWolf, Element) in Breeze too
+xcursor-vanilla-dmz       # the classic white arrow cursor, instead of Breeze's
 kde-gtk-config
 sddm                      # the login screen
 sddm-kcm

@@ -135,6 +135,14 @@ fi
 # timeout. So it waits for a run that it did not start.
 [ "$(systemctl --user show -p ActiveState --value niri-update.service 2>/dev/null)" = activating ] \
 	|| retire "$HOME/.config/systemd/user/niri-update.service"
+# niri itself and the packages only its session used, so Plasma is the one session left at the login
+# screen. Not while a niri session is running.
+NIRI_PKGS=(niri xwayland-satellite waybar dunst bemenu-wayland bemenu)
+mapfile -t NIRI_HAVE < <(pacman -Qq "${NIRI_PKGS[@]}" 2>/dev/null || true)
+if [ ${#NIRI_HAVE[@]} -gt 0 ] && ! pgrep -x niri >/dev/null; then
+	say "Removing niri"
+	sudo pacman -Rs --noconfirm "${NIRI_HAVE[@]}" || warn "could not remove niri; run: sudo pacman -Rs ${NIRI_HAVE[*]}"
+fi
 
 # ---------------------------------------------------------------- leftovers from AeroThemePlasma
 # the-script was a Windows 7-style KDE Plasma desktop (AeroThemePlasma) before GNOME, and is plain Plasma
@@ -183,10 +191,14 @@ fi
 # the-script-plasma starts one at the first Plasma login. GNOME's own settings (dconf) stay, unused.
 retire "$HOME/.local/bin/the-script-gnome" "$HOME/.config/autostart/the-script-gnome.desktop" \
 	"$HOME"/.local/share/gnome-shell/extensions/{todo,volume-percent}@the-script \
-	"$HOME"/.config/gtk-{3,4}.0/gtk.css "$HOME/.local/share/dbus-1/services/org.gnome.Settings.service" \
+	"$HOME/.local/share/dbus-1/services/org.gnome.Settings.service" \
 	"$HOME"/.local/share/applications/{org.keepassxc.KeePassXC,com.obsproject.Studio}.desktop \
 	"$HOME"/.local/share/backgrounds/{arch.svg,thinkpad.svg,thinkpad-20-dark.png,thinkpad-20-light.png}
 rm -rf "$HOME/.local/share/icons/Adwaita-ThinkPad"   # made by install.sh, not yours
+# Only the ThinkPad gtk.css: Plasma writes its own there (@import 'colors.css') for GTK apps' colors.
+for f in "$HOME"/.config/gtk-{3,4}.0/gtk.css; do
+	grep -q 'ThinkPad' "$f" 2>/dev/null && retire "$f"
+done
 rm -f "$HOME"/.local/state/the-script-{gnome-first-run,gnome-librewolf-dash,gnome-app-folders,gnome-app-folders-3,kde-pending}
 sudo rm -f /usr/local/libexec/settings-pointer-speed /etc/udev/rules.d/{70-mouse-dpi,70-dwm-mouse-dpi}.rules
 # display-wake brought a DisplayPort monitor's picture back after a long GNOME sleep; niri and Plasma
@@ -239,6 +251,16 @@ done
 # ---------------------------------------------------------------- Plasma
 # The settings that need a running session (Breeze Dark, the todo widget on the taskbar) are in
 # the-script-plasma, run at every login.
+
+# The wallpaper: a black hole (wallhaven.cc/w/pojl63), downloaded rather than kept in the repo.
+# the-script-plasma sets it on the desktop and the lock screen once.
+WALLPAPER="$HOME/.local/share/wallpapers/black-hole.png"
+if ! sha256sum -c --status <<<"0f4992d80dfaeeef605f0d2622bdf33efa289dbcdeda1d18aceb47756f805e98  $WALLPAPER" 2>/dev/null; then
+	mkdir -p "${WALLPAPER%/*}"
+	{ curl -fsSL -o "$WALLPAPER.tmp" https://w.wallhaven.cc/full/po/wallhaven-pojl63.png && mv "$WALLPAPER.tmp" "$WALLPAPER"; } \
+		|| { rm -f "$WALLPAPER.tmp"; warn "could not download the wallpaper; the next run tries again"; }
+fi
+
 say "Plasma: settings and the login screen"
 if command -v plasmashell >/dev/null && pgrep -x plasmashell >/dev/null; then
 	"$HOME/.local/bin/the-script-plasma" || warn "could not apply the Plasma settings; they apply at the next login"

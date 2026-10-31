@@ -5,6 +5,7 @@
 # everything is in place changes nothing.
 #
 #   - first login only: Breeze Dark, and on a desktop variable refresh rate always on (games included)
+#   - once: the black hole wallpaper (downloaded by install.sh) on the desktop and the lock screen
 #   - the todo widget on the taskbar left of the tray, opened by Meta+T
 #   - your Firefox profile copied into LibreWolf, if install.sh could not do it with a browser open
 #   - once, on machines that had GNOME: the installer is run again from Plasma to remove GNOME, which it
@@ -14,6 +15,7 @@ set -uo pipefail
 
 STATE="$HOME/.local/state"
 FIRST="$STATE/the-script-plasma-breeze"
+WALLPAPER="$HOME/.local/share/wallpapers/black-hole.png"
 GNOME_PENDING="$STATE/the-script-remove-gnome"
 APPLETSRC="$HOME/.config/plasma-org.kde.plasma.desktop-appletsrc"
 
@@ -46,6 +48,15 @@ if [ ! -e "$FIRST" ] && plasma-apply-lookandfeel -a org.kde.breezedark.desktop; 
 		done
 	fi
 	mkdir -p "$STATE" && touch "$FIRST"
+fi
+
+# Once, and only once install.sh has downloaded it. Changing it afterwards is kept.
+if [ ! -e "$STATE/the-script-plasma-wallpaper" ] && [ -s "$WALLPAPER" ] && plasma-apply-wallpaperimage "$WALLPAPER" >/dev/null; then
+	for key in Image PreviewImage; do
+		kwriteconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper --group org.kde.image --group General \
+			--key "$key" "file://$WALLPAPER"
+	done
+	mkdir -p "$STATE" && touch "$STATE/the-script-plasma-wallpaper"
 fi
 
 # The panel is made on the first start of the shell; wait for it (and its tray).

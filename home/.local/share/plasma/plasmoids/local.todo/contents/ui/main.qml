@@ -1,7 +1,8 @@
 // The todo daemon on the taskbar: the bar text from `todo-bar` (next due date, points, streak, or the
-// focus countdown). Click it or press Meta+T for a popup with the menu (`todo json`), whose links run
-// `todo do <action> <id>`.
+// focus countdown). Click it or press Meta+T for a popup with the menu (`todo json`), whose buttons
+// run `todo do <action> <id>`. The popup is laid out like Plasma's own (Bluetooth, Networks).
 import QtQuick
+import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.plasmoid
@@ -15,6 +16,7 @@ PlasmoidItem {
 
     property string status: ""   // the bar text, or the focus/break countdown
     property var menu: null       // todo json
+    property string menuText: ""  // its text, so an unchanged menu isn't rebuilt (and doesn't collapse)
     property string error: ""
     property string openId: ""    // the task whose actions are showing
     // A running focus timer or break: the bar's Nerd Font icon, then the countdown.
@@ -24,11 +26,11 @@ PlasmoidItem {
     readonly property string jsonCmd: "\"$HOME/.local/bin/todo\" json"
 
     readonly property var sourceIcon: ({
-        canvas: "x-office-document", schoology: "x-office-document", todo: "task-due",
-        anki: "anki", workout: "preferences-desktop-personal"
+        canvas: "applications-education", schoology: "applications-education", todo: "view-calendar-tasks",
+        anki: "anki", workout: "games-achievements"
     })
     readonly property var actIcon: ({
-        focus: "appointment-soon", more: "appointment-soon", rest: "media-playback-pause",
+        focus: "chronometer-start", more: "chronometer-start", rest: "chronometer-pause",
         pause: "media-playback-stop", stop: "process-stop", finish: "dialog-ok-apply",
         workout: "dialog-ok-apply", done: "dialog-ok-apply", done_on_time: "dialog-ok-apply",
         done_late: "dialog-ok-apply", open: "internet-web-browser", hide: "view-hidden", sync: "view-refresh"
@@ -60,7 +62,10 @@ PlasmoidItem {
                 root.status = data["stdout"].trim()
             } else if (source === root.jsonCmd) {
                 try {
-                    root.menu = JSON.parse(data["stdout"])
+                    if (data["stdout"] !== root.menuText) {
+                        root.menu = JSON.parse(data["stdout"])
+                        root.menuText = data["stdout"]
+                    }
                     root.error = ""
                 } catch (e) {
                     root.error = data["stderr"].trim() || "todo json failed"
@@ -93,32 +98,6 @@ PlasmoidItem {
         onTriggered: runner.connectSource(root.jsonCmd)
     }
 
-    component Link: MouseArea {
-        id: link
-        property alias text: linkText.text
-        property string iconName: ""
-        implicitWidth: linkRow.implicitWidth
-        implicitHeight: linkRow.implicitHeight
-        hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
-
-        RowLayout {
-            id: linkRow
-            spacing: Kirigami.Units.smallSpacing
-            Kirigami.Icon {
-                visible: link.iconName !== ""
-                source: link.iconName
-                Layout.preferredWidth: Kirigami.Units.iconSizes.small
-                Layout.preferredHeight: Kirigami.Units.iconSizes.small
-            }
-            PC3.Label {
-                id: linkText
-                color: Kirigami.Theme.linkColor
-                font.underline: link.containsMouse
-            }
-        }
-    }
-
     compactRepresentation: MouseArea {
         Layout.minimumWidth: label.implicitWidth + Kirigami.Units.largeSpacing
         Layout.preferredWidth: Layout.minimumWidth
@@ -131,132 +110,181 @@ PlasmoidItem {
         }
     }
 
-    fullRepresentation: ColumnLayout {
-        Layout.preferredWidth: Kirigami.Units.gridUnit * 24
-        Layout.preferredHeight: Kirigami.Units.gridUnit * 24
-        spacing: Kirigami.Units.smallSpacing
+    fullRepresentation: PlasmaExtras.Representation {
+        Layout.minimumWidth: Kirigami.Units.gridUnit * 22
+        Layout.minimumHeight: Kirigami.Units.gridUnit * 26
+        Layout.preferredWidth: Kirigami.Units.gridUnit * 26
+        Layout.preferredHeight: Kirigami.Units.gridUnit * 32
+        collapseMarginsHint: true
 
-        PlasmaExtras.Heading {
-            Layout.fillWidth: true
-            level: 4
-            text: root.menu
-                ? `${root.menu.pts} points · Level ${root.menu.level} (${root.menu.to_next} to go) · `
-                  + `${root.menu.streak}-day streak` + (root.menu.freezes ? ` · ${root.menu.freezes} freeze` : "")
-                : root.error || "Loading..."
-            wrapMode: Text.Wrap
+        // Points and level progress on the left, Sync now on the right.
+        header: PlasmaExtras.PlasmoidHeading {
+            contentItem: RowLayout {
+                spacing: Kirigami.Units.largeSpacing
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.margins: Kirigami.Units.smallSpacing
+                    spacing: Kirigami.Units.smallSpacing
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        PlasmaExtras.Heading {
+                            level: 2
+                            text: root.menu ? `${root.menu.pts} points` : root.error || "Loading…"
+                            elide: Text.ElideRight
+                            Layout.fillWidth: true
+                        }
+                        PC3.Label {
+                            visible: !!root.menu
+                            text: root.menu ? `${root.menu.streak}-day streak`
+                                + (root.menu.freezes ? ` · ${root.menu.freezes} freeze` : "") : ""
+                            opacity: 0.7
+                        }
+                    }
+                    // Every 100 points is a level.
+                    PC3.ProgressBar {
+                        Layout.fillWidth: true
+                        visible: !!root.menu
+                        from: 0
+                        to: 100
+                        value: root.menu ? 100 - root.menu.to_next : 0
+                    }
+                    PC3.Label {
+                        visible: !!root.menu
+                        text: root.menu ? `Level ${root.menu.level} · ${root.menu.to_next} to level ${root.menu.level + 1}` : ""
+                        font: Kirigami.Theme.smallFont
+                        opacity: 0.7
+                    }
+                }
+
+                PC3.ToolButton {
+                    Layout.alignment: Qt.AlignTop
+                    icon.name: root.actIcon.sync
+                    display: QQC2.AbstractButton.IconOnly
+                    text: "Sync now"
+                    onClicked: root.run("sync", "")
+                    PC3.ToolTip.text: text
+                    PC3.ToolTip.visible: hovered
+                    PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
+                }
+            }
         }
 
-        RowLayout {
-            visible: root.timing
-            Kirigami.Icon {
-                source: root.status.startsWith("\u{F051B}") ? "appointment-soon" : "media-playback-pause"
-                Layout.preferredWidth: Kirigami.Units.iconSizes.small
-                Layout.preferredHeight: Kirigami.Units.iconSizes.small
-            }
-            PC3.Label {
+        contentItem: ColumnLayout {
+            spacing: 0
+
+            // The running focus timer or break, and the session buttons: focus, finished, stop, 10 more
+            // minutes, break.
+            ColumnLayout {
                 Layout.fillWidth: true
-                text: root.status.replace(/^\S+ /, "")
-                elide: Text.ElideRight
-            }
-        }
+                Layout.margins: Kirigami.Units.largeSpacing
+                visible: root.timing || (root.menu && root.menu.top.length > 0)
+                spacing: Kirigami.Units.smallSpacing
 
-        // Timer and session rows: focus, finished, stop, 10 more minutes, break.
-        Flow {
-            Layout.fillWidth: true
-            Layout.bottomMargin: Kirigami.Units.smallSpacing
-            spacing: Kirigami.Units.largeSpacing
-            Repeater {
-                model: root.menu ? root.menu.top : []
-                Link {
-                    required property var modelData
-                    iconName: root.actIcon[modelData.act] || ""
-                    text: modelData.text
-                    onClicked: root.run(modelData.act, modelData.id)
-                }
-            }
-        }
-
-        PC3.ScrollView {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-
-            ListView {
-                id: list
-                model: root.menu ? root.menu.tasks : []
-                clip: true
-                spacing: 1
-
-                PlasmaExtras.PlaceholderMessage {
-                    anchors.centerIn: parent
-                    width: parent.width - Kirigami.Units.gridUnit * 2
-                    visible: root.menu && list.count === 0
-                    iconName: "dialog-ok-apply"
-                    text: "All caught up"
-                }
-
-                // Click a task for its actions.
-                delegate: ColumnLayout {
-                    id: row
-                    required property var modelData
-                    readonly property bool open: root.openId === modelData.id
-                    width: ListView.view.width
-                    spacing: 0
-
-                    PC3.ItemDelegate {
+                RowLayout {
+                    visible: root.timing
+                    spacing: Kirigami.Units.smallSpacing
+                    Kirigami.Icon {
+                        source: root.status.startsWith("\u{F051B}") ? "chronometer-start" : "chronometer-pause"
+                        Layout.preferredWidth: Kirigami.Units.iconSizes.medium
+                        Layout.preferredHeight: Kirigami.Units.iconSizes.medium
+                    }
+                    PlasmaExtras.Heading {
                         Layout.fillWidth: true
-                        highlighted: row.open
-                        onClicked: root.openId = row.open ? "" : row.modelData.id
-                        contentItem: RowLayout {
-                            spacing: Kirigami.Units.smallSpacing
-                            Kirigami.Icon {
-                                source: root.sourceIcon[row.modelData.source]
-                                Layout.preferredWidth: Kirigami.Units.iconSizes.small
-                                Layout.preferredHeight: Kirigami.Units.iconSizes.small
-                            }
-                            PC3.Label {
-                                Layout.fillWidth: true
-                                text: (row.modelData.course ? row.modelData.course + " · " : "") + row.modelData.title
-                                elide: Text.ElideRight
-                            }
-                            PC3.Label {
-                                text: row.modelData.left
-                                color: row.modelData.late ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.textColor
-                            }
-                        }
+                        level: 3
+                        text: root.status.replace(/^\S+ /, "")
+                        elide: Text.ElideRight
+                    }
+                }
+
+                Repeater {
+                    model: root.menu ? root.menu.top : []
+                    PC3.Button {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        icon.name: root.actIcon[modelData.act] || ""
+                        text: modelData.text
+                        onClicked: root.run(modelData.act, modelData.id)
+                        PC3.ToolTip.text: text
+                        PC3.ToolTip.visible: hovered && implicitWidth > width
+                        PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
+                    }
+                }
+            }
+
+            Kirigami.Separator {
+                Layout.fillWidth: true
+                visible: root.timing || (root.menu && root.menu.top.length > 0)
+            }
+
+            PC3.ScrollView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                PC3.ScrollBar.horizontal.policy: PC3.ScrollBar.AlwaysOff
+
+                ListView {
+                    id: list
+                    model: root.menu ? root.menu.tasks : []
+                    clip: true
+                    currentIndex: -1
+                    topMargin: Kirigami.Units.smallSpacing
+                    bottomMargin: Kirigami.Units.smallSpacing
+                    leftMargin: Kirigami.Units.smallSpacing
+                    rightMargin: Kirigami.Units.smallSpacing
+                    spacing: Kirigami.Units.smallSpacing
+                    highlight: PlasmaExtras.Highlight {}
+                    highlightMoveDuration: Kirigami.Units.shortDuration
+                    highlightResizeDuration: Kirigami.Units.shortDuration
+
+                    PlasmaExtras.PlaceholderMessage {
+                        anchors.centerIn: parent
+                        width: parent.width - Kirigami.Units.gridUnit * 4
+                        visible: root.menu && list.count === 0
+                        iconName: "checkmark"
+                        text: "All caught up"
                     }
 
-                    Flow {
-                        Layout.fillWidth: true
-                        Layout.leftMargin: Kirigami.Units.gridUnit * 1.5
-                        Layout.bottomMargin: Kirigami.Units.smallSpacing
-                        visible: row.open
-                        Layout.topMargin: Kirigami.Units.smallSpacing
-                        spacing: Kirigami.Units.largeSpacing
-                        Repeater {
-                            model: row.open ? row.modelData.actions : []
-                            Link {
+                    // Click a task for its actions. The list is rebuilt when the menu changes, so the open
+                    // task is remembered by id and opened again.
+                    delegate: PlasmaExtras.ExpandableListItem {
+                        id: row
+                        required property var modelData
+                        required property int index
+                        width: ListView.view.width - ListView.view.leftMargin - ListView.view.rightMargin
+                        icon: root.sourceIcon[modelData.source] || "view-calendar-tasks"
+                        iconEmblem: modelData.late ? "emblem-important" : ""
+                        title: modelData.title
+                        subtitle: (modelData.course ? modelData.course + " · " : "")
+                            + (modelData.late ? modelData.left : "due in " + modelData.left)
+                        subtitleColor: modelData.late ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.disabledTextColor
+
+                        Instantiator {
+                            model: row.modelData.actions
+                            delegate: QQC2.Action {
                                 required property var modelData
-                                iconName: modelData.act === "open" && row.modelData.source === "anki"
-                                    ? "anki" : (root.actIcon[modelData.act] || "")
                                 text: modelData.text
-                                onClicked: root.run(modelData.act, modelData.id)
+                                icon.name: modelData.act === "open" && row.modelData.source === "anki"
+                                    ? "anki" : (root.actIcon[modelData.act] || "")
+                                onTriggered: root.run(modelData.act, modelData.id)
+                            }
+                            onObjectAdded: (i, action) => row.contextualActions.push(action)
+                        }
+
+                        onItemExpanded: root.openId = modelData.id
+                        onItemCollapsed: {
+                            if (root.openId === modelData.id) {
+                                root.openId = ""
+                            }
+                        }
+                        Component.onCompleted: {
+                            if (root.openId === modelData.id) {
+                                Qt.callLater(expand)
                             }
                         }
                     }
                 }
             }
-        }
-
-        Kirigami.Separator {
-            Layout.fillWidth: true
-        }
-
-        Link {
-            Layout.alignment: Qt.AlignHCenter
-            Layout.margins: Kirigami.Units.smallSpacing
-            iconName: root.actIcon.sync
-            text: "Sync now"
-            onClicked: root.run("sync", "")
         }
     }
 }

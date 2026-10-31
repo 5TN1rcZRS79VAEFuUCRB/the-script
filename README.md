@@ -16,7 +16,8 @@ cd the-script
 
 Then restart: SDDM, Plasma's login screen, comes up. On a machine that had GNOME, the first Plasma
 login also removes GNOME in the background (a notification says if it fails); its settings are left
-alone. A machine still on the Windows 7 desktop loses AeroThemePlasma and keeps Plasma.
+alone. A machine still on the Windows 7 desktop loses AeroThemePlasma and keeps Plasma. niri, left over
+from niri-script, is removed too, so Plasma is the only session at the login screen.
 
 ### Options
 
@@ -39,7 +40,8 @@ Display & Monitor > Legacy Applications (X11) stays on "Apply scaling themselves
 | Piece | Where it goes |
 | --- | --- |
 | KDE Plasma (Plasma, System Settings, Dolphin, Konsole, Kate, Gwenview, Spectacle) | packages (`packages.txt`) |
-| Settings applied at every login by `the-script-plasma` (they need the running session): Breeze Dark and, on a desktop, variable refresh rate always on (first login only), and the to-do widget on the taskbar left of the tray, opened by `Meta+T` | `~/.config/autostart/the-script-plasma.desktop` |
+| Settings applied at every login by `the-script-plasma` (they need the running session): Breeze Dark and, on a desktop, variable refresh rate always on (first login only), the wallpaper on the desktop and lock screen (once), and the to-do widget on the taskbar left of the tray, opened by `Meta+T` | `~/.config/autostart/the-script-plasma.desktop` |
+| Wallpaper: a black hole ([wallhaven.cc/w/pojl63](https://wallhaven.cc/w/pojl63), 3840x2160), downloaded at install instead of kept here | `~/.local/share/wallpapers/black-hole.png` |
 | The login screen (SDDM) | `systemctl enable sddm` (needs sudo) |
 | `mouse-dpi`: measures a mouse's real DPI as you slide it 10 cm along a ruler, next to the DPI it is set to (read from a Razer or Endgame Gear mouse), to compare two mice set alike (needs sudo to read the mouse) | `~/.local/bin/mouse-dpi` |
 | School assignments and to-dos on the taskbar (`todo`, `todo-bar`, the `local.todo` Plasma widget) | `~/.local/bin/`, `~/.local/share/plasma/plasmoids/local.todo/`, `~/.config/autostart/todo.desktop` |

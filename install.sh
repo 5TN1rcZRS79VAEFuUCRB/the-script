@@ -291,8 +291,9 @@ if command -v librewolf >/dev/null; then
 	fi
 	if [ -n "$LW_PROFILE" ]; then
 		place librewolf/user.js "$LW_PROFILE/user.js"
-		place librewolf/userChrome.css "$LW_PROFILE/chrome/userChrome.css"
-		echo "Installed user.js and userChrome.css into $LW_PROFILE (restart LibreWolf to apply)"
+		# LibreWolf keeps its own rounded look; the square-corner userChrome.css from before is removed.
+		retire "$LW_PROFILE/chrome/userChrome.css"
+		echo "Installed user.js into $LW_PROFILE (restart LibreWolf to apply)"
 	else
 		warn "could not find/create a LibreWolf profile. Start LibreWolf once, close it, then run:"
 		warn "  ./install.sh --no-packages"

@@ -54,10 +54,8 @@ mkdir -p "$LW"
 tar -C "$FF" --exclude=lock --exclude=.parentlock --exclude=crashes --exclude=minidumps \
 	--exclude=datareporting --exclude=saved-telemetry-pings --exclude=compatibility.ini \
 	--exclude=addonStartup.json.lz4 -cf - . | tar -C "$LW" -xf -
-# the-script's settings, which install.sh put in the LibreWolf profile, replace Firefox's copies.
-for f in user.js chrome/userChrome.css; do
-	if [ -e "$backup/$f" ]; then install -Dm644 "$backup/$f" "$LW/$f"; fi
-done
+# the-script's settings, which install.sh put in the LibreWolf profile, replace Firefox's copy.
+if [ -e "$backup/user.js" ]; then install -Dm644 "$backup/user.js" "$LW/user.js"; fi
 echo "Copied $FF into $LW (the old LibreWolf profile is in ${backup%/*})"
 mkdir -p "$STATE"
 rm -f "$PENDING"

@@ -65,6 +65,7 @@ xdg-utils
 # --- apps ---
 librewolf        # the browser: Firefox with privacy defaults (librewolf/user.js changes a few)
 element-desktop
+python-pillow             # element-tray-icon resizes Element's tray icon with it
 keepassxc
 syncthing        # keeps the KeePassXC database in sync between machines
 anki             # flashcards; the todo list shows today's due cards (its add-on is in home/.local/share/Anki2)

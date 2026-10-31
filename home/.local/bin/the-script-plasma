@@ -65,18 +65,25 @@ if [ ! -e "$STATE/the-script-plasma-cursor-3" ] && plasma-apply-cursortheme Adwa
 	mkdir -p "$STATE" && touch "$STATE/the-script-plasma-cursor-3"
 fi
 
-# The tray shows only the volume, network, notifications and battery (and the camera, a plugged-in drive or
-# playing media while there is one). Steam, Element, the microphone and the rest are behind its arrow.
-# Plasma only reads this at start, so the shell is restarted.
-TRAY_HIDDEN=steam,Element_status_icon_1,plasmashell_microphone,org.kde.plasma.clipboard,org.kde.plasma.bluetooth,org.kde.kscreen,org.kde.plasma.brightness,org.kde.plasma.keyboardlayout,org.kde.plasma.manage-inputmethod,org.kde.plasma.mediacontroller,org.kde.plasma.dwellclicker
+# The tray shows the volume, network, notifications, battery and apps running in the background (and the
+# camera, a plugged-in drive or playing media while there is one); the microphone indicator and the
+# rest are behind its arrow. The clock uses the panel's normal text size instead of filling its height.
+# Plasma only reads these at start, so the shell is restarted.
+TRAY_HIDDEN=plasmashell_microphone,org.kde.plasma.clipboard,org.kde.plasma.bluetooth,org.kde.kscreen,org.kde.plasma.brightness,org.kde.plasma.keyboardlayout,org.kde.plasma.manage-inputmethod,org.kde.plasma.mediacontroller,org.kde.plasma.dwellclicker
 tidy_tray() {
-	local ids; ids=$(js 'var p = panels()[0]; var t = p.widgets("org.kde.plasma.systemtray")[0]; print(p.id + " " + t.id);')
+	local panel tray clock
+	read -r panel tray clock < <(js 'var p = panels()[0]; var t = p.widgets("org.kde.plasma.systemtray")[0];
+		var c = p.widgets("org.kde.plasma.digitalclock")[0]; print(p.id + " " + t.id + " " + (c ? c.id : ""));')
 	sleep 2   # let the shell save what it was just told
 	systemctl --user stop plasma-plasmashell
-	kwriteconfig6 --file "$APPLETSRC" --group Containments --group "${ids% *}" --group Applets \
-		--group "${ids#* }" --group General --key hiddenItems "$TRAY_HIDDEN"
+	kwriteconfig6 --file "$APPLETSRC" --group Containments --group "$panel" --group Applets \
+		--group "$tray" --group General --key hiddenItems "$TRAY_HIDDEN"
+	if [ -n "$clock" ]; then
+		kwriteconfig6 --file "$APPLETSRC" --group Containments --group "$panel" --group Applets \
+			--group "$clock" --group Configuration --group Appearance --key autoFontAndSize false
+	fi
 	systemctl --user start plasma-plasmashell
-	mkdir -p "$STATE" && touch "$STATE/the-script-plasma-tray-1"
+	mkdir -p "$STATE" && touch "$STATE/the-script-plasma-tray-2"
 }
 
 # The panel is made on the first start of the shell; wait for it (and its tray).
@@ -127,7 +134,7 @@ js 'panels().forEach(function (p) {
 		});
 	});' >/dev/null
 
-[ -e "$STATE/the-script-plasma-tray-1" ] || { tidy_tray; exit 0; }
+[ -e "$STATE/the-script-plasma-tray-2" ] || { tidy_tray; exit 0; }
 
 # The todo widget. Plasma reads the panel's order only at start, so a new one is moved left of the
 # tray with the shell stopped. local.niritodo is its name from before the-script.

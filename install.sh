@@ -318,6 +318,11 @@ fi
 # On a text console (Ctrl+Alt+F2) nothing turns the monitors off. The udev rule keeps
 # them off when a DisplayPort monitor's hotplug on going to sleep lights the console again.
 say "Console: monitors off after 10 minutes idle"
+# Element's tray icon fills its whole square, so it looked bigger than the others in the tray.
+sudo_place usr/local/libexec/element-tray-icon /usr/local/libexec/element-tray-icon
+sudo_place etc/pacman.d/hooks/element-tray-icon.hook /etc/pacman.d/hooks/element-tray-icon.hook
+[ -e /usr/lib/element/build/icon.png ] && { sudo /usr/local/libexec/element-tray-icon || warn "could not shrink Element's tray icon"; }
+
 sudo_place etc/systemd/system/console-blank.service /etc/systemd/system/console-blank.service
 sudo_place usr/local/libexec/console-reblank /usr/local/libexec/console-reblank
 sudo_place etc/udev/rules.d/90-console-reblank.rules /etc/udev/rules.d/90-console-reblank.rules

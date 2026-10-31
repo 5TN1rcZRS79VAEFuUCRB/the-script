@@ -1,0 +1,11 @@
+# Shrinks Element's tray icon again after each update of it (usr/local/libexec/element-tray-icon).
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = element-desktop
+
+[Action]
+Description = Shrinking Element's tray icon...
+When = PostTransaction
+Exec = /usr/local/libexec/element-tray-icon

@@ -5,7 +5,8 @@ monitor to another refresh rate and straight back, so its link is set up from sc
 
 A Samsung Odyssey G8 at 4K 240 Hz (compressed DSC over DisplayPort) on NVIDIA can come back from a
 long sleep with no picture: GNOME turns it on, the connector reads "On", the screen stays black. A full
-mode change brings the picture back. niri never needed this; GNOME does.
+mode change brings the picture back, but only once the wake has settled: done 2 s after it, the driver
+rejected part of the change and the screen stayed black. niri never needed this; GNOME does.
 
 Started with the GNOME session by display-wake.service; what it does goes to the journal
 (journalctl --user -u display-wake).
@@ -18,7 +19,8 @@ from gi.repository import Gio, GLib
 BUS = "org.gnome.Mutter.DisplayConfig"
 PATH = "/org/gnome/Mutter/DisplayConfig"
 MIN_SLEEP = 60      # seconds; a shorter sleep wakes fine
-SETTLE = 2          # seconds to let GNOME finish its own wake, and between the two mode changes
+WAKE_DELAY = 10     # seconds after the wake before the mode change; well under the locked screen's 30 s
+HOLD = 4            # seconds on the other refresh rate
 PERSISTENT = 2      # ApplyMonitorsConfig method; "temporary" would ask "Keep these settings?"
 
 bus = Gio.bus_get_sync(Gio.BusType.SESSION)
@@ -27,6 +29,11 @@ slept_at = None
 
 def call(method, args=None):
     return bus.call_sync(BUS, PATH, BUS, method, args, None, Gio.DBusCallFlags.NONE, 10000, None).unpack()
+
+
+def power_save_mode():
+    return bus.call_sync(BUS, PATH, "org.freedesktop.DBus.Properties", "Get", GLib.Variant("(ss)", (BUS, "PowerSaveMode")),
+                         None, Gio.DBusCallFlags.NONE, 10000, None).unpack()[0]
 
 
 def connector_states():
@@ -53,6 +60,9 @@ def apply(serial, logical, props, swap):
 
 
 def retrain():
+    if power_save_mode() != 0:
+        print("asleep again before retraining", flush=True)
+        return
     serial, monitors, logical_state, props = call("GetCurrentState")
     current, other = {}, {}
     for (conn, *_), modes, _ in monitors:
@@ -72,7 +82,7 @@ def retrain():
     keep = {k: GLib.Variant("u", v) for k, v in props.items() if k == "layout-mode"}
     print(f"{connector_states()}; retraining {', '.join(f'{c} via {m}' for c, m in other.items())}", flush=True)
     apply(serial, logical, keep, other)
-    time.sleep(SETTLE)
+    time.sleep(HOLD)
     serial = call("GetCurrentState")[0]
     apply(serial, logical, keep, {})
     print(f"back to {', '.join(current[c] for c in other)}: {connector_states()}", flush=True)
@@ -94,7 +104,7 @@ def changed(_conn, _sender, _path, _iface, _signal, params):
     slept_at = None
     print(f"woke after {slept:.0f} s", flush=True)
     if slept >= MIN_SLEEP:
-        GLib.timeout_add_seconds(SETTLE, lambda: (safe_retrain(), False)[1])
+        GLib.timeout_add_seconds(WAKE_DELAY, lambda: (safe_retrain(), False)[1])
 
 
 def safe_retrain():
@@ -107,8 +117,6 @@ def safe_retrain():
 bus.signal_subscribe(BUS, "org.freedesktop.DBus.Properties", "PropertiesChanged", PATH, None,
                      Gio.DBusSignalFlags.NONE, changed)
 # Started while the monitors are off (a session restart): how long they've slept is unknown, so count it as long.
-power = bus.call_sync(BUS, PATH, "org.freedesktop.DBus.Properties", "Get", GLib.Variant("(ss)", (BUS, "PowerSaveMode")),
-                      None, Gio.DBusCallFlags.NONE, 10000, None).unpack()[0]
-if power != 0:
+if power_save_mode() != 0:
     slept_at = time.monotonic() - MIN_SLEEP
 GLib.MainLoop().run()

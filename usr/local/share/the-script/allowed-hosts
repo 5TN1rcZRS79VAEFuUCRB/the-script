@@ -1,4 +1,0 @@
-# Sites (with their subdomains) let through even though StevenBlack's porn list has them.
-# 4chan: its worksafe boards are fine; the boards 4chan marks NSFW are blocked by URL in
-# LibreWolf instead (WebsiteFilter in librewolf/policies.json).
-4chan.org

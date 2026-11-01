@@ -332,19 +332,18 @@ sudo systemctl daemon-reload
 sudo systemctl enable console-blank.service >/dev/null 2>&1 || warn "could not enable console-blank.service"
 sudo systemctl restart console-blank.service || warn "could not start console-blank.service; it runs at the next boot"
 
-# ---------------------------------------------------------------- porn blocklist
-# StevenBlack's porn-only list (plus usr/local/share/the-script/blocked-hosts, minus allowed-hosts)
-# in /etc/hosts, so every browser and app on the machine fails to reach those sites; refreshed daily
-# by a timer. 4chan is allowed there; its NSFW boards are blocked by URL in LibreWolf's policies.
-say "Blocklist: porn sites blocked in /etc/hosts"
-sudo_place usr/local/libexec/the-script-blocklist /usr/local/libexec/the-script-blocklist
-sudo_place usr/local/share/the-script/blocked-hosts /usr/local/share/the-script/blocked-hosts
-sudo_place usr/local/share/the-script/allowed-hosts /usr/local/share/the-script/allowed-hosts
-sudo_place etc/systemd/system/the-script-blocklist.service /etc/systemd/system/the-script-blocklist.service
-sudo_place etc/systemd/system/the-script-blocklist.timer /etc/systemd/system/the-script-blocklist.timer
-sudo systemctl daemon-reload
-sudo /usr/local/libexec/the-script-blocklist || warn "could not write the blocklist into /etc/hosts"
-sudo systemctl enable --now the-script-blocklist.timer >/dev/null 2>&1 || warn "could not start the-script-blocklist.timer"
+# ---------------------------------------------------------------- old site blocklist
+# the-script used to block sites in /etc/hosts with a daily timer; undo that where it was installed.
+if [ -e /etc/systemd/system/the-script-blocklist.timer ] || grep -q '^# >>> the-script blocklist' /etc/hosts; then
+	say "Removing the old site blocklist"
+	sudo systemctl disable --now the-script-blocklist.timer >/dev/null 2>&1 || true
+	sudo rm -f /etc/systemd/system/the-script-blocklist.service /etc/systemd/system/the-script-blocklist.timer \
+		/usr/local/libexec/the-script-blocklist /usr/local/share/the-script/blocked-hosts \
+		/usr/local/share/the-script/allowed-hosts /var/lib/the-script/blocklist-hosts
+	sudo systemctl daemon-reload
+	sudo sed -i '/^# >>> the-script blocklist/,/^# <<< the-script blocklist/d' /etc/hosts
+	sudo sed -i -e :a -e '/^\n*$/{$d;N;ba' -e '}' /etc/hosts
+fi
 
 # ---------------------------------------------------------------- local hostnames (mDNS)
 # Avahi announces this machine as <hostname>.local, and nss-mdns lets ssh, ping, etc.

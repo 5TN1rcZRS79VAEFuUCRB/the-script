@@ -1,0 +1,408 @@
+#!/usr/bin/env python3
+#
+# history-cleaner: deletes porn sites from LibreWolf's history, cookies, site data, cache, search-box
+# entries and recently closed tabs. Nothing is blocked. LibreWolf locks its files while it runs, so
+# this cleans each time it closes (and at login): history-cleaner.service runs `history-cleaner
+# --watch`. `history-cleaner` alone cleans once, if LibreWolf is closed.
+#
+# Sites are StevenBlack's porn-only list (refreshed daily, cached in ~/.cache/history-cleaner) plus
+# EXTRA; subdomains count too. On 4chan only the boards 4chan marks not worksafe count. Searches
+# for porn on any search engine count as well.
+
+import configparser
+import fcntl
+import glob
+import json
+import os
+import re
+import shutil
+import sqlite3
+import struct
+import sys
+import time
+import urllib.parse
+import urllib.request
+
+LIST_URL = "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn-only/hosts"
+EXTRA = {"civitai.red"}
+CACHE = os.path.expanduser("~/.cache/history-cleaner/porn-hosts")
+ROOTS = [os.path.expanduser("~/.config/librewolf/librewolf"), os.path.expanduser("~/.librewolf")]
+FOURCHAN = re.compile(r"(^|\.)(4chan\.org|4channel\.org|4cdn\.org)$")
+NSFW_BOARDS = set("aco b bant d e f gif h hc hm hr i ic pol r r9k s s4s soc t trash u wg y".split())
+SEARCH_KEYS = {"q", "query", "p", "search_query", "search", "text", "wd", "k"}
+SEARCH = re.compile(r"porn|nsfw|hentai|rule ?34|onlyfans|redgifs|e621|booru|fapello|xvideos|xhamster|xxx", re.I)
+URL_IN_TEXT = re.compile(r"https?://[^\s\"'\\<>]+")
+
+sites = set(EXTRA)
+
+
+def load_list():
+    global sites
+    fresh = None
+    try:
+        if time.time() - os.path.getmtime(CACHE) < 86400:
+            fresh = open(CACHE).read()
+    except OSError:
+        pass
+    if fresh is None:
+        try:
+            with urllib.request.urlopen(LIST_URL, timeout=60) as r:
+                text = r.read().decode("utf-8", "replace")
+            if text.count("\n0.0.0.0 ") < 10000:
+                raise ValueError("list too short")
+            os.makedirs(os.path.dirname(CACHE), exist_ok=True)
+            with open(CACHE + ".tmp", "w") as f:
+                f.write(text)
+            os.replace(CACHE + ".tmp", CACHE)
+            fresh = text
+        except Exception as e:
+            print(f"history-cleaner: could not refresh the list ({e}); using the last one", file=sys.stderr)
+            try:
+                fresh = open(CACHE).read()
+            except OSError:
+                fresh = ""
+    s = set(EXTRA)
+    for line in fresh.splitlines():
+        p = line.split()
+        if len(p) >= 2 and p[0] == "0.0.0.0" and p[1] != "0.0.0.0":
+            s.add(p[1].lower())
+    sites = s
+
+
+def site_listed(host):
+    host = host.lower().lstrip(".")
+    if FOURCHAN.search(host):  # only its NSFW boards count, by URL (is_porn)
+        return False
+    while "." in host:
+        if host in sites:
+            return True
+        host = host.split(".", 1)[1]
+    return False
+
+
+def is_porn(url, depth=0):
+    try:
+        u = urllib.parse.urlsplit(url)
+        host = (u.hostname or "").lower()
+    except ValueError:
+        return False
+    if u.scheme not in ("http", "https") or not host:
+        return False
+    if FOURCHAN.search(host):
+        return u.path.split("/")[1] in NSFW_BOARDS if u.path.startswith("/") else False
+    if site_listed(host):
+        return True
+    if depth < 2:  # a porn site named inside the URL: login redirects, search results
+        for k, v in urllib.parse.parse_qsl(u.query, keep_blank_values=True):
+            if k.lower() in SEARCH_KEYS and SEARCH.search(v):
+                return True
+            if v.startswith(("http://", "https://")) and is_porn(v, depth + 1):
+                return True
+    return False
+
+
+def any_porn_url(text):
+    return any(is_porn(m) for m in URL_IN_TEXT.findall(text or ""))
+
+
+def origin_is_porn(origin):
+    """moz_perms / quota origins like https://www.redgifs.com^partitionKey=%28https%2Credgifs.com%29"""
+    origin = urllib.parse.unquote(origin or "")
+    return any(site_listed(h) for h in re.findall(r"https?(?:://|,)([a-z0-9.-]+)", origin, re.I))
+
+
+# ---------------------------------------------------------------- databases
+
+def open_db(path):
+    if not os.path.exists(path):
+        return None
+    c = sqlite3.connect(path, timeout=5)
+    c.create_function("porn_url", 1, lambda s: 1 if s and is_porn(s) else 0)
+    c.create_function("porn_host", 1, lambda s: 1 if s and site_listed(s) else 0)
+    c.create_function("porn_origin", 1, lambda s: 1 if s and origin_is_porn(s) else 0)
+    c.create_function("porn_text", 1, lambda s: 1 if s and (SEARCH.search(s) or any(site_listed(w) for w in s.split())) else 0)
+    return c
+
+
+def run(c, sql):
+    try:
+        return c.execute(sql).rowcount
+    except sqlite3.OperationalError:  # table or column not in this LibreWolf version
+        return 0
+
+
+def finish(c):
+    c.commit()
+    c.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    c.execute("VACUUM")  # deleted rows would otherwise stay readable in free pages
+    c.close()
+
+
+def clean_places(prof, n):
+    c = open_db(os.path.join(prof, "places.sqlite"))
+    if not c:
+        return
+    ids = [r[0] for r in c.execute("select id from moz_places where porn_url(url) and id not in (select fk from moz_bookmarks where fk is not null)")]
+    if ids:
+        q = ",".join(map(str, ids))
+        n["history"] += len(ids)
+        for t, col in [("moz_historyvisits", "place_id"), ("moz_inputhistory", "place_id"), ("moz_annos", "place_id"),
+                       ("moz_places_metadata", "place_id")]:
+            run(c, f"delete from {t} where {col} in ({q})")
+        run(c, f"delete from moz_places where id in ({q})")
+        run(c, "delete from moz_origins where porn_host(host) and id not in (select origin_id from moz_places)")
+    finish(c)
+
+    c = open_db(os.path.join(prof, "favicons.sqlite"))
+    if c:
+        pages = [r[0] for r in c.execute("select id from moz_pages_w_icons where porn_url(page_url)")]
+        if pages:
+            q = ",".join(map(str, pages))
+            run(c, f"delete from moz_icons_to_pages where page_id in ({q})")
+            run(c, f"delete from moz_pages_w_icons where id in ({q})")
+            run(c, "delete from moz_icons where porn_url(icon_url) and id not in (select icon_id from moz_icons_to_pages)")
+        finish(c)
+
+
+def clean_other_dbs(prof, n):
+    for name, sqls in [
+        ("cookies.sqlite", ["delete from moz_cookies where porn_host(host) or porn_origin(originAttributes)"]),
+        ("permissions.sqlite", ["delete from moz_perms where porn_origin(origin)",
+                                "delete from moz_origin_interactions where porn_origin(origin)"]),
+        ("formhistory.sqlite", ["delete from moz_formhistory where porn_text(value)"]),
+        ("content-prefs.sqlite", ["delete from groups where porn_origin(name) or porn_host(name)"]),
+        ("bounce-tracking-protection.sqlite", ["delete from sites where porn_host(siteHost)"]),
+        ("storage.sqlite", ["delete from origin where porn_origin(origin)"]),
+    ]:
+        c = open_db(os.path.join(prof, name))
+        if not c:
+            continue
+        for sql in sqls:
+            n["other"] += run(c, sql)
+        finish(c)
+
+
+def clean_storage(prof, n):
+    for d in glob.glob(os.path.join(prof, "storage", "*", "http*")):
+        if origin_is_porn(os.path.basename(d).replace("+++", "://")):
+            shutil.rmtree(d, ignore_errors=True)
+            n["other"] += 1
+
+
+def clean_service_workers(prof):
+    p = os.path.join(prof, "serviceworker.txt")
+    if not os.path.exists(p):
+        return
+    lines = open(p).read().split("\n")
+    recs, cur = [], []
+    for line in lines[1:]:
+        cur.append(line)
+        if line == "#":
+            recs.append(cur)
+            cur = []
+    kept = [r for r in recs if not any_porn_url("\n".join(r))]
+    if len(kept) != len(recs):
+        open(p, "w").write("\n".join(lines[:1] + [x for r in kept for x in r] + cur))
+
+
+# ---------------------------------------------------------------- session files (mozlz4)
+
+def lz4_decode(b):
+    if b[:8] != b"mozLz40\0":
+        raise ValueError("not mozlz4")
+    size = struct.unpack("<I", b[8:12])[0]
+    s, o, i = b[12:], bytearray(), 0
+    while i < len(s):
+        t = s[i]; i += 1
+        lit = t >> 4
+        if lit == 15:
+            while True:
+                x = s[i]; i += 1; lit += x
+                if x != 255:
+                    break
+        o += s[i:i + lit]; i += lit
+        if i >= len(s):
+            break
+        off = s[i] | s[i + 1] << 8; i += 2
+        m = t & 15
+        if m == 15:
+            while True:
+                x = s[i]; i += 1; m += x
+                if x != 255:
+                    break
+        m += 4
+        start = len(o) - off
+        for k in range(m):
+            o.append(o[start + k])
+    return bytes(o[:size])
+
+
+def lz4_encode(d):  # a single literal-only block: valid LZ4, just not compressed
+    out = bytearray(b"mozLz40\0" + struct.pack("<I", len(d)))
+    if len(d) < 15:
+        out.append(len(d) << 4)
+    else:
+        out.append(0xF0)
+        r = len(d) - 15
+        while r >= 255:
+            out.append(255); r -= 255
+        out.append(r)
+    return bytes(out + d)
+
+
+def drop(x):
+    """A history entry or closed tab whose pages are all porn."""
+    if not isinstance(x, dict):
+        return False
+    if "url" in x:
+        return any_porn_url(json.dumps(x))
+    ents = x.get("entries") or (x.get("state") or {}).get("entries")
+    return bool(ents) and all(isinstance(e, dict) and any_porn_url(json.dumps(e)) for e in ents)
+
+
+def prune(x):
+    if isinstance(x, dict):
+        for k in list(x):
+            x[k] = prune(x[k])
+        if isinstance(x.get("entries"), list) and isinstance(x.get("index"), int):
+            x["index"] = max(1, min(x["index"], len(x["entries"])))
+        return x
+    if isinstance(x, list):
+        return [prune(i) for i in x if not drop(i)]
+    return x
+
+
+def clean_sessions(prof, n):
+    files = glob.glob(os.path.join(prof, "sessionstore*.jsonlz4")) + glob.glob(os.path.join(prof, "sessionstore-backups", "*"))
+    for f in files:
+        try:
+            raw = lz4_decode(open(f, "rb").read())
+            if not any_porn_url(raw.decode("utf-8", "replace")):
+                continue
+            data = prune(json.loads(raw))
+        except Exception:
+            continue
+        with open(f + ".tmp", "wb") as out:
+            out.write(lz4_encode(json.dumps(data, separators=(",", ":")).encode()))
+        os.replace(f + ".tmp", f)
+        n["sessions"] += 1
+
+
+# ---------------------------------------------------------------- cache2
+
+def cache_key(path):
+    with open(path, "rb") as f:
+        data = f.read()
+    if len(data) < 4:
+        return ""
+    off = struct.unpack(">I", data[-4:])[0]
+    chunks = (off + 262143) // 262144
+    meta = off + 4 + 2 * chunks
+    if meta + 32 > len(data):
+        return ""
+    ver, key_size = struct.unpack(">I", data[meta:meta + 4])[0], struct.unpack(">I", data[meta + 24:meta + 28])[0]
+    start = meta + (32 if ver >= 2 else 28)
+    return data[start:start + key_size].decode("utf-8", "replace")
+
+
+def clean_cache(prof, n):
+    for root in glob.glob(os.path.expanduser(f"~/.cache/librewolf/*/{os.path.basename(prof)}/cache2")) + \
+                glob.glob(os.path.expanduser(f"~/.cache/librewolf/{os.path.basename(prof)}/cache2")):
+        removed = 0
+        for e in glob.glob(os.path.join(root, "entries", "*")):
+            try:
+                if any_porn_url(cache_key(e)):
+                    os.remove(e)
+                    removed += 1
+            except (OSError, struct.error):
+                pass
+        if removed:
+            try:
+                os.remove(os.path.join(root, "index"))  # rebuilt from the entries
+            except OSError:
+                pass
+            n["cache"] += removed
+
+
+# ---------------------------------------------------------------- profiles and locking
+
+def profiles():
+    out = []
+    for root in ROOTS:
+        ini = configparser.ConfigParser()
+        if not ini.read(os.path.join(root, "profiles.ini")):
+            continue
+        for sec in ini.sections():
+            if "Path" in ini[sec]:
+                p = ini[sec]["Path"]
+                p = os.path.join(root, p) if ini[sec].get("IsRelative", "1") == "1" else p
+                if os.path.isdir(p):
+                    out.append(p)
+    return out
+
+
+def take_lock(prof):
+    """LibreWolf holds a lock on .parentlock while it runs; holding it ourselves keeps it from
+    starting on this profile mid-clean."""
+    f = open(os.path.join(prof, ".parentlock"), "a")
+    try:
+        fcntl.lockf(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return f
+    except OSError:
+        f.close()
+        return None
+
+
+def clean(prof):
+    lock = take_lock(prof)
+    if not lock:
+        return False
+    try:
+        n = {"history": 0, "sessions": 0, "cache": 0, "other": 0}
+        clean_places(prof, n)
+        clean_other_dbs(prof, n)
+        clean_storage(prof, n)
+        clean_service_workers(prof)
+        clean_sessions(prof, n)
+        clean_cache(prof, n)
+        if any(n.values()):
+            print(f"history-cleaner: {os.path.basename(prof)}: removed {n['history']} history entries, "
+                  f"{n['cache']} cache files, {n['sessions']} session files cleaned, {n['other']} other records")
+    finally:
+        fcntl.lockf(lock, fcntl.LOCK_UN)
+        lock.close()
+    return True
+
+
+def running(prof):
+    lock = take_lock(prof)
+    if lock:
+        fcntl.lockf(lock, fcntl.LOCK_UN)
+        lock.close()
+        return False
+    return True
+
+
+def main():
+    if "--watch" not in sys.argv:
+        load_list()
+        for p in profiles():
+            if not clean(p):
+                print(f"history-cleaner: LibreWolf is open on {os.path.basename(p)}; close it first", file=sys.stderr)
+        return
+    pending = set(profiles())  # clean everything once at login
+    while True:
+        for p in profiles():
+            if running(p):
+                pending.add(p)
+            elif p in pending:
+                time.sleep(2)  # let LibreWolf finish writing its files
+                if not running(p):
+                    load_list()
+                    if clean(p):
+                        pending.discard(p)
+        time.sleep(5)
+
+
+if __name__ == "__main__":
+    main()

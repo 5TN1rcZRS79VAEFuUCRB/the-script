@@ -426,6 +426,15 @@ if [ "${XDG_CURRENT_DESKTOP:-}" = KDE ] || systemctl --user -q is-active graphic
 	systemctl --user restart presence.service || warn "could not start presence; run: systemctl --user restart presence"
 fi
 
+# ---------------------------------------------------------------- history cleaner
+# Deletes porn sites from LibreWolf's history, cookies and closed tabs each time it closes (it
+# locks its files while open), and at login. Nothing is blocked.
+say "History cleaner: porn sites removed from LibreWolf's history when it closes"
+systemctl --user enable history-cleaner.service >/dev/null 2>&1 || warn "could not enable history-cleaner.service"
+if [ "${XDG_CURRENT_DESKTOP:-}" = KDE ] || systemctl --user -q is-active graphical-session.target 2>/dev/null; then
+	systemctl --user restart history-cleaner.service || warn "could not start history-cleaner; run: systemctl --user restart history-cleaner"
+fi
+
 # ---------------------------------------------------------------- Steam overlay scale
 # Steam's in-game overlay ignores the display scale (tiny at 4K); steam-overlay-scale fixes that at
 # login, and the .path unit re-applies it whenever a Steam update replaces the patched library.

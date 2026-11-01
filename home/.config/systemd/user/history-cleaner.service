@@ -1,0 +1,15 @@
+# Deletes porn sites from LibreWolf's history each time LibreWolf closes, and at login (see
+# ~/.local/bin/history-cleaner).
+[Unit]
+Description=Delete porn sites from LibreWolf's history when it closes
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+ExecStart=%h/.local/bin/history-cleaner --watch
+Restart=on-failure
+RestartSec=30
+Nice=10
+
+[Install]
+WantedBy=graphical-session.target

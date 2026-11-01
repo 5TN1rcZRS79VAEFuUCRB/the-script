@@ -2,7 +2,8 @@
 #
 # the-script-blocklist: blocks porn sites for every program on this machine by pointing them at
 # 0.0.0.0 in /etc/hosts. The list is StevenBlack's porn-only hosts file (about 77,000 sites), plus
-# the few in /usr/local/share/the-script/blocked-hosts that it misses. Run by install.sh and daily by
+# the few in /usr/local/share/the-script/blocked-hosts that it misses, minus the sites (and their
+# subdomains) in /usr/local/share/the-script/allowed-hosts. Run by install.sh and daily by
 # the-script-blocklist.timer. If the download fails, the last good copy is used. Lines of yours in
 # /etc/hosts outside the "the-script blocklist" block are kept.
 
@@ -13,6 +14,7 @@ import urllib.request
 URL = "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn-only/hosts"
 CACHE = "/var/lib/the-script/blocklist-hosts"
 EXTRA = "/usr/local/share/the-script/blocked-hosts"
+ALLOW = "/usr/local/share/the-script/allowed-hosts"
 HOSTS = "/etc/hosts"
 BEGIN = "# >>> the-script blocklist (managed by the-script-blocklist; edits here are replaced)"
 END = "# <<< the-script blocklist"
@@ -64,6 +66,8 @@ extra = read(EXTRA)
 blocked = read(CACHE) | extra
 for n in extra:  # cover both example.com and www.example.com
     blocked.add(n[4:] if n.startswith("www.") else "www." + n)
+allow = read(ALLOW)
+blocked = {n for n in blocked if not any(n == a or n.endswith("." + a) for a in allow)}
 
 with open(HOSTS) as f:
     current = f.read()

@@ -1,0 +1,9 @@
+# Refreshes the porn blocklist in /etc/hosts (the-script-blocklist).
+[Unit]
+Description=Refresh the-script's site blocklist in /etc/hosts
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/the-script-blocklist

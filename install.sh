@@ -266,6 +266,28 @@ fi
 if ! systemctl is-enabled -q sddm 2>/dev/null; then
 	sudo systemctl enable --force sddm || warn "could not enable SDDM; run: sudo systemctl enable --force sddm"
 fi
+# Its look: the Breeze theme with the-script's wallpaper and Plasma's colors (Breeze Dark), drawn at
+# the display scale (SDDM ignores Plasma's, so at 4K it was tiny), picked up again at the next update.
+sudo_place etc/sddm.conf.d/10-the-script.conf /etc/sddm.conf.d/10-the-script.conf
+sudo_place home/.local/share/wallpapers/the-script.jpg /usr/local/share/the-script/sddm-background.jpg
+sudo_place usr/share/sddm/themes/breeze/theme.conf.user /usr/share/sddm/themes/breeze/theme.conf.user
+if [ -f "$HOME/.config/kdeglobals" ] && ! sudo cmp -s "$HOME/.config/kdeglobals" /var/lib/sddm/.config/kdeglobals; then
+	sudo install -d -o sddm -g sddm /var/lib/sddm/.config \
+		&& sudo install -o sddm -g sddm -m644 "$HOME/.config/kdeglobals" /var/lib/sddm/.config/kdeglobals \
+		|| warn "could not give the login screen Plasma's colors"
+fi
+# The scale is KWin's for the main screen (the largest if there were several setups).
+sddm_scale=$(python3 -c 'import json, os, sys
+cfg = {s["name"]: s["data"] for s in json.load(open(os.path.expanduser("~/.config/kwinoutputconfig.json")))}
+s = max((cfg["outputs"][o["outputIndex"]].get("scale", 1) for setup in cfg["setups"] for o in setup["outputs"]
+         if o.get("enabled") and o.get("priority") == 1), default=1)
+s = round(s, 2)
+print(f"[General]\nGreeterEnvironment=QT_SCALE_FACTOR={s:g}\n\n[Theme]\nCursorSize={round(24 * s)}")' 2>/dev/null) || true
+if [ -n "$sddm_scale" ]; then
+	tmp="$(mktemp)"; printf '%s\n' "$sddm_scale" > "$tmp"
+	sudo_place "$tmp" /etc/sddm.conf.d/20-the-script-scale.conf
+	rm -f "$tmp"
+fi
 
 # ---------------------------------------------------------------- LibreWolf
 find_lw_profile() {

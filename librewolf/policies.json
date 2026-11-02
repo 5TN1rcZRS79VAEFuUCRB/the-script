@@ -9,6 +9,14 @@
     "SearchEngines": {
       "Add": [
         {
+          "Name": "Brave",
+          "URLTemplate": "https://search.brave.com/search?q={searchTerms}",
+          "Method": "GET",
+          "SuggestURLTemplate": "https://search.brave.com/api/suggest?q={searchTerms}",
+          "IconURL": "https://brave.com/static-assets/images/brave-favicon.png",
+          "Alias": "@brave"
+        },
+        {
           "Name": "Startpage",
           "URLTemplate": "https://www.startpage.com/sp/search?q={searchTerms}",
           "Method": "GET",
@@ -17,7 +25,7 @@
           "Alias": "@sp"
         }
       ],
-      "Default": "Startpage"
+      "Default": "Brave"
     }
   }
 }

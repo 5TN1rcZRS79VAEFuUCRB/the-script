@@ -382,18 +382,27 @@ else
 	warn "nss-mdns is not installed; skipping .local hostnames"
 fi
 
-# ---------------------------------------------------------------- printing (Canon MX920)
-# The MX920's driverless (IPP Everywhere) setup fails: its firmware leaves out the attributes CUPS
-# needs ("PPD creation failed"), so the queue uses Gutenprint's driver instead. The printer is reached
-# by its mDNS name, so a new IP from the router does not break it. Added only if the queue is missing.
-# The queue takes the name CUPS gives the discovered printer, which hides that broken driverless
-# entry from print dialogs (Firefox had remembered it, so its jobs went nowhere).
-say "Printing: CUPS and the Canon MX920"
+# ---------------------------------------------------------------- printing (HP DeskJet 2800, Canon MX920)
+# Each printer is reached by its mDNS name, so a new IP from the router does not break it, and is
+# added only if its queue is missing. Each queue takes the name CUPS gives the discovered printer,
+# which hides CUPS's own auto-made entry from print dialogs: that entry can fail (for the HP:
+# 'Bad device URI "://"'), and a dialog that remembered it sent jobs nowhere.
+# HP DeskJet 2800 (the default): driverless (IPP Everywhere). CUPS reads the printer's attributes
+# while adding it, so it must be on; if it is off, run install.sh again once it is.
+# Canon MX920: its driverless setup fails (its firmware leaves out the attributes CUPS needs, "PPD
+# creation failed"), so it uses Gutenprint's driver, which needs no printer to add.
+say "Printing: CUPS, the HP DeskJet 2800 and the Canon MX920"
 if command -v lpadmin >/dev/null; then
 	sudo systemctl enable --now cups || warn "could not start CUPS; run: sudo systemctl enable --now cups"
-	if ! lpstat -p Canon_MX920_series >/dev/null 2>&1; then
+	# Only real queues: "lpstat -p NAME" also succeeds for a printer CUPS has merely discovered.
+	has_queue() { lpstat -v 2>/dev/null | grep -q "^device for $1:"; }
+	if ! has_queue HP_DeskJet_2800_series_E2CA90; then
+		sudo lpadmin -p HP_DeskJet_2800_series_E2CA90 -E -v ipp://HP28C5C8E2CA90.local/ipp/print -m everywhere \
+			&& lpoptions -d HP_DeskJet_2800_series_E2CA90 >/dev/null \
+			|| warn "could not add the HP DeskJet 2800 (is it on and on this Wi-Fi?); run install.sh again once it is"
+	fi
+	if ! has_queue Canon_MX920_series; then
 		sudo lpadmin -p Canon_MX920_series -E -v ipp://488E78000000.local/ipp/print -m gutenprint.5.3://bjc-MX920-series/expert \
-			&& lpoptions -d Canon_MX920_series >/dev/null \
 			|| warn "could not add the MX920 printer; run the lpadmin line above by hand to see why"
 	fi
 else

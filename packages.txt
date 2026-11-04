@@ -55,7 +55,7 @@ tailscale
 avahi
 nss-mdns
 
-# --- printing: CUPS + Gutenprint (the Canon MX920 needs a driver; its driverless/AirPrint setup fails)
+# --- printing: CUPS (the HP DeskJet 2800 is driverless) + Gutenprint (the Canon MX920 needs a driver; its driverless/AirPrint setup fails)
 cups
 gutenprint
 

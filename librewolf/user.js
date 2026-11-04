@@ -67,6 +67,11 @@ user_pref("browser.search.suggest.enabled.private", true);
 user_pref("browser.toolbars.bookmarks.visibility", "never");
 user_pref("sidebar.visibility", "hide-on-close");
 user_pref("browser.download.useDownloadDir", false);   // ask where to save each download
+// Files opened straight from a download ("Open" rather than "Save") go to ~/Downloads and stay
+// there. LibreWolf puts them in /tmp and deletes them when it closes, so a restored tab or a PDF
+// still open in another app points at a file that is gone.
+user_pref("browser.download.start_downloads_in_tmp_dir", false);
+user_pref("browser.helperApps.deleteTempFileOnExit", false);
 
 // Passwords live in KeePassXC, not the browser; no autofill of addresses or cards
 user_pref("signon.rememberSignons", false);

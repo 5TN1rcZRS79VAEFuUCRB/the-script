@@ -5,6 +5,7 @@
 # everything is in place changes nothing.
 #
 #   - notifications not held back while something is fullscreen
+#   - no hot corner: pushing the mouse into the top-left corner does nothing
 #   - first login only: Breeze Dark, and on a desktop variable refresh rate always on (games included)
 #   - once: the star trails wallpaper on the desktop and the lock screen, and GNOME's black
 #     Adwaita cursor in place of Breeze's
@@ -43,6 +44,12 @@ keys() { # component action keys...
 
 # Plasma turns on Do Not Disturb while anything is fullscreen (a video, a game); notifications show anyway.
 kwriteconfig6 --notify --file plasmanotifyrc --group DoNotDisturb --key WhenFullscreen false
+
+# Plasma opens the Overview when the mouse hits the top-left corner; 9 is no screen edge.
+if [ "$(kreadconfig6 --file kwinrc --group Effect-overview --key BorderActivate)" != 9 ]; then
+	kwriteconfig6 --file kwinrc --group Effect-overview --key BorderActivate 9
+	qdbus6 org.kde.KWin /KWin reconfigure >/dev/null 2>&1
+fi
 
 # install.sh leaves GNOME installed while a GNOME session runs. In Plasma, clearing the installed
 # commit makes the updater run it again now, and that run removes GNOME.

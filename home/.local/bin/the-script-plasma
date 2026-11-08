@@ -48,7 +48,8 @@ kwriteconfig6 --notify --file plasmanotifyrc --group DoNotDisturb --key WhenFull
 # Plasma opens the Overview when the mouse hits the top-left corner; 9 is no screen edge.
 if [ "$(kreadconfig6 --file kwinrc --group Effect-overview --key BorderActivate)" != 9 ]; then
 	kwriteconfig6 --file kwinrc --group Effect-overview --key BorderActivate 9
-	qdbus6 org.kde.KWin /KWin reconfigure >/dev/null 2>&1
+	# KWin's own reconfigure leaves the effect's corner in place; reloading the effect drops it.
+	qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.reconfigureEffect overview >/dev/null 2>&1
 fi
 
 # install.sh leaves GNOME installed while a GNOME session runs. In Plasma, clearing the installed

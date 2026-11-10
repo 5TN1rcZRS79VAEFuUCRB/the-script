@@ -1,0 +1,648 @@
+#!/usr/bin/env python3
+"""cc-bench: find which Claude Code model + effort works best for you.
+
+Reads Claude Code's own session logs for usage, grades each finished session
+with a cheap blind Haiku judge, and estimates how much of your plan limit each
+setting burns, using the rate-limit snapshots the status line records.
+
+Commands:
+  arm                  print the next "model effort" to benchmark (used by ccb)
+  statusline           Claude Code status line (stdin JSON -> one line); logs limit snapshots
+  hook-session-start   SessionStart hook: records which arm a session was started on
+  update [--no-judge]  parse logs and judge finished sessions
+  report [--open]      write the HTML report
+  status               short summary in the terminal
+"""
+import collections
+import concurrent.futures as cf
+import datetime as dt
+import html
+import json
+import os
+import random
+import statistics
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+DATA = Path(os.environ.get("CC_BENCH_DATA", Path.home() / ".local/share/cc-bench"))
+PROJECTS = Path.home() / ".claude/projects"
+JUDGE_CWD = DATA / "judge-cwd"
+ASSIGN = DATA / "assignments.jsonl"
+LIMITS = DATA / "ratelimits.jsonl"
+JUDGED = DATA / "judged.jsonl"
+SESSIONS = DATA / "sessions.json"
+REPORT = DATA / "report.html"
+
+# Settings that get rotated by `ccb`. Edit freely; label is "model:effort".
+ARMS = [
+    ("claude-sonnet-5-5", "high"),
+    ("claude-opus-5-5", "medium"),
+    ("claude-opus-5-5", "high"),
+    ("claude-opus-5-5", "xhigh"),
+]
+JUDGE_MODEL = "claude-haiku-5-5"
+JUDGE_VERSION = 1          # bump to re-judge everything after changing the prompt
+ENDED_AFTER_S = 2 * 3600   # a session counts as finished after 2h without activity
+MIN_N = 5                  # sessions per arm before the report makes a call
+
+# $/1M tokens: input, output, cache read. Cache writes: 1.25x input (5m), 2x (1h).
+PRICES = {
+    "fable-5-2": (8, 40, .2), "fable-5-1": (10, 50, 1), "fable-5": (10, 50, 1),
+    "opus-5-5": (4, 20, .2), "opus-5": (5, 25, .5), "opus-4": (5, 25, .5),
+    "sonnet-5-5": (2, 10, .1), "sonnet-5": (2, 10, .2), "sonnet-4": (3, 15, .3),
+    "haiku-5-5": (.1, .5, .01), "haiku-4": (1, 5, .1),
+}
+
+
+def price(model):
+    hits = [k for k in PRICES if k in model]
+    return PRICES[max(hits, key=len)] if hits else PRICES["opus-5-5"]
+
+
+def cost_of(model, u):
+    pin, pout, pread = price(model)
+    cc = u.get("cache_creation") or {}
+    w1h = cc.get("ephemeral_1h_input_tokens")
+    w5m = cc.get("ephemeral_5m_input_tokens")
+    if w1h is None and w5m is None:
+        w1h, w5m = u.get("cache_creation_input_tokens", 0), 0
+    return (u.get("input_tokens", 0) * pin + (w5m or 0) * pin * 1.25 + (w1h or 0) * pin * 2
+            + u.get("cache_read_input_tokens", 0) * pread + u.get("output_tokens", 0) * pout) / 1e6
+
+
+def arm_label(model, effort):
+    return f"{model.replace('claude-', '')}:{effort}"
+
+
+def jsonl(path):
+    try:
+        with open(path) as f:
+            for line in f:
+                try:
+                    yield json.loads(line)
+                except ValueError:
+                    pass
+    except FileNotFoundError:
+        return
+
+
+def append(path, obj):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "a") as f:
+        f.write(json.dumps(obj) + "\n")
+
+
+def ts(s):
+    return dt.datetime.fromisoformat(s.replace("Z", "+00:00")).timestamp()
+
+
+# ---------------------------------------------------------------- rotation
+
+def cmd_arm():
+    counts = collections.Counter(a.get("arm") for a in jsonl(ASSIGN) if a.get("source") == "startup")
+    labels = [arm_label(m, e) for m, e in ARMS]
+    low = min(counts[l] for l in labels)
+    model, effort = random.choice([a for a, l in zip(ARMS, labels) if counts[l] == low])
+    print(model, effort)
+
+
+def cmd_hook_session_start():
+    try:
+        d = json.load(sys.stdin)
+    except ValueError:
+        return
+    arm = os.environ.get("CC_BENCH_ARM")
+    if arm and not os.environ.get("CC_BENCH_JUDGE"):
+        append(ASSIGN, {"sid": d.get("session_id"), "arm": arm, "source": d.get("source"),
+                        "cwd": d.get("cwd"), "ts": time.time()})
+
+
+# ---------------------------------------------------------------- status line
+
+def cmd_statusline():
+    try:
+        d = json.load(sys.stdin)
+    except ValueError:
+        d = {}
+    rl = d.get("rate_limits") or {}
+    h5, d7 = rl.get("five_hour") or {}, rl.get("seven_day") or {}
+    sid = d.get("session_id") or "?"
+    snap = [h5.get("used_percentage"), h5.get("resets_at"), d7.get("used_percentage"), d7.get("resets_at")]
+    if snap[0] is not None and not os.environ.get("CC_BENCH_JUDGE"):
+        state = DATA / "sl" / sid
+        try:
+            last = json.loads(state.read_text())
+        except (OSError, ValueError):
+            last = {}
+        now = time.time()
+        if last.get("snap") != snap or now - last.get("t", 0) > 600:
+            append(LIMITS, {"ts": now, "sid": sid, "h5": snap[0], "h5_reset": snap[1],
+                            "d7": snap[2], "d7_reset": snap[3]})
+            state.parent.mkdir(parents=True, exist_ok=True)
+            state.write_text(json.dumps({"snap": snap, "t": now}))
+
+    dim, rst = "\033[2m", "\033[0m"
+    parts = [(d.get("model") or {}).get("display_name", "?")]
+    eff = (d.get("effort") or {}).get("level")
+    if eff:
+        parts[0] += f" · {eff}"
+
+    def lim(name, w):
+        p = w.get("used_percentage")
+        if p is None:
+            return None
+        col = "\033[31m" if p >= 85 else "\033[33m" if p >= 60 else "\033[32m"
+        left = ""
+        if w.get("resets_at"):
+            m = max(0, int(w["resets_at"] - time.time()) // 60)
+            left = f" {dim}↻{m // 60}h{m % 60:02d}m{rst}" if m < 24 * 60 else f" {dim}↻{m // 1440}d{rst}"
+        return f"{name} {col}{p:.0f}%{rst}{left}"
+
+    parts += [x for x in (lim("5h", h5), lim("wk", d7)) if x]
+    ctx = (d.get("context_window") or {}).get("used_percentage")
+    if ctx is not None:
+        parts.append(f"ctx {ctx:.0f}%")
+    if os.environ.get("CC_BENCH_ARM"):
+        parts.append(f"\033[35mbench{rst}")
+    print(f" {dim}·{rst} ".join(parts))
+
+
+# ---------------------------------------------------------------- log parsing
+
+def is_prompt(d):
+    if d.get("type") != "user" or d.get("isMeta") or d.get("isSidechain"):
+        return False
+    c = d["message"].get("content")
+    if isinstance(c, str):
+        return "<command-name>" not in c and "<local-command" not in c and "interrupted by user" not in c
+    return any(b.get("type") == "text" and "interrupted by user" not in b.get("text", "") for b in c) \
+        and not any(b.get("type") == "tool_result" for b in c)
+
+
+def text_of(c):
+    if isinstance(c, str):
+        return c
+    return " ".join(b.get("text", "") for b in c if b.get("type") == "text")
+
+
+def short(s, n):
+    s = " ".join(str(s).split())
+    return s if len(s) <= n else s[:n] + "…"
+
+
+def tool_brief(name, inp):
+    for k in ("command", "file_path", "pattern", "url", "query", "description", "prompt", "skill"):
+        if k in inp:
+            return short(inp[k], 200)
+    return short(json.dumps(inp), 150)
+
+
+def parse_all():
+    skip = {JUDGE_CWD.as_posix().replace("/", "-").replace(".", "-")}
+    S = {}
+    msgs = {}      # message id -> (ts, cost, model)
+    for f in PROJECTS.glob("**/*.jsonl"):
+        proj = f.relative_to(PROJECTS).parts[0]
+        if proj in skip:
+            continue
+        for d in jsonl(f):
+            sid = d.get("sessionId")
+            if not sid or d.get("type") not in ("user", "assistant", "ai-title", "system"):
+                continue
+            s = S.setdefault(sid, {
+                "sid": sid, "project": proj, "cwd": d.get("cwd"), "title": None, "entry": d.get("entrypoint"),
+                "times": [], "arms": collections.Counter(), "prompts": 0, "interrupts": 0, "rejections": 0,
+                "tool_calls": 0, "tool_errors": 0, "switches": 0, "files": set(), "log": [], "mids": set(),
+            })
+            if d["type"] == "ai-title":
+                s["title"] = d.get("aiTitle") or s["title"]
+                continue
+            if d.get("timestamp"):
+                s["times"].append(ts(d["timestamp"]))
+            if d["type"] == "system":
+                continue
+            m = d["message"]
+            side = d.get("isSidechain")
+            if d["type"] == "assistant":
+                u, model, mid = m.get("usage"), m.get("model", ""), m.get("id")
+                if u and model and model != "<synthetic>" and mid:
+                    msgs[mid] = (ts(d["timestamp"]), cost_of(model, u), model, sid, u.get("output_tokens", 0),
+                                 (u.get("output_tokens_details") or {}).get("thinking_tokens", 0), side,
+                                 d.get("perTurnEffort") or d.get("effort"))
+                    s["mids"].add(mid)
+                for b in m.get("content") or []:
+                    if b.get("type") == "tool_use":
+                        s["tool_calls"] += 1
+                        inp = b.get("input") or {}
+                        if b.get("name") in ("Edit", "Write", "NotebookEdit") and inp.get("file_path"):
+                            s["files"].add(inp["file_path"])
+                        if not side:
+                            s["log"].append(f"[TOOL {b.get('name')}] {tool_brief(b.get('name'), inp)}")
+                    elif b.get("type") == "text" and not side and b.get("text", "").strip():
+                        s["log"].append(f"[ASSISTANT] {short(b['text'], 900)}")
+                continue
+            c = m.get("content")
+            if is_prompt(d):
+                s["prompts"] += 1
+                s["log"].append(f"[USER] {short(text_of(c), 1500)}")
+            elif not side and isinstance(c, str) and "<command-name>" in c:
+                if "/model" in c or "/effort" in c:
+                    s["switches"] += 1
+                    s["log"].append(f"[USER RAN] {short(c, 160)}")
+            if not isinstance(c, list):
+                continue
+            for b in c:
+                if b.get("type") == "text" and "interrupted by user" in b.get("text", "") and not side:
+                    s["interrupts"] += 1
+                    s["log"].append("[USER INTERRUPTED]")
+                elif b.get("type") == "tool_result" and b.get("is_error"):
+                    s["tool_errors"] += 1
+                    body = text_of(b.get("content")) if isinstance(b.get("content"), list) else b.get("content", "")
+                    if "doesn't want to proceed" in str(body) or "rejected" in str(body).lower()[:200]:
+                        s["rejections"] += 1
+                        if not side:
+                            s["log"].append(f"[USER REJECTED TOOL CALL] {short(body, 300)}")
+                    elif not side:
+                        s["log"].append(f"[TOOL ERROR] {short(body, 300)}")
+
+    assigned = {a["sid"]: a["arm"] for a in jsonl(ASSIGN) if a.get("sid")}
+    out = {}
+    for sid, s in S.items():
+        if not s["mids"] or not s["times"]:
+            continue
+        cost = out_tok = think = 0.0
+        main_out = collections.Counter()
+        by_model = collections.Counter()
+        for mid in s["mids"]:
+            t, c, model, _, o, th, side, eff = msgs[mid]
+            cost += c
+            out_tok += o
+            think += th
+            by_model[model.replace("claude-", "")] += c
+            if not side:
+                main_out[arm_label(model, eff or "?")] += max(o, 1)
+        t = sorted(s["times"])
+        active = sum(min(b - a, 300) for a, b in zip(t, t[1:]))
+        total = sum(main_out.values()) or 1
+        arm, share = main_out.most_common(1)[0] if main_out else ("?", 0)
+        out[sid] = {
+            "sid": sid, "project": s["project"].replace("-home-gavin", "~").replace("-", "/") or "~",
+            "title": s["title"], "start": t[0], "end": t[-1], "active_min": round(active / 60, 1),
+            "arm": arm, "arm_share": round(share / total, 2), "rotated": sid in assigned,
+            "assigned_arm": assigned.get(sid), "entry": s["entry"],
+            "prompts": s["prompts"], "interrupts": s["interrupts"], "rejections": s["rejections"],
+            "tool_calls": s["tool_calls"], "tool_errors": s["tool_errors"], "switches": s["switches"],
+            "files": sorted(s["files"]), "cost": round(cost, 4), "out_tokens": int(out_tok),
+            "thinking_tokens": int(think), "cost_by_model": {k: round(v, 4) for k, v in by_model.items()},
+            "log": s["log"],
+        }
+    # rework: another session edited the same file within 48h afterwards
+    edits = sorted((s["start"], sid, f) for sid, s in out.items() for f in s["files"])
+    for sid, s in out.items():
+        later = {f for st, osid, f in edits if osid != sid and s["end"] < st < s["end"] + 48 * 3600}
+        s["reworked_files"] = len(later & set(s["files"]))
+    timeline = sorted((v[0], v[1]) for v in msgs.values())
+    return out, timeline
+
+
+# ---------------------------------------------------------------- plan-limit calibration
+
+def calibrate(timeline):
+    """% of plan limit per API-equivalent dollar, fitted from status-line snapshots."""
+    snaps = sorted(jsonl(LIMITS), key=lambda x: x["ts"])
+    times = [t for t, _ in timeline]
+    import bisect
+    cum = [0.0]
+    for _, c in timeline:
+        cum.append(cum[-1] + c)
+
+    def spent(a, b):
+        return cum[bisect.bisect_right(times, b)] - cum[bisect.bisect_right(times, a)]
+
+    res = {}
+    for key, reset in (("h5", "h5_reset"), ("d7", "d7_reset")):
+        dp = dc = 0.0
+        prev = None
+        for s in snaps:
+            if s.get(key) is None:
+                continue
+            if prev and prev[reset] == s[reset] and s["ts"] > prev["ts"] and s[key] >= prev[key]:
+                dp += s[key] - prev[key]
+                dc += spent(prev["ts"], s["ts"])
+            if not prev or s["ts"] >= prev["ts"]:
+                prev = s
+        res[key] = (dp / dc) if dc > 1 and dp > 0 else None
+        res[key + "_basis"] = {"pct": round(dp, 1), "usd": round(dc, 2)}
+    return res
+
+
+# ---------------------------------------------------------------- judge
+
+TASK_TYPES = ["code_feature", "bug_fix", "system_config", "scripting_automation", "research_question",
+              "writing_translation", "data_processing", "quick_question", "other"]
+SCHEMA = {
+    "type": "object", "additionalProperties": False,
+    "required": ["task_type", "difficulty", "outcome", "quality", "efficiency", "corrections", "summary"],
+    "properties": {
+        "task_type": {"type": "string", "enum": TASK_TYPES},
+        "difficulty": {"type": "integer", "minimum": 1, "maximum": 5},
+        "outcome": {"type": "string", "enum": ["solved", "mostly_solved", "partial", "failed", "abandoned", "unclear"]},
+        "quality": {"type": "integer", "minimum": 1, "maximum": 10},
+        "efficiency": {"type": "integer", "minimum": 1, "maximum": 10},
+        "corrections": {"type": "integer", "minimum": 0},
+        "summary": {"type": "string"},
+    },
+}
+JUDGE_PROMPT = """You are grading one Claude Code session (an AI coding assistant working for a user) from a condensed transcript. You do not know which model or settings were used; judge only what happened.
+
+Score:
+- task_type: what the user mainly wanted.
+- difficulty 1-5: how hard the task was (1 = trivial lookup, 5 = hard multi-step debugging or design).
+- outcome: did the user end up with what they asked for? Use "abandoned" if the user gave up or switched away, "unclear" if the transcript can't tell.
+- quality 1-10: correctness and usefulness of the work, and how well it matched what the user wanted. Count the assistant's mistakes, wrong claims, and things the user had to fix or re-explain. 10 = right first time.
+- efficiency 1-10: did it get there without wasted steps, detours, or repeated failed attempts? Judge steps, not length of prose.
+- corrections: how many times the user had to correct, redirect, or reject something because the assistant got it wrong (not new requests, not preferences stated up front).
+- summary: one short sentence on the task and how it went.
+
+Notes: [USER INTERRUPTED] and [USER REJECTED TOOL CALL] usually mean the assistant was going the wrong way. A user moving on to an unrelated new request usually means the previous one was fine.
+
+TRANSCRIPT:
+"""
+
+
+def condensed(s, limit=60000):
+    text = "\n".join(s["log"])
+    if len(text) > limit:
+        text = text[:limit // 3] + "\n\n[… middle of session omitted …]\n\n" + text[-2 * limit // 3:]
+    return text
+
+
+def judge_one(s):
+    JUDGE_CWD.mkdir(parents=True, exist_ok=True)
+    env = dict(os.environ, CC_BENCH_JUDGE="1")
+    env.pop("CC_BENCH_ARM", None)
+    p = subprocess.run(
+        ["claude", "-p", "--model", JUDGE_MODEL, "--tools", "", "--no-session-persistence",
+         "--setting-sources", "", "--strict-mcp-config", "--output-format", "json",
+         "--json-schema", json.dumps(SCHEMA)],
+        input=JUDGE_PROMPT + condensed(s), capture_output=True, text=True, cwd=JUDGE_CWD, env=env, timeout=300)
+    d = json.loads(p.stdout)
+    if d.get("is_error") or not d.get("structured_output"):
+        raise RuntimeError(short(d.get("result") or p.stderr, 200))
+    return {"sid": s["sid"], "v": JUDGE_VERSION, "end": s["end"], "judge_cost": d.get("total_cost_usd"),
+            **d["structured_output"]}
+
+
+def load_judged():
+    j = {}
+    for r in jsonl(JUDGED):
+        if r.get("v") == JUDGE_VERSION:
+            j[r["sid"]] = r
+    return j
+
+
+def cmd_update(argv):
+    sessions, timeline = parse_all()
+    cal = calibrate(timeline)
+    judged = load_judged()
+    now = time.time()
+    todo = [s for s in sessions.values()
+            if s["prompts"] > 0 and now - s["end"] > ENDED_AFTER_S and s["entry"] == "cli"
+            and (s["sid"] not in judged or judged[s["sid"]]["end"] < s["end"] - 60)]
+    if "--no-judge" not in argv and todo:
+        print(f"judging {len(todo)} sessions with {JUDGE_MODEL}…", file=sys.stderr)
+        spent = 0.0
+        with cf.ThreadPoolExecutor(4) as ex:
+            futs = {ex.submit(judge_one, s): s for s in todo}
+            for i, fu in enumerate(cf.as_completed(futs), 1):
+                s = futs[fu]
+                try:
+                    r = fu.result()
+                    append(JUDGED, r)
+                    judged[s["sid"]] = r
+                    spent += r.get("judge_cost") or 0
+                except Exception as e:  # keep going; it is retried next update
+                    print(f"  judge failed for {s['sid'][:8]}: {e}", file=sys.stderr)
+                if i % 10 == 0:
+                    print(f"  {i}/{len(todo)}", file=sys.stderr)
+        print(f"judging cost ≈ ${spent:.2f} API-equivalent", file=sys.stderr)
+    for s in sessions.values():
+        s.pop("log", None)
+    SESSIONS.write_text(json.dumps({"updated": now, "calibration": cal, "sessions": sessions}))
+    print(f"{len(sessions)} sessions, {len(judged)} judged", file=sys.stderr)
+
+
+# ---------------------------------------------------------------- analysis
+
+def rows():
+    d = json.loads(SESSIONS.read_text())
+    judged = load_judged()
+    cal = d["calibration"]
+    out = []
+    for s in d["sessions"].values():
+        j = judged.get(s["sid"])
+        if not j:
+            continue
+        s = {**s, **{k: j[k] for k in SCHEMA["properties"]}}
+        s["h5_pct"] = s["cost"] * cal["h5"] if cal.get("h5") else None
+        s["d7_pct"] = s["cost"] * cal["d7"] if cal.get("d7") else None
+        s["success"] = s["outcome"] in ("solved", "mostly_solved")
+        s["mixed"] = s["arm_share"] < 0.8
+        out.append(s)
+    return out, d
+
+
+def med(xs):
+    xs = [x for x in xs if x is not None]
+    return statistics.median(xs) if xs else None
+
+
+def mean(xs):
+    xs = [x for x in xs if x is not None]
+    return sum(xs) / len(xs) if xs else None
+
+
+def summarize(rs):
+    n = len(rs)
+    return {
+        "n": n,
+        "quality": mean([r["quality"] for r in rs]),
+        "efficiency": mean([r["efficiency"] for r in rs]),
+        "success": mean([1.0 if r["success"] else 0.0 for r in rs]),
+        "corrections": mean([r["corrections"] + r["interrupts"] + r["rejections"] for r in rs]),
+        "cost": med([r["cost"] for r in rs]),
+        "cost_mean": mean([r["cost"] for r in rs]),
+        "h5": med([r["h5_pct"] for r in rs]),
+        "d7": med([r["d7_pct"] for r in rs]),
+        "minutes": med([r["active_min"] for r in rs]),
+        "difficulty": mean([r["difficulty"] for r in rs]),
+    }
+
+
+def pick(groups):
+    """Cheapest arm whose quality is within 0.5 of the best, among arms with enough data."""
+    ok = {a: g for a, g in groups.items() if g["n"] >= MIN_N and g["quality"] is not None}
+    if len(ok) < 2:
+        return None
+    best = max(g["quality"] for g in ok.values())
+    good = [a for a, g in ok.items() if g["quality"] >= best - 0.5]
+    return min(good, key=lambda a: ok[a]["cost"])
+
+
+def by_arm(rs):
+    g = collections.defaultdict(list)
+    for r in rs:
+        g[r["arm"]].append(r)
+    return {a: summarize(v) for a, v in g.items()}
+
+
+def cmd_status():
+    rs, d = rows()
+    fair = [r for r in rs if r["rotated"] and not r["mixed"]]
+    print(f"{len(rs)} judged sessions, {len(fair)} from rotation (ccb)\n")
+    for name, sub in (("rotation only (fair comparison)", fair), ("all sessions", [r for r in rs if not r["mixed"]])):
+        print(name)
+        print(f"  {'setting':22} {'n':>4} {'quality':>8} {'success':>8} {'$/task':>7} {'5h%/task':>9}")
+        for a, g in sorted(by_arm(sub).items(), key=lambda x: x[1]["cost"] or 0):
+            h5 = f"{g['h5']:.1f}" if g["h5"] is not None else "–"
+            print(f"  {a:22} {g['n']:>4} {g['quality']:>8.1f} {g['success']:>7.0%} {g['cost']:>7.2f} {h5:>9}")
+        print()
+    c = d["calibration"]
+    if c.get("h5"):
+        print(f"calibration: 1 API-$ ≈ {c['h5']:.2f}% of 5h limit, {c['d7'] or 0:.2f}% of weekly")
+    else:
+        print("calibration: not enough status-line snapshots yet for plan-% estimates")
+
+
+# ---------------------------------------------------------------- report
+
+CSS = """
+:root{--bg:#fbfbfa;--fg:#1d1d1f;--muted:#6b6b70;--line:#e3e3e0;--card:#fff;--accent:#5b4bdb;--good:#1f8a4c;--warn:#b26b00;--bad:#c23b3b;--chip:#efeefb}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#141416;--fg:#ececee;--muted:#9a9aa2;--line:#2b2b30;--card:#1c1c20;--accent:#9d92ff;--good:#4cc282;--warn:#e0a23a;--bad:#ff6b6b;--chip:#2a2840}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:28px 16px 60px}h1{font-size:24px;margin:0 0 4px}h2{font-size:17px;margin:32px 0 10px}
+.muted{color:var(--muted)}.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:12px 0;overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}th,td{padding:6px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child,td.l,th.l{text-align:left}th{font-weight:600;color:var(--muted);font-size:13px}tr:last-child td{border-bottom:0}
+.pick{color:var(--good);font-weight:600}.chip{background:var(--chip);border-radius:6px;padding:1px 7px;font-size:13px}
+.verdict{font-size:16px}.bad{color:var(--bad)}.warn{color:var(--warn)}td.t{white-space:normal;min-width:260px;text-align:left}
+"""
+
+
+def fmt(x, f="{:.1f}", none="–"):
+    return none if x is None else f.format(x)
+
+
+def arm_table(groups, chosen):
+    h = ["<table><tr><th>setting</th><th>sessions</th><th>quality /10</th><th>success</th><th>efficiency</th>"
+         "<th>fixes needed</th><th>difficulty</th><th>median API-$</th><th>median 5h-limit %</th><th>median week %</th><th>active min</th></tr>"]
+    for a, g in sorted(groups.items(), key=lambda x: x[1]["cost"] or 0):
+        cls = ' class="pick"' if a == chosen else ""
+        thin = ' <span class="muted">(few)</span>' if g["n"] < MIN_N else ""
+        h.append(f"<tr><td{cls}>{html.escape(a)}{' ✓' if a == chosen else ''}</td><td>{g['n']}{thin}</td>"
+                 f"<td>{fmt(g['quality'])}</td><td>{fmt(g['success'], '{:.0%}')}</td><td>{fmt(g['efficiency'])}</td>"
+                 f"<td>{fmt(g['corrections'])}</td><td>{fmt(g['difficulty'])}</td><td>{fmt(g['cost'], '${:.2f}')}</td>"
+                 f"<td>{fmt(g['h5'], '{:.1f}%')}</td><td>{fmt(g['d7'], '{:.2f}%')}</td><td>{fmt(g['minutes'], '{:.0f}')}</td></tr>")
+    h.append("</table>")
+    return "".join(h)
+
+
+def cmd_report(argv):
+    rs, d = rows()
+    rs_clean = [r for r in rs if not r["mixed"]]
+    fair = [r for r in rs_clean if r["rotated"]]
+    base = fair if len(fair) >= MIN_N * 2 else rs_clean
+    groups = by_arm(base)
+    chosen = pick(groups)
+    cal = d["calibration"]
+    upd = dt.datetime.fromtimestamp(d["updated"]).strftime("%b %d %H:%M")
+
+    if chosen:
+        verdict = f"Best value so far: <b class='pick'>{html.escape(chosen)}</b>, the cheapest setting whose quality is within half a point of the best."
+    else:
+        need = {a: max(0, MIN_N - groups.get(arm_label(m, e), {"n": 0})["n"]) for m, e in ARMS for a in [arm_label(m, e)]}
+        verdict = ("Not enough data to compare yet. Start sessions with <code>ccb</code> so they rotate settings. Still needed: "
+                   + ", ".join(f"{html.escape(a)} {n} more" for a, n in need.items() if n) + ".")
+
+    parts = [f"<!doctype html><html><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
+             f"<title>Claude Code Bench</title><style>{CSS}</style></head><body><main>",
+             f"<h1>Claude Code Bench</h1><div class=muted>Which model and effort work best for your sessions. Updated {upd}. "
+             f"{len(rs)} graded sessions, {len(fair)} from rotation.</div>",
+             f"<div class='card verdict'>{verdict}</div>",
+             f"<h2>By setting <span class=muted>({'rotation sessions only' if base is fair else 'all sessions, not yet a fair comparison'})</span></h2>",
+             f"<div class=card>{arm_table(groups, chosen)}</div>"]
+
+    tgroups = collections.defaultdict(list)
+    for r in base:
+        tgroups[r["task_type"]].append(r)
+    if tgroups:
+        arms = sorted({r["arm"] for r in base})
+        h = ["<table><tr><th>task type</th>" + "".join(f"<th>{html.escape(a)}</th>" for a in arms) + "<th>pick</th></tr>"]
+        for t, trs in sorted(tgroups.items(), key=lambda x: -len(x[1])):
+            g = by_arm(trs)
+            p = pick(g)
+            cells = []
+            for a in arms:
+                x = g.get(a)
+                cells.append("<td class=muted>–</td>" if not x else
+                             f"<td{' class=pick' if a == p else ''}>{x['quality']:.1f} · ${x['cost']:.2f} <span class=muted>n{x['n']}</span></td>")
+            h.append(f"<tr><td>{t.replace('_', ' ')}</td>{''.join(cells)}<td>{html.escape(p) if p else '<span class=muted>need data</span>'}</td></tr>")
+        h.append("</table>")
+        parts += ["<h2>By task type <span class=muted>(quality · median API-$)</span></h2>", f"<div class=card>{''.join(h)}</div>"]
+
+    hard = [r for r in base if r["difficulty"] >= 3]
+    if hard:
+        parts += ["<h2>Harder tasks only <span class=muted>(difficulty 3+)</span></h2>",
+                  f"<div class=card>{arm_table(by_arm(hard), pick(by_arm(hard)))}</div>"]
+
+    h = ["<table><tr><th class=l>when</th><th class=l>session</th><th class=l>setting</th><th class=l>type</th><th>diff</th>"
+         "<th class=l>outcome</th><th>quality</th><th>API-$</th><th>5h %</th></tr>"]
+    for r in sorted(rs, key=lambda r: -r["start"])[:80]:
+        oc = "bad" if r["outcome"] in ("failed", "abandoned") else "warn" if r["outcome"] == "partial" else ""
+        arm = html.escape(r["arm"]) + (" <span class=chip>rotated</span>" if r["rotated"] else "") + (" <span class=chip>mixed</span>" if r["mixed"] else "")
+        h.append(f"<tr><td class=l>{dt.datetime.fromtimestamp(r['start']).strftime('%b %d')}</td>"
+                 f"<td class=t>{html.escape(r['title'] or r['summary'])}<div class=muted>{html.escape(r['summary'])}</div></td>"
+                 f"<td class=l>{arm}</td><td class=l>{r['task_type'].replace('_', ' ')}</td><td>{r['difficulty']}</td>"
+                 f"<td class='l {oc}'>{r['outcome'].replace('_', ' ')}</td><td>{r['quality']}</td><td>${r['cost']:.2f}</td>"
+                 f"<td>{fmt(r['h5_pct'], '{:.1f}')}</td></tr>")
+    h.append("</table>")
+    parts += ["<h2>Recent sessions</h2>", f"<div class=card>{''.join(h)}</div>"]
+
+    calnote = (f"1 API-equivalent dollar ≈ {cal['h5']:.2f}% of your 5-hour limit and {fmt(cal.get('d7'), '{:.2f}')}% of your weekly limit, "
+               f"fitted from {cal['h5_basis']['pct']}% of observed limit use over ${cal['h5_basis']['usd']} of logged usage."
+               if cal.get("h5") else "Plan-limit percentages appear once the status line has recorded enough snapshots.")
+    parts.append(f"""<h2>How this works</h2><div class='card muted'>
+<p><b>Usage</b> comes from Claude Code's own logs: exact tokens per reply, priced at API rates, including subagents. {calnote} Limits are assumed to scale with API cost.</p>
+<p><b>Quality</b> is graded by {JUDGE_MODEL} reading a condensed transcript of each finished session, without being told the model or effort. It scores difficulty, outcome, quality, efficiency and how often you had to correct it. "Fixes needed" adds the judge's correction count to interrupts and rejected tool calls from the logs.</p>
+<p><b>Fair comparison</b> needs sessions started with <code>ccb</code>, which rotates settings evenly. Sessions you start with plain <code>claude</code> are graded too, but you chose their setting, so they're shown separately until there are enough rotation sessions. Sessions that switched model or effort partway are marked "mixed" and left out of the tables.</p>
+<p>The pick is the cheapest setting whose average quality is within 0.5 of the best, among settings with at least {MIN_N} sessions.</p></div>""")
+    parts.append("</main></body></html>")
+    REPORT.write_text("".join(parts))
+    print(REPORT)
+    if "--open" in argv:
+        subprocess.Popen(["xdg-open", str(REPORT)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def main():
+    cmd, argv = (sys.argv[1] if len(sys.argv) > 1 else "status"), sys.argv[2:]
+    if cmd == "arm":
+        cmd_arm()
+    elif cmd == "statusline":
+        cmd_statusline()
+    elif cmd == "hook-session-start":
+        cmd_hook_session_start()
+    elif cmd == "update":
+        cmd_update(argv)
+    elif cmd == "report":
+        cmd_report(argv)
+    elif cmd == "status":
+        cmd_status()
+    else:
+        print(__doc__)
+        sys.exit(2)
+
+
+if __name__ == "__main__":
+    main()

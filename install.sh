@@ -479,6 +479,36 @@ if [ "${XDG_CURRENT_DESKTOP:-}" = KDE ] || systemctl --user -q is-active graphic
 	systemctl --user restart history-cleaner.service || warn "could not start history-cleaner; run: systemctl --user restart history-cleaner"
 fi
 
+# ---------------------------------------------------------------- cc-bench (Claude Code)
+# Benchmarks which Claude Code model + effort works best: `ccb` starts sessions on rotating settings,
+# the status line records plan-limit use, and cc-bench.timer grades finished sessions with Haiku
+# (see ~/.local/bin/ccbench). Only where Claude Code is installed. The status line and SessionStart
+# hook are merged into ~/.claude/settings.json; a status line you set yourself is left alone.
+if [ -x "$HOME/.local/bin/claude" ] || command -v claude >/dev/null; then
+	say "cc-bench: Claude Code model/effort benchmark"
+	mkdir -p "$HOME/.claude"
+	python3 - "$HOME/.claude/settings.json" <<'EOF' || warn "could not add cc-bench to ~/.claude/settings.json"
+import json, os, sys
+p = sys.argv[1]
+d = json.load(open(p)) if os.path.exists(p) else {}
+before = json.dumps(d, sort_keys=True)
+sl = d.get("statusLine")
+if not sl or "ccbench" in sl.get("command", ""):
+    d["statusLine"] = {"type": "command", "command": "ccbench statusline", "padding": 0}
+hooks = d.setdefault("hooks", {}).setdefault("SessionStart", [])
+if not any("ccbench" in h.get("command", "") for e in hooks for h in e.get("hooks", [])):
+    hooks.append({"hooks": [{"type": "command", "command": "ccbench hook-session-start", "timeout": 5}]})
+if json.dumps(d, sort_keys=True) != before:
+    with open(p + ".tmp", "w") as f:
+        json.dump(d, f, indent=2)
+        f.write("\n")
+    os.replace(p + ".tmp", p)
+    print("Added the cc-bench status line and hook to " + p)
+EOF
+	systemctl --user enable --now cc-bench.timer >/dev/null 2>&1 \
+		|| warn "could not start cc-bench.timer; run: systemctl --user enable --now cc-bench.timer"
+fi
+
 # ---------------------------------------------------------------- Steam overlay scale
 # Steam's in-game overlay ignores the display scale (tiny at 4K); steam-overlay-scale fixes that at
 # login, and the .path unit re-applies it whenever a Steam update replaces the patched library.

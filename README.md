@@ -59,6 +59,7 @@ Display & Monitor > Legacy Applications (X11) stays on "Apply scaling themselves
 | Steam's in-game overlay follows the display scale (below) | `~/.local/bin/steam-overlay-scale`, `steam-overlay-scale.path` |
 | Bedtime: the computer is off from 9:30 PM to 6:30 AM every day (an hour without screens before a 10:30 PM bedtime). Warnings 15, 5 and 1 minute before, then it shuts down; turned on before 6:30 AM it shuts down again after a minute's warning. Not on arch-server | `~/.local/bin/bedtime`, `bedtime.service` |
 | `screenshot [file.png]`: saves a screenshot of the whole screen with no dialog, through Spectacle | `~/.local/bin/` |
+| cc-bench: finds which Claude Code model and effort work best for you (only where Claude Code is installed; see below) | `~/.local/bin/ccb`, `~/.local/bin/ccbench`, `cc-bench.timer`, the status line and a SessionStart hook in `~/.claude/settings.json` |
 | `discord-compress video.mp4 [MB]`: re-encodes a video under Discord's upload limit (10 MB by default) | `~/.local/bin/` |
 | git commit name and email (GitHub noreply address) | `~/.gitconfig` (only `user.name` and `user.email`) |
 | Tailscale, and `ssh arch-server` over it (no browser login; run `sudo tailscale up` once per machine) | `~/.ssh/config.d/`, `~/.ssh/known_hosts.d/`, plus an `Include` line at the top of your own `~/.ssh/config` |
@@ -137,6 +138,22 @@ Steam's in-game overlay (Shift+Tab) ignores the display scale, so on a scaled 4K
 tiny. `steam-overlay-scale` patches one value in Steam's 64-bit overlay library so the overlay uses
 the largest monitor's scale. It runs at login, and `steam-overlay-scale.path` runs it again whenever a
 Steam update replaces the library. Restart a running game to see the change. 32-bit games are not covered.
+
+## cc-bench (Claude Code model and effort)
+
+Compares Claude Code settings on your own sessions: how good the result was against how much of
+your plan it used.
+
+- `ccb` starts Claude Code on the next setting in an even rotation (Sonnet 5.5 high, Opus 5.5 medium,
+  high and xhigh). Plain `claude` stays as it is; those sessions are graded too but kept apart from
+  the fair comparison. The list is `ARMS` in `ccbench`.
+- Usage comes from Claude Code's logs (exact tokens, priced at API rates). The status line shows the
+  5-hour and weekly limits and records them, which turns usage into "% of your plan".
+- Every 2 hours `cc-bench.timer` has Haiku 5.5 grade each finished session (idle 2 hours) from a
+  condensed transcript, without telling it the model or effort: task type, difficulty, outcome,
+  quality, efficiency and corrections. Grading costs well under a cent per session.
+- `ccbench status` prints a summary; `ccbench report --open` opens the report
+  (`~/.local/share/cc-bench/report.html`). Each machine keeps its own data there.
 
 ## Not included on purpose
 

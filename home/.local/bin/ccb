@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# ccb: start Claude Code on the next benchmark setting (model + effort), rotated evenly.
+# Any explicit --model/--effort, resume/continue, or headless -p run goes straight to claude.
+for a in "$@"; do
+  case "$a" in
+    --model|--model=*|--effort|--effort=*|-c|--continue|-r|--resume|--resume=*|-p|--print)
+      exec claude "$@" ;;
+  esac
+done
+read -r model effort < <(ccbench arm)
+label="${model#claude-}:${effort}"
+printf '\033[35mcc-bench:\033[0m %s\n' "$label" >&2
+CC_BENCH_ARM="$label" exec claude --model "$model" --effort "$effort" "$@"

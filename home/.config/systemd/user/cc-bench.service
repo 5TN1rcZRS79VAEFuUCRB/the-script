@@ -1,0 +1,12 @@
+# Started by cc-bench.timer: grades finished Claude Code sessions and refreshes the report
+# (see ~/.local/bin/ccbench).
+[Unit]
+Description=cc-bench: grade finished Claude Code sessions and refresh the report
+
+[Service]
+Type=oneshot
+# ccbench runs claude for its grading, which lives in ~/.local/bin.
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin
+ExecStart=%h/.local/bin/ccbench update
+ExecStartPost=%h/.local/bin/ccbench report
+Nice=10

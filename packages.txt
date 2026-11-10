@@ -24,7 +24,6 @@ konsole                   # terminal
 kate                      # text editor
 gwenview                  # image viewer
 spectacle                 # screenshots (Print, or Meta+Shift+S); screenshot uses it too
-swayidle                  # presence reads how long you've been idle through it
 wl-clipboard              # wl-paste: terminal apps (Claude Code's Ctrl+V) read pasted screenshots with it
 git
 

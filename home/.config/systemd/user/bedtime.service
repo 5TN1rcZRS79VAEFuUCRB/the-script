@@ -1,0 +1,13 @@
+# Shuts the computer down from 9:30 PM to 6:30 AM, with warnings first (see ~/.local/bin/bedtime).
+[Unit]
+Description=Shut down at 9:30 PM and keep the computer off until 6:30 AM
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+ExecStart=%h/.local/bin/bedtime
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=graphical-session.target

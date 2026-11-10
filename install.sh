@@ -448,13 +448,26 @@ ln -sfn "$PWD" "$HOME/.local/share/the-script"
 systemctl --user enable --now the-script-update.timer \
 	|| warn "could not start the auto-update timer; after logging in run: systemctl --user enable --now the-script-update.timer"
 
-# ---------------------------------------------------------------- presence
-# Tells arch-server once a minute whether this computer is in use; its presence-collector works out
-# your bed and wake times from that (run there: presence-collector report).
-say "Presence: report when this computer is in use to arch-server"
-systemctl --user enable presence.service >/dev/null 2>&1 || warn "could not enable presence.service"
-if [ "${XDG_CURRENT_DESKTOP:-}" = KDE ] || systemctl --user -q is-active graphical-session.target 2>/dev/null; then
-	systemctl --user restart presence.service || warn "could not start presence; run: systemctl --user restart presence"
+# ---------------------------------------------------------------- bedtime
+# Computers are off from 9:30 PM to 6:30 AM: warnings at 15, 5 and 1 minute, then a shutdown, and one
+# turned on in those hours shuts down after a minute's warning.
+# Not on arch-server: a server stays on.
+if [ "$(cat /etc/hostname)" = arch-server ]; then
+	systemctl --user disable --now bedtime.service >/dev/null 2>&1 || true
+else
+	say "Bedtime: computers off from 9:30 PM to 6:30 AM"
+	systemctl --user enable bedtime.service >/dev/null 2>&1 || warn "could not enable bedtime.service"
+	if [ "${XDG_CURRENT_DESKTOP:-}" = KDE ] || systemctl --user -q is-active graphical-session.target 2>/dev/null; then
+		systemctl --user restart bedtime.service || warn "could not start bedtime; run: systemctl --user restart bedtime"
+	fi
+fi
+
+# presence told arch-server when this computer was in use, for working out a sleep schedule. Done now.
+systemctl --user disable --now presence.service >/dev/null 2>&1 || true
+retire "$HOME/.local/bin/presence" "$HOME/.config/systemd/user/presence.service"
+rm -rf "$HOME/.local/state/presence"
+if pacman -Qq swayidle >/dev/null 2>&1; then   # only presence used it
+	sudo pacman -Rs --noconfirm swayidle >/dev/null || warn "could not remove swayidle; run: sudo pacman -Rs swayidle"
 fi
 
 # ---------------------------------------------------------------- history cleaner

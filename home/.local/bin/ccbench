@@ -56,6 +56,7 @@ ARMS = [
 JUDGE_MODEL = "claude-opus-5-5"
 JUDGE_VERSION = 2          # bump to re-judge everything after changing the prompt
 ENDED_AFTER_S = 30 * 60    # a session counts as finished after 30 min without activity (re-graded if resumed)
+JUDGE_PER_RUN = 15         # cap per update so a re-grade does not eat the 5h limit
 MIN_N = 5                  # sessions per arm before the report makes a call
 
 # $/1M tokens: input, output, cache read. Cache writes: 1.25x input (5m), 2x (1h).
@@ -440,6 +441,7 @@ def cmd_update(argv):
     todo = [s for s in sessions.values()
             if s["prompts"] > 0 and now - s["end"] > ENDED_AFTER_S and s["entry"] == "cli"
             and (s["sid"] not in judged or judged[s["sid"]]["end"] < s["end"] - 60)]
+    todo = sorted(todo, key=lambda s: -s["end"])[:JUDGE_PER_RUN]   # newest first; backlog spreads over runs
     if "--no-judge" not in argv and todo:
         print(f"judging {len(todo)} sessions with {JUDGE_MODEL}…", file=sys.stderr)
         spent = 0.0

@@ -12,6 +12,11 @@ Commands:
   update [--no-judge]  parse logs and judge finished sessions
   report [--open]      write the HTML report
   status               short summary in the terminal
+  sync                 swap data with the other machines through the hub (update does this too)
+
+Every machine judges its own sessions, then pushes its data to the hub (arch-server, over
+Tailscale ssh) and pulls everyone else's into DATA/hosts/<machine>/. Reports, status and the
+rotation all read the merged data, so every machine shows the same combined results.
 """
 import collections
 import concurrent.futures as cf
@@ -20,6 +25,8 @@ import html
 import json
 import os
 import random
+import shutil
+import socket
 import statistics
 import subprocess
 import sys
@@ -34,6 +41,10 @@ LIMITS = DATA / "ratelimits.jsonl"
 JUDGED = DATA / "judged.jsonl"
 SESSIONS = DATA / "sessions.json"
 REPORT = DATA / "report.html"
+HOST = socket.gethostname()
+HUB = os.environ.get("CC_BENCH_HUB", "arch-server")
+PEERS = DATA / "hosts"     # other machines' copies, pulled from the hub
+SHARED = [SESSIONS, JUDGED, ASSIGN, LIMITS]
 
 # Settings that get rotated by `ccb`. Edit freely; label is "model:effort".
 ARMS = [
@@ -94,6 +105,20 @@ def append(path, obj):
         f.write(json.dumps(obj) + "\n")
 
 
+def everywhere(path):
+    """This machine's file plus every other machine's copy of it."""
+    yield path
+    if PEERS.is_dir():
+        for h in sorted(PEERS.iterdir()):
+            if h.name != HOST and (h / path.name).exists():
+                yield h / path.name
+
+
+def jsonl_all(path):
+    for p in everywhere(path):
+        yield from jsonl(p)
+
+
 def ts(s):
     return dt.datetime.fromisoformat(s.replace("Z", "+00:00")).timestamp()
 
@@ -101,7 +126,8 @@ def ts(s):
 # ---------------------------------------------------------------- rotation
 
 def cmd_arm():
-    counts = collections.Counter(a.get("arm") for a in jsonl(ASSIGN) if a.get("source") == "startup")
+    starts = {a.get("sid"): a.get("arm") for a in jsonl_all(ASSIGN) if a.get("source") == "startup"}
+    counts = collections.Counter(starts.values())
     labels = [arm_label(m, e) for m, e in ARMS]
     low = min(counts[l] for l in labels)
     model, effort = random.choice([a for a, l in zip(ARMS, labels) if counts[l] == low])
@@ -303,15 +329,19 @@ def parse_all():
     for sid, s in out.items():
         later = {f for st, osid, f in edits if osid != sid and s["end"] < st < s["end"] + 48 * 3600}
         s["reworked_files"] = len(later & set(s["files"]))
-    timeline = sorted((v[0], v[1]) for v in msgs.values())
-    return out, timeline
+    minutes = collections.Counter()
+    for v in msgs.values():
+        minutes[int(v[0] // 60)] += v[1]
+    return out, {str(m): round(c, 5) for m, c in minutes.items()}
 
 
 # ---------------------------------------------------------------- plan-limit calibration
 
 def calibrate(timeline):
-    """% of plan limit per API-equivalent dollar, fitted from status-line snapshots."""
-    snaps = sorted(jsonl(LIMITS), key=lambda x: x["ts"])
+    """% of plan limit per API-equivalent dollar, fitted from status-line snapshots.
+
+    Limits are per account, so this uses every machine's usage and snapshots together."""
+    snaps = sorted(jsonl_all(LIMITS), key=lambda x: x["ts"])
     times = [t for t, _ in timeline]
     import bisect
     cum = [0.0]
@@ -397,15 +427,14 @@ def judge_one(s):
 
 def load_judged():
     j = {}
-    for r in jsonl(JUDGED):
-        if r.get("v") == JUDGE_VERSION:
+    for r in jsonl_all(JUDGED):
+        if r.get("v") == JUDGE_VERSION and (r["sid"] not in j or r["end"] >= j[r["sid"]]["end"]):
             j[r["sid"]] = r
     return j
 
 
 def cmd_update(argv):
     sessions, timeline = parse_all()
-    cal = calibrate(timeline)
     judged = load_judged()
     now = time.time()
     todo = [s for s in sessions.values()
@@ -430,14 +459,65 @@ def cmd_update(argv):
         print(f"judging cost ≈ ${spent:.2f} API-equivalent", file=sys.stderr)
     for s in sessions.values():
         s.pop("log", None)
-    SESSIONS.write_text(json.dumps({"updated": now, "calibration": cal, "sessions": sessions}))
-    print(f"{len(sessions)} sessions, {len(judged)} judged", file=sys.stderr)
+    tmp = SESSIONS.with_suffix(".tmp")
+    tmp.write_text(json.dumps({"host": HOST, "updated": now, "timeline": timeline, "sessions": sessions}))
+    tmp.replace(SESSIONS)
+    print(f"{len(sessions)} sessions here, {len(judged)} judged on all machines", file=sys.stderr)
+    cmd_sync()
+
+
+# ---------------------------------------------------------------- sharing between machines
+
+def cmd_sync():
+    """Push this machine's data to the hub, then pull every machine's data from it."""
+    files = [f for f in SHARED if f.exists()]
+    if HOST == HUB:
+        mine = PEERS / HOST
+        mine.mkdir(parents=True, exist_ok=True)
+        for f in files:
+            shutil.copy2(f, mine / (f.name + ".tmp"))
+            (mine / (f.name + ".tmp")).replace(mine / f.name)
+        return True
+    ssh = "ssh -o BatchMode=yes -o ConnectTimeout=10"
+    remote = f"{HUB}:.local/share/cc-bench/hosts/"
+    PEERS.mkdir(parents=True, exist_ok=True)
+    for cmd in (["rsync", "-a", "--mkpath", "-e", ssh, *map(str, files), remote + HOST + "/"],
+                ["rsync", "-a", "-e", ssh, "--exclude", f"/{HOST}/", remote, f"{PEERS}/"]):
+        try:
+            p = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        except (OSError, subprocess.TimeoutExpired) as e:
+            p = None
+            err = str(e)
+        if not p or p.returncode:
+            print(f"sync with {HUB} failed, using the last copy: {short(err if not p else p.stderr, 200)}", file=sys.stderr)
+            return False
+    return True
 
 
 # ---------------------------------------------------------------- analysis
 
+def load_all():
+    """Every machine's sessions merged, with the plan-limit calibration fitted across all of them."""
+    sessions, timeline, hosts, updated = {}, collections.Counter(), collections.Counter(), 0
+    for p in everywhere(SESSIONS):
+        try:
+            d = json.loads(p.read_text())
+        except (OSError, ValueError):
+            continue
+        host = d.get("host") or (HOST if p == SESSIONS else p.parent.name)
+        updated = max(updated, d.get("updated", 0))
+        for m, c in (d.get("timeline") or {}).items():
+            timeline[int(m) * 60] += c
+        for sid, s in d["sessions"].items():
+            if sid not in sessions or s["end"] > sessions[sid]["end"]:
+                sessions[sid] = {**s, "host": host}
+    hosts.update(s["host"] for s in sessions.values())
+    return {"updated": updated, "hosts": dict(hosts), "sessions": sessions,
+            "calibration": calibrate(sorted(timeline.items()))}
+
+
 def rows():
-    d = json.loads(SESSIONS.read_text())
+    d = load_all()
     judged = load_judged()
     cal = d["calibration"]
     out = []
@@ -501,7 +581,8 @@ def by_arm(rs):
 def cmd_status():
     rs, d = rows()
     fair = [r for r in rs if r["rotated"] and not r["mixed"]]
-    print(f"{len(rs)} judged sessions, {len(fair)} from rotation (ccb)\n")
+    print(f"{len(rs)} judged sessions, {len(fair)} from rotation (ccb)")
+    print("machines: " + ", ".join(f"{h} {n}" for h, n in sorted(d["hosts"].items())) + "\n")
     for name, sub in (("rotation only (fair comparison)", fair), ("all sessions", [r for r in rs if not r["mixed"]])):
         print(name)
         print(f"  {'setting':22} {'n':>4} {'quality':>8} {'success':>8} {'$/task':>7} {'5h%/task':>9}")
@@ -569,7 +650,8 @@ def cmd_report(argv):
     parts = [f"<!doctype html><html><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
              f"<title>Claude Code Bench</title><style>{CSS}</style></head><body><main>",
              f"<h1>Claude Code Bench</h1><div class=muted>Which model and effort work best for your sessions. Updated {upd}. "
-             f"{len(rs)} graded sessions, {len(fair)} from rotation.</div>",
+             f"{len(rs)} graded sessions, {len(fair)} from rotation, from "
+             + html.escape(", ".join(f"{h} ({n})" for h, n in sorted(d["hosts"].items()))) + ".</div>",
              f"<div class='card verdict'>{verdict}</div>",
              f"<h2>By setting <span class=muted>({'rotation sessions only' if base is fair else 'all sessions, not yet a fair comparison'})</span></h2>",
              f"<div class=card>{arm_table(groups, chosen)}</div>"]
@@ -597,12 +679,13 @@ def cmd_report(argv):
         parts += ["<h2>Harder tasks only <span class=muted>(difficulty 3+)</span></h2>",
                   f"<div class=card>{arm_table(by_arm(hard), pick(by_arm(hard)))}</div>"]
 
-    h = ["<table><tr><th class=l>when</th><th class=l>session</th><th class=l>setting</th><th class=l>type</th><th>diff</th>"
+    h = ["<table><tr><th class=l>when</th><th class=l>machine</th><th class=l>session</th><th class=l>setting</th><th class=l>type</th><th>diff</th>"
          "<th class=l>outcome</th><th>quality</th><th>API-$</th><th>5h %</th></tr>"]
     for r in sorted(rs, key=lambda r: -r["start"])[:80]:
         oc = "bad" if r["outcome"] in ("failed", "abandoned") else "warn" if r["outcome"] == "partial" else ""
         arm = html.escape(r["arm"]) + (" <span class=chip>rotated</span>" if r["rotated"] else "") + (" <span class=chip>mixed</span>" if r["mixed"] else "")
         h.append(f"<tr><td class=l>{dt.datetime.fromtimestamp(r['start']).strftime('%b %d')}</td>"
+                 f"<td class=l>{html.escape(r['host'].removeprefix('arch-'))}</td>"
                  f"<td class=t>{html.escape(r['title'] or r['summary'])}<div class=muted>{html.escape(r['summary'])}</div></td>"
                  f"<td class=l>{arm}</td><td class=l>{r['task_type'].replace('_', ' ')}</td><td>{r['difficulty']}</td>"
                  f"<td class='l {oc}'>{r['outcome'].replace('_', ' ')}</td><td>{r['quality']}</td><td>${r['cost']:.2f}</td>"
@@ -639,6 +722,8 @@ def main():
         cmd_report(argv)
     elif cmd == "status":
         cmd_status()
+    elif cmd == "sync":
+        sys.exit(0 if cmd_sync() else 1)
     else:
         print(__doc__)
         sys.exit(2)

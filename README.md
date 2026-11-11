@@ -153,7 +153,10 @@ your plan it used.
   condensed transcript, without telling it the model or effort: task type, difficulty, outcome,
   quality, efficiency and corrections. Grading costs well under a cent per session.
 - `ccbench status` prints a summary; `ccbench report --open` opens the report
-  (`~/.local/share/cc-bench/report.html`). Each machine keeps its own data there.
+  (`~/.local/share/cc-bench/report.html`). Each machine grades its own sessions, then
+  `cc-bench.timer` swaps data through arch-server over Tailscale ssh (`ccbench sync` does it by
+  hand), so every machine's report, status and rotation cover all machines. A machine that's
+  offline just shows the last copy it got.
 
 ## Not included on purpose
 

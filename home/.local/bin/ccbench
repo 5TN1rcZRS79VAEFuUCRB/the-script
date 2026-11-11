@@ -53,9 +53,9 @@ ARMS = [
     ("claude-opus-5-5", "high"),
     ("claude-opus-5-5", "xhigh"),
 ]
-JUDGE_MODEL = "claude-haiku-5-5"
-JUDGE_VERSION = 1          # bump to re-judge everything after changing the prompt
-ENDED_AFTER_S = 2 * 3600   # a session counts as finished after 2h without activity
+JUDGE_MODEL = "claude-opus-5-5"
+JUDGE_VERSION = 2          # bump to re-judge everything after changing the prompt
+ENDED_AFTER_S = 30 * 60    # a session counts as finished after 30 min without activity (re-graded if resumed)
 MIN_N = 5                  # sessions per arm before the report makes a call
 
 # $/1M tokens: input, output, cache read. Cache writes: 1.25x input (5m), 2x (1h).

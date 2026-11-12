@@ -64,8 +64,9 @@ build_patched() { # package
 		for f in "$p"/*.patch; do echo "	patch -d \"$dir\" -p1 < \"\$srcdir/${f##*/}\""; done
 		echo '}'
 	} >> "$work/PKGBUILD"
+	# No --needed: a rebuild with changed patches has the same version and must still be installed.
 	# Signature keys of upstream release tarballs aren't in this user's keyring; checksums are still checked.
-	if (cd "$work" && makepkg -sirC --noconfirm --needed --skippgpcheck >"$work/build.log" 2>&1); then
+	if (cd "$work" && makepkg -sirC --noconfirm --skippgpcheck >"$work/build.log" 2>&1); then
 		mkdir -p "$STATE" && echo "$(pacman -Q "$p" | cut -d' ' -f2) $hash" > "$STATE/$p"
 		echo "Installed $p $ours"
 		rm -rf "$work"

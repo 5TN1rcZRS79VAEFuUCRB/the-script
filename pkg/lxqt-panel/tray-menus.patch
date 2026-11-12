@@ -10,7 +10,7 @@
  #include <dbusmenu-lxqt/dbusmenuimporter.h>
  #include "../panel/ilxqtpanelplugin.h"
  #include "sniasync.h"
-@@ -317,10 +320,43 @@
+@@ -317,10 +320,47 @@
      //QWidget::contextMenuEvent(event);
  }
  
@@ -24,6 +24,10 @@
 +    QWindow *menuWindow = menu->windowHandle();
 +    if (!menuWindow)
 +        return;
++    // The menu has no parent widget, so Qt would guess the window it is positioned against, and it
++    // picks an open popup first (the icon's tooltip); make it the panel.
++    if (QWindow *panelWindow = button->window()->windowHandle())
++        menuWindow->setTransientParent(panelWindow);
 +    const QRect anchorRect(button->mapTo(button->window(), QPoint(0, 0)), button->size());
 +    const bool bottom = panel->position() == ILXQtPanel::PositionBottom;
 +    menuWindow->setProperty("_q_waylandPopupAnchorRect", anchorRect);
@@ -55,7 +59,7 @@
      else if (event->button() == Qt::MiddleButton)
          interface->SecondaryActivate(QCursor::pos().x(), QCursor::pos().y());
      else if (Qt::RightButton == event->button())
-@@ -328,6 +364,7 @@
+@@ -328,6 +368,7 @@
          if (mMenu)
          {
              mPlugin->willShowWindow(mMenu);

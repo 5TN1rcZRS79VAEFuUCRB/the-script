@@ -432,8 +432,9 @@ if command -v librewolf >/dev/null; then
 else
 	warn "librewolf is not installed; skipping its settings"
 fi
-# On a text console (Ctrl+Alt+F2) nothing turns the monitors off. The udev rule keeps
-# them off when a DisplayPort monitor's hotplug on going to sleep lights the console again.
+# On a text console (the login screen, Ctrl+Alt+F2) nothing else turns the monitors off.
+# console-idle keeps them off while it is blanked (a DisplayPort monitor's hotplug on going to sleep
+# would light the console again).
 say "Console: monitors off after 10 minutes idle"
 # Element's tray icon fills its whole square, so it looked bigger than the others in the tray.
 sudo_place usr/local/libexec/element-tray-icon /usr/local/libexec/element-tray-icon
@@ -441,12 +442,18 @@ sudo_place etc/pacman.d/hooks/element-tray-icon.hook /etc/pacman.d/hooks/element
 [ -e /usr/lib/element/build/icon.png ] && { sudo /usr/local/libexec/element-tray-icon || warn "could not shrink Element's tray icon"; }
 
 sudo_place etc/systemd/system/console-blank.service /etc/systemd/system/console-blank.service
-sudo_place usr/local/libexec/console-reblank /usr/local/libexec/console-reblank
-sudo_place etc/udev/rules.d/90-console-reblank.rules /etc/udev/rules.d/90-console-reblank.rules
-sudo udevadm control --reload || warn "could not reload udev rules; they take effect after a reboot"
+sudo_place usr/local/libexec/console-idle /usr/local/libexec/console-idle
+sudo_place etc/systemd/system/console-idle.service /etc/systemd/system/console-idle.service
+# The udev rule before it turned the monitor off again on each hotplug, which with the login screen
+# on the console made a DisplayPort monitor wake every ~30 s.
+if [ -e /etc/udev/rules.d/90-console-reblank.rules ]; then
+	sudo rm -f /etc/udev/rules.d/90-console-reblank.rules /usr/local/libexec/console-reblank
+	sudo udevadm control --reload || true
+fi
 sudo systemctl daemon-reload
-sudo systemctl enable console-blank.service >/dev/null 2>&1 || warn "could not enable console-blank.service"
+sudo systemctl enable console-blank.service console-idle.service >/dev/null 2>&1 || warn "could not enable console-blank.service and console-idle.service"
 sudo systemctl restart console-blank.service || warn "could not start console-blank.service; it runs at the next boot"
+sudo systemctl restart console-idle.service || warn "could not start console-idle.service; it runs at the next boot"
 
 # ---------------------------------------------------------------- old site blocklist
 # the-script used to block sites in /etc/hosts with a daily timer; undo that where it was installed.

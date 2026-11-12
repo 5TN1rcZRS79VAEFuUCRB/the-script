@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+#
+# console-idle: keep the monitors off while the text console is blanked (console-idle.service).
+#
+# console-blank.service blanks the text console (the login screen, Ctrl+Alt+F2) after 10 minutes and
+# powers the monitors down. A DisplayPort monitor that goes to sleep drops off and comes back, and the
+# kernel lights the console again on every such hotplug, so the monitor woke up every ~30 s. While the
+# console is blanked this switches the connected outputs off in the kernel (status "off"), so there is
+# nothing to light; a key press unblanks the console and the outputs go back to "detect". It does
+# nothing while a desktop session (graphics mode) owns the screen.
+
+import fcntl
+import glob
+import os
+import struct
+import time
+
+TIOCLINUX = 0x541C
+TIOCL_BLANKEDSCREEN = 15
+KDGETMODE = 0x4B3B
+KD_TEXT = 0
+
+
+def console_state():
+    """(text mode, blanked) of the console on screen."""
+    fd = os.open("/dev/tty0", os.O_RDONLY)
+    try:
+        buf = bytearray(4)
+        fcntl.ioctl(fd, KDGETMODE, buf, True)
+        text = struct.unpack("i", buf)[0] == KD_TEXT
+        blanked = bool(fcntl.ioctl(fd, TIOCLINUX, bytearray([TIOCL_BLANKEDSCREEN]), True))
+    finally:
+        os.close(fd)
+    return text, blanked
+
+
+def write(path, value):
+    try:
+        with open(path, "w") as f:
+            f.write(value)
+    except OSError:
+        pass
+
+
+forced = []
+while True:
+    try:
+        text, blanked = console_state()
+    except OSError:
+        text, blanked = False, False
+    if text and blanked and not forced:
+        forced = [c for c in glob.glob("/sys/class/drm/card*-*/status") if open(c).read().strip() == "connected"]
+        for c in forced:
+            write(c, "off")
+    elif forced and not (text and blanked):
+        for c in forced:
+            write(c, "detect")
+        forced = []
+    time.sleep(1)

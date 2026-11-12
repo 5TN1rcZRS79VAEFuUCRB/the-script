@@ -1,5 +1,0 @@
-# console-blank.service powers the monitors off after 10 minutes idle at the text console, but a
-# DisplayPort monitor that goes to sleep drops off and comes back (a hotplug), and the kernel answers
-# every hotplug by lighting the console again: the monitor wakes to a black screen and stays on.
-# This turns it off again while the console still counts as blanked; a key press still wakes it.
-ACTION=="change", SUBSYSTEM=="drm", KERNEL=="card[0-9]*", ENV{HOTPLUG}=="1", RUN+="/usr/bin/python3 /usr/local/libexec/console-reblank"

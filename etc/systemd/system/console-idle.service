@@ -1,0 +1,12 @@
+# Keeps the monitors off while the text console (the login screen) is blanked; see
+# /usr/local/libexec/console-idle.
+[Unit]
+Description=Keep the monitors off while the text console is blanked
+After=console-blank.service
+
+[Service]
+ExecStart=/usr/local/libexec/console-idle
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

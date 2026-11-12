@@ -376,6 +376,7 @@ rm -f "$HOME"/.local/share/wallpapers/{black-hole,nasa-black-hole}.png
 
 say "Login screen: greetd (a text login that starts LXQt)"
 sudo_place etc/greetd/config.toml /etc/greetd/config.toml
+sudo_place etc/greetd/lxqt-session /etc/greetd/lxqt-session
 # greetd takes over at the next boot; a running session is left alone. --force replaces the
 # display-manager link SDDM (or GDM) holds.
 if ! systemctl is-enabled -q greetd 2>/dev/null; then

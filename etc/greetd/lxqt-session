@@ -1,0 +1,4 @@
+#!/bin/bash -l
+# the-script: greetd starts LXQt through this login shell, so the session gets the PATH and other
+# settings from /etc/profile and ~/.bash_profile (~/.local/bin, where claude and ccb are), as SDDM gave it.
+exec startlxqtwayland

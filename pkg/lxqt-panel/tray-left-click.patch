@@ -1,0 +1,32 @@
+--- a/plugin-statusnotifier/statusnotifierbutton.cpp
++++ b/plugin-statusnotifier/statusnotifierbutton.cpp
+@@ -30,6 +30,7 @@
+ 
+ #include <QDir>
+ #include <QFile>
++#include <QDBusPendingCallWatcher>
+ #include <dbusmenu-lxqt/dbusmenuimporter.h>
+ #include "../panel/ilxqtpanelplugin.h"
+ #include "sniasync.h"
+@@ -320,7 +321,20 @@
+ void StatusNotifierButton::mouseReleaseEvent(QMouseEvent *event)
+ {
+     if (event->button() == Qt::LeftButton)
+-        interface->Activate(QCursor::pos().x(), QCursor::pos().y());
++    {
++        // local patch: an icon with no click action of its own (nm-applet's says "no such method")
++        // shows its menu on a left click instead of doing nothing
++        const QPoint pos = QCursor::pos();
++        auto *watcher = new QDBusPendingCallWatcher(interface->Activate(pos.x(), pos.y()), this);
++        connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, pos] (QDBusPendingCallWatcher *call) {
++            call->deleteLater();
++            if (call->isError() && mMenu)
++            {
++                mPlugin->willShowWindow(mMenu);
++                mMenu->popup(mPlugin->panel()->calculatePopupWindowPos(pos, mMenu->sizeHint()).topLeft());
++            }
++        });
++    }
+     else if (event->button() == Qt::MiddleButton)
+         interface->SecondaryActivate(QCursor::pos().x(), QCursor::pos().y());
+     else if (Qt::RightButton == event->button())

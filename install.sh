@@ -99,6 +99,12 @@ place_seed() { # src dest
 	mark="$HOME/.local/state/the-script-seeds/${dest#"$HOME"/}"
 	tmp="$(mktemp)"; render "$src" > "$tmp"
 	sum=$(sha256sum < "$tmp" | cut -c1-32)
+	# The same apart from comments and LXQt's own timestamp line: only remember it. Rewriting lxqt.conf
+	# makes the running panel and notifications reload their theme, and that reload loses colors.
+	if [ "$(cat "$mark" 2>/dev/null)" != "$sum" ] && [ -e "$dest" ] \
+		&& cmp -s <(grep -v -e '^#' -e '^__theme_updated__=' "$dest") <(grep -v -e '^#' -e '^__theme_updated__=' "$tmp"); then
+		mkdir -p "${mark%/*}" && echo "$sum" > "$mark"
+	fi
 	if [ "$(cat "$mark" 2>/dev/null)" != "$sum" ] || [ ! -e "$dest" ]; then
 		backup_if_different "$dest" "$tmp"
 		install -Dm644 "$tmp" "$dest"
@@ -319,9 +325,10 @@ fi
 
 # With Plasma gone, its apps' settings and caches (and niri's, foot's, Kvantum's and GNOME Shell's)
 # move to the backup folder. KWin's screen settings stay: the-script-displays reads the scale from them.
+# kdeglobals is replaced by the repo's (ClassicDark's colors, which Qt reads; see the file).
 if ! pacman -Qq plasma-workspace >/dev/null 2>&1; then
 	retire "$HOME"/.config/{baloofilerc,dolphinrc,kaccessrc,kactivitymanagerdrc,kactivitymanagerd-statsrc,kate,kate-externaltoolspluginrc} \
-		"$HOME"/.config/{katerc,katevirc,kcminputrc,kconf_updaterc,KDE,kded5rc,kded6rc,kdedefaults,kdeglobals,kde-mimeapps.list} \
+		"$HOME"/.config/{katerc,katevirc,kcminputrc,kconf_updaterc,KDE,kded5rc,kded6rc,kdedefaults,kde-mimeapps.list} \
 		"$HOME"/.config/{kglobalshortcutsrc,konsolerc,konsolesshconfig,krunnerrc,kscreenlockerrc,ksmserverrc,ktimezonedrc} \
 		"$HOME"/.config/{kuriikwsfilterrc,kwalletrc,kwinrc,kwinrulesrc,plasma-localerc,plasmanotifyrc,plasmaparc,plasmashellrc} \
 		"$HOME"/.config/{powerdevilrc,spectaclerc,xsettingsd,session,Kvantum,niri,foot,kxkbrc,ksplashrc,gtkrc,gtkrc-2.0} \
@@ -652,7 +659,7 @@ if [ ${#REPLACED[@]} -gt 0 ]; then
 fi
 # Installed by the-script-update from an older desktop: say that a restart switches over.
 if { [ "$MIGRATED" -eq 1 ] || [ "$AERO" -eq 1 ] || [ -e "$GNOME_PENDING" ] || [ -e "$KDE_PENDING" ]; } \
-	&& [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
+	&& [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ] && [[ ${XDG_CURRENT_DESKTOP:-} != *LXQt* ]]; then
 	notify-send -u critical "the-script is installed" "Restart to switch to LXQt." 2>/dev/null || true
 fi
 cat <<EOF

@@ -203,8 +203,6 @@ if [ ${#AERO_HAVE[@]} -gt 0 ]; then
 		&& [ "$(pacman -Q element-desktop | cut -d' ' -f2)" = "$(pacman -Si element-desktop 2>/dev/null | awk '/^Version/ {print $3}')" ]; then
 		sudo pacman -S --noconfirm element-desktop >/dev/null || warn "could not restore Element's icon"
 	fi
-	kwriteconfig6 --file kdeglobals --group KDE --key DefaultLightLookAndFeel --delete 2>/dev/null || true
-	kwriteconfig6 --file kdeglobals --group KDE --key DefaultDarkLookAndFeel --delete 2>/dev/null || true
 	if printf '%s\n' "${AERO_HAVE[@]}" | grep -qx aeroshell-libplasma-git; then
 		sudo pacman -S --noconfirm --ask=4 libplasma || warn "could not put libplasma back in place of aeroshell-libplasma-git"
 	fi
@@ -325,10 +323,9 @@ fi
 
 # With Plasma gone, its apps' settings and caches (and niri's, foot's, Kvantum's and GNOME Shell's)
 # move to the backup folder. KWin's screen settings stay: the-script-displays reads the scale from them.
-# kdeglobals is replaced by the repo's (ClassicDark's colors, which Qt reads; see the file).
 if ! pacman -Qq plasma-workspace >/dev/null 2>&1; then
 	retire "$HOME"/.config/{baloofilerc,dolphinrc,kaccessrc,kactivitymanagerdrc,kactivitymanagerd-statsrc,kate,kate-externaltoolspluginrc} \
-		"$HOME"/.config/{katerc,katevirc,kcminputrc,kconf_updaterc,KDE,kded5rc,kded6rc,kdedefaults,kde-mimeapps.list} \
+		"$HOME"/.config/{katerc,katevirc,kcminputrc,kconf_updaterc,KDE,kded5rc,kded6rc,kdedefaults,kdeglobals,kde-mimeapps.list} \
 		"$HOME"/.config/{kglobalshortcutsrc,konsolerc,konsolesshconfig,krunnerrc,kscreenlockerrc,ksmserverrc,ktimezonedrc} \
 		"$HOME"/.config/{kuriikwsfilterrc,kwalletrc,kwinrc,kwinrulesrc,plasma-localerc,plasmanotifyrc,plasmaparc,plasmashellrc} \
 		"$HOME"/.config/{powerdevilrc,spectaclerc,xsettingsd,session,Kvantum,niri,foot,kxkbrc,ksplashrc,gtkrc,gtkrc-2.0} \

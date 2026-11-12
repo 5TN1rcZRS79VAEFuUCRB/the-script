@@ -1,0 +1,13 @@
+/* ClassicDark notifications: the panel's gray, raised like its buttons */
+Notification {
+    color: #e0e0e0;
+    background: #3c3c3c;
+    border-style: solid;
+    border-width: 2px;
+    border-color: #6a6a6a #141414 #141414 #6a6a6a;
+    margin: 0px;
+}
+QLabel { color: #e0e0e0; }
+#appLabel { font-weight: bold; }
+#closeButton { border: none; padding: 2px; }
+#closeButton:hover { background: #444444; border: 1px solid #6a6a6a; padding: 1px; }

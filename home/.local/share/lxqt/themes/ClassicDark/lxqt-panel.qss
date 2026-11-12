@@ -1,6 +1,7 @@
 /* ClassicDark — old-school beveled dark panel (made 2026-11-11) */
 LXQtPanel #BackgroundWidget {
     background: #3c3c3c;
+    color: #e0e0e0;
     border-top: 1px solid #5a5a5a;
 }
 QToolTip { background: #262626; color: #e0e0e0; border: 1px solid #5a5a5a; padding: 2px; }
@@ -34,6 +35,7 @@ QToolTip { background: #262626; color: #e0e0e0; border: 1px solid #5a5a5a; paddi
 #StatusNotifierPlugin, #CustomPlugin, #WorldClockPlugin { background: transparent; border: none; margin: 0px; }
 #CustomPlugin QToolButton, #StatusNotifier QToolButton, #WorldClock {
     background: #3c3c3c;
+    color: #e0e0e0;
     border-style: solid;
     border-width: 2px;
     border-color: #6a6a6a #141414 #141414 #6a6a6a;
@@ -58,3 +60,6 @@ QMenu::separator { height: 2px; margin: 3px 2px; border-top: 1px solid #1a1a1a; 
 QMenu::icon { padding-left: 4px; }
 
 #Spacer { background-position: center center; }
+
+/* Text color set everywhere here, so it doesn't depend on any other color settings */
+LXQtPanel QWidget, LXQtPanel QLabel, LXQtPanel QToolButton { color: #e0e0e0; }

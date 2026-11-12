@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+"""todo-menu: labwc pipe menu for the-script's todo (Super+T, or click its panel button).
+
+labwc runs this each time the menu opens; items run `todo do ACTION ID`.
+"""
+import json, os, subprocess
+from xml.sax.saxutils import quoteattr as q
+
+TODO = os.path.expanduser("~/.local/bin/todo")
+
+def item(label, act, tid=None):
+    cmd = f"{TODO} do {act}" + (f" '{tid}'" if tid else "")
+    return f'<item label={q(label)}><action name="Execute" command={q(cmd)} /></item>'
+
+try:
+    m = json.loads(subprocess.run([TODO, "json"], capture_output=True, text=True, timeout=20).stdout)
+except Exception as e:
+    m = None
+
+out = ["<openbox_pipe_menu>"]
+if not m:
+    out.append('<separator label="To-do couldn\'t load" />')
+else:
+    out.append(f'<separator label={q(f"{m["pts"]} points · {m["streak"]}-day streak · Level {m["level"]}")} />')
+    for t in m.get("top", []):
+        out.append(item(t["text"], t["act"], t.get("id")))
+    out.append('<separator />')
+    if not m.get("tasks"):
+        out.append('<item label="All caught up" />')
+    for n, t in enumerate(m.get("tasks", [])):
+        when = t["left"] if t.get("late") else "due in " + t["left"]
+        label = ("! " if t.get("late") else "") + t["title"] + "  (" + ((t["course"] + " · ") if t.get("course") else "") + when + ")"
+        out.append(f'<menu id={q(f"todo-task-{n}")} label={q(label)}>')
+        out += [item(a["text"], a["act"], a.get("id")) for a in t.get("actions", [])]
+        out.append("</menu>")
+    out.append('<separator />')
+    out.append(item("Sync now", "sync"))
+out.append("</openbox_pipe_menu>")
+print("\n".join(out))

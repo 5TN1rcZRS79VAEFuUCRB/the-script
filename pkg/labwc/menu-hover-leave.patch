@@ -1,0 +1,51 @@
+diff -ru a/include/menu/menu.h b/include/menu/menu.h
+--- a/include/menu/menu.h
++++ b/include/menu/menu.h	2026-11-11 16:55:09.587603577 -0600
+@@ -114,6 +114,9 @@
+  */
+ void menu_process_cursor_motion(struct wlr_scene_node *node);
+ 
++/* Clear the hover highlight when the pointer is off the menu items */
++void menu_process_cursor_leave(void);
++
+ /**
+  *  menu_close_root - close root menu
+  *
+diff -ru a/src/input/cursor.c b/src/input/cursor.c
+--- a/src/input/cursor.c	2026-11-11 16:55:09.568344794 -0600
++++ b/src/input/cursor.c	2026-11-11 16:55:09.587282777 -0600
+@@ -645,6 +645,11 @@
+ 		return false;
+ 	}
+ 
++	/* Pointer is off the menu items: drop the hover highlight */
++	if (server.input_mode == LAB_INPUT_STATE_MENU) {
++		menu_process_cursor_leave();
++	}
++
+ 	if (seat->drag.active) {
+ 		dnd_icons_move(seat, seat->cursor->x, seat->cursor->y);
+ 	}
+diff -ru a/src/menu/menu.c b/src/menu/menu.c
+--- a/src/menu/menu.c	2026-11-11 16:55:09.569781646 -0600
++++ b/src/menu/menu.c	2026-11-11 16:55:09.587545777 -0600
+@@ -1658,6 +1658,19 @@
+ 	menu_process_item_selection(item);
+ }
+ 
++/*
++ * Pointer left the menu items: clear the highlighted item, except one whose
++ * submenu is open (it stays lit, like in Qt and GTK menus).
++ */
++void
++menu_process_cursor_leave(void)
++{
++	struct menu *menu = get_selection_leaf();
++	if (menu && menu->selection.item && !menu->selection.menu) {
++		menu_set_selection(menu, NULL);
++	}
++}
++
+ void
+ menu_close_root(void)
+ {

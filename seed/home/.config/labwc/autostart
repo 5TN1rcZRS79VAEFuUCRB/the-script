@@ -1,0 +1,11 @@
+# Run by labwc when the LXQt session starts (the-script).
+# Screens: scale, position and the fastest refresh rate (the-script-displays says how it picks them).
+~/.local/bin/the-script-displays >/dev/null 2>&1
+# The wallpaper, under the desktop.
+swaybg -i ~/.local/share/wallpapers/the-script.jpg -m fill >/dev/null 2>&1 &
+# Apps started by D-Bus and systemd find this session; then the services that wait for a graphical
+# session start (bedtime, history-cleaner). A restart gives them this login's display.
+dbus-update-activation-environment --systemd DISPLAY WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE >/dev/null 2>&1
+systemctl --user restart the-script-session.target >/dev/null 2>&1 &
+# Let the Super key open the Start menu straight away (the script says why it clicks Start once).
+~/.local/bin/start-menu-prime >/dev/null 2>&1 &

@@ -1,29 +1,40 @@
 # Packages installed by install.sh from the official Arch repos.
 # Blank lines and # comments are ignored.
 
-# --- desktop: KDE Plasma ---
-plasma-desktop
-plasma-workspace
-kwin
-systemsettings
-plasma-nm                 # network in the tray
-plasma-pa                 # volume in the tray
-plasma5support            # the todo widget runs its commands through it
-powerdevil                # screen dimming and sleep
-power-profiles-daemon     # power modes in the battery applet
-bluedevil                 # Bluetooth in the tray
-kscreen                   # System Settings > Display; kscreen-doctor sets VRR and reads the scale
-breeze-gtk                # GTK apps (LibreWolf, Element) in Breeze too
-adwaita-cursors           # GNOME's black cursor, sharp at 150% (it has a 36 px size), instead of Breeze's
-kde-gtk-config
-sddm                      # the login screen
-sddm-kcm
-xdg-desktop-portal-kde    # file pickers, screen sharing and the dark-mode setting for apps
-dolphin                   # file manager
-konsole                   # terminal
-kate                      # text editor
-gwenview                  # image viewer
-spectacle                 # screenshots (Print, or Meta+Shift+S); screenshot uses it too
+# --- desktop: LXQt on labwc (Wayland), in the-script's ClassicDark look ---
+lxqt-session
+lxqt-wayland-session      # the Wayland session (startlxqtwayland) and its labwc settings
+labwc                     # window manager; pkg/build-patched.sh rebuilds it with the-script's patch
+lxqt-panel                # taskbar; rebuilt with the-script's Start menu patch
+lxqt-config               # settings, brightness keys
+lxqt-qtplugin             # Qt apps follow the LXQt theme and colors
+lxqt-themes
+lxqt-globalkeys
+lxqt-notificationd        # notifications (todo, bedtime)
+lxqt-policykit            # password prompts for apps that need root
+lxqt-powermanagement      # sleep on lid close, low battery warnings, screen off when idle
+lxqt-runner
+xdg-desktop-portal-lxqt   # file pickers
+xdg-desktop-portal-wlr    # screen sharing (Discord, OBS)
+xdg-desktop-portal-gtk
+pcmanfm-qt                # file manager
+qterminal                 # terminal
+featherpad                # text editor
+lximage-qt                # image viewer
+pavucontrol-qt            # full volume control (Volume Control... in the sound menu)
+network-manager-applet    # network in the tray
+blueman                   # Bluetooth in the tray
+mate-icon-theme           # the classic icons
+adwaita-cursors           # GNOME's black cursor, sharp at 150% (it has a 36 px size)
+swaybg                    # wallpaper
+swaylock                  # lock screen (Super+L, and before sleep)
+wlr-randr                 # the-script-displays: scale, position and refresh rate of each screen
+wtype                     # the sound and to-do buttons open their menus through a labwc key
+grim                      # screenshots (Print, screenshot); slurp picks an area (Super+Shift+S)
+slurp
+greetd                    # the login screen: a text login (tuigreet) that starts LXQt
+greetd-tuigreet
+base-devel                # pkg/build-patched.sh builds the patched panel and labwc, and wlrctl
 wl-clipboard              # wl-paste: terminal apps (Claude Code's Ctrl+V) read pasted screenshots with it
 git
 
@@ -67,6 +78,7 @@ librewolf        # the browser: Firefox with privacy defaults (librewolf/user.js
 element-desktop
 python-pillow             # element-tray-icon resizes Element's tray icon with it
 keepassxc
+ripgrep          # rg: fast file search (Claude Code uses it)
 syncthing        # keeps the KeePassXC database in sync between machines
 anki             # flashcards; the todo list shows today's due cards (its add-on is in home/.local/share/Anki2)
 mpv              # plays the audio and video on Anki cards

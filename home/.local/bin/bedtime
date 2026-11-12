@@ -6,7 +6,7 @@ bedtime and a 6:30 AM wake-up.
 Warns 15, 5 and 1 minute before 9:30 PM, then shuts the computer down. Turned on (or woken from sleep)
 between 9:30 PM and 6:30 AM, it warns once and shuts down a minute later. No snooze.
 
-Started with the Plasma session by bedtime.service. Never on arch-server: a server stays on. For a
+Started with the desktop session by bedtime.service. Never on arch-server: a server stays on. For a
 test run, BEDTIME_OFF=HH:MM and BEDTIME_ON=HH:MM move the times, and BEDTIME_DRY_RUN=1 notifies
 instead of shutting down.
 """

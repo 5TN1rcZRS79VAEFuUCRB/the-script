@@ -1,0 +1,17 @@
+#!/bin/sh
+# Speaker button for the LXQt panel (custom command, structured output): volume icon + "45%".
+#   audio-status up|down   change the volume by 5% (mouse wheel on the button, volume keys)
+#   audio-status watch     print now and again on every change (the panel keeps this running)
+case $1 in
+  watch) "$0"; pactl subscribe | while read -r l; do case $l in *"on sink "*|*"on server"*) "$0" ;; esac; done; exit ;;
+  up)   pactl set-sink-mute @DEFAULT_SINK@ 0; pactl set-sink-volume @DEFAULT_SINK@ +5%; exit ;;
+  down) pactl set-sink-volume @DEFAULT_SINK@ -5%; exit ;;
+esac
+v=$(pactl get-sink-volume @DEFAULT_SINK@ | grep -o '[0-9]*%' | head -1 | tr -d %)
+m=$(pactl get-sink-mute @DEFAULT_SINK@ | awk '{print $2}')
+if [ "$m" = yes ] || [ "${v:-0}" -eq 0 ]; then icon=audio-volume-muted; txt=Muted
+elif [ "$v" -lt 34 ]; then icon=audio-volume-low; txt="$v%"
+elif [ "$v" -lt 67 ]; then icon=audio-volume-medium; txt="$v%"
+else icon=audio-volume-high; txt="$v%"; fi
+e() { printf '%s' "$1" | base64 -w0; }
+printf 'text:%s icon:%s tooltip:%s\n' "$(e "$txt")" "$(e "$icon")" "$(e "Click: devices and volume. Scroll: volume")"

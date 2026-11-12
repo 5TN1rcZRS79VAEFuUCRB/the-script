@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
 todo: Canvas + Schoology assignments, your own to-dos and workouts on the taskbar, with points,
-a streak and reminders. The taskbar widget (~/.local/share/plasma/plasmoids/local.todo) shows the
-bar text (todo-bar) and opens the menu on click or Meta+T.
+a streak and reminders. On the LXQt panel, todo-count shows the counts and todo-menu is the menu
+(click the button, or Super+T).
 
   todo daemon    sync every 5 min, refresh the bar and send reminders every minute (started at login)
   todo sync      sync once and print the bar text and any errors
-  todo json      the menu as JSON: next task, 10-minute focus timer, open / mark done (read by the widget)
+  todo json      the menu as JSON: next task, 10-minute focus timer, open / mark done (read by todo-menu)
   todo do ACTION [ID]  run one action from that JSON
   todo selftest  check the feed parser, ordering and scoring
 
@@ -55,13 +55,13 @@ CONF = f"{DATA}/dwm-todo.conf"
 TODO = f"{DATA}/todo.txt"
 TOKEN = f"{DATA}/canvas_token"
 RUN = os.environ.get("XDG_RUNTIME_DIR", f"{HOME}/.cache")
-BAR = f"{RUN}/todo-bar"      # one line, read by todo-bar
+BAR = f"{RUN}/todo-bar"      # one line: the bar text
 ANKI_COUNT = f"{RUN}/todo-anki"  # "<date> <due>", written by the Anki add-on after each answered card
 PIDFILE = f"{RUN}/todo.pid"  # the daemon; the Anki add-on sends it SIGUSR1 after every answered card
 STICKY = f"{RUN}/todo-sticky"  # ids of notifications that stay until clicked; opening the menu closes them
 TAGGED = f"{RUN}/todo-tagged.json"  # {tag: id} of shown notifications that the next one with that tag replaces
 ANKI_LOG = f"{RUN}/anki.log"  # what Anki printed each time the menu launched it, for when it doesn't open
-FOCUS = f"{RUN}/todo-focus"  # "<end epoch> <icon> <text>": the running focus/break timer, read by todo-bar
+FOCUS = f"{RUN}/todo-focus"  # "<end epoch> <icon> <text>": the running focus/break timer, read by todo-count
 
 LOOKBACK = 14 * 86400  # overdue work older than this drops off the list
 AHEAD = 60 * 86400

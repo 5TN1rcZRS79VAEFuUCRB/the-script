@@ -1,0 +1,72 @@
+--- a/plugin-mainmenu/lxqtmainmenu.cpp
++++ b/plugin-mainmenu/lxqtmainmenu.cpp
+@@ -32,6 +32,8 @@
+ #include "actionview.h"
+ #include <QAction>
+ #include <QTimer>
++#include <QWindow>
++#include <QGuiApplication>
+ #include <QMessageBox>
+ #include <QEvent>
+ #include <QKeyEvent>
+@@ -70,7 +72,7 @@
+     mHeavyMenuChanges(false)
+ {
+     mDelayedPopup.setSingleShot(true);
+-    mDelayedPopup.setInterval(200);
++    mDelayedPopup.setInterval(0); // local patch: no 200 ms wait before opening from the keyboard
+     connect(&mDelayedPopup, &QTimer::timeout, this, &LXQtMainMenu::showHideMenu);
+     mHideTimer.setSingleShot(true);
+     mHideTimer.setInterval(250);
+@@ -104,6 +106,7 @@
+     connect(mSearchView, &QWidget::customContextMenuRequested, this, std::bind(&LXQtMainMenu::onRequestingCustomMenu, this, std::placeholders::_1, mSearchView));
+     mSearchViewAction->setDefaultWidget(mSearchView);
+     mSearchEdit = new QLineEdit;
++    mSearchEdit->installEventFilter(this); // local patch: arrow keys go to the results
+     mSearchEdit->setClearButtonEnabled(true);
+     mSearchEdit->setPlaceholderText(LXQtMainMenu::tr("Search..."));
+     connect(mSearchEdit, &QLineEdit::textChanged, this, [this] (QString const &) {
+@@ -174,6 +177,22 @@
+         return;
+ 
+     willShowWindow(mMenu);
++    // Local patch: on Wayland, anchor the menu to the Start button so it opens above it. Qt doesn't
++    // know where the panel is on screen, so the plain popup() position ends up over the taskbar.
++    if (qGuiApp->nativeInterface<QNativeInterface::QWaylandApplication>())
++    {
++        mMenu->winId();
++        if (QWindow *menuWindow = mMenu->windowHandle())
++        {
++            const QRect anchorRect(mButton.mapTo(mButton.window(), QPoint(0, 0)), mButton.size());
++            const bool bottom = panel()->position() == ILXQtPanel::PositionBottom;
++            menuWindow->setProperty("_q_waylandPopupAnchorRect", anchorRect);
++            menuWindow->setProperty("_q_waylandPopupAnchor",
++                QVariant::fromValue(Qt::Edges((bottom ? Qt::TopEdge : Qt::BottomEdge) | Qt::LeftEdge)));
++            menuWindow->setProperty("_q_waylandPopupGravity",
++                QVariant::fromValue(Qt::Edges((bottom ? Qt::TopEdge : Qt::BottomEdge) | Qt::RightEdge)));
++        }
++    }
+     // Just using Qt`s activateWindow() won't work on some WMs like Kwin.
+     // Solution is to execute menu 1ms later using timer
+     mMenu->popup(calculatePopupWindowPos(mMenu->sizeHint()).topLeft());
+@@ -673,6 +692,20 @@
+             }
+         }
+     }
++    // Local patch: arrow keys typed in the search box move through the results right away
++    // (otherwise the first press only moves keyboard focus into the list)
++    if (obj == mSearchEdit && event->type() == QEvent::KeyPress && mSearchView->isVisible())
++    {
++        QKeyEvent * e = static_cast<QKeyEvent *>(event);
++        switch (e->key())
++        {
++            case Qt::Key_Up: case Qt::Key_Down: case Qt::Key_PageUp: case Qt::Key_PageDown:
++                QCoreApplication::sendEvent(mSearchView, event);
++                return true;
++            default:
++                break;
++        }
++    }
+     if (event->type() == QEvent::MouseButtonRelease)
+     {
+         QMenu * menu = qobject_cast<QMenu*>(obj);

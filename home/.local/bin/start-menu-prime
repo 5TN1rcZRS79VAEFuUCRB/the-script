@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+"""start-menu-prime: run once when the LXQt session starts (labwc's autostart).
+
+Qt won't open the Start menu from the Super key until the panel has had a real mouse click, so this
+clicks Start once, closes the menu again and puts the pointer back in the middle of that screen,
+where it starts at login anyway. wlrctl moves the pointer rather than warping it, so the panel sees
+it arrive.
+"""
+import json
+import subprocess
+import time
+
+
+def run(*a):
+    return subprocess.run(a, capture_output=True, text=True)
+
+
+# Wait up to 20 s for the panel's menu.
+for _ in range(40):
+    if "/panel/mainmenu" in run("qdbus6", "org.kde.StatusNotifierWatcher").stdout:
+        break
+    time.sleep(0.5)
+time.sleep(1)
+
+# The panel's screen: the one at the bottom-left of the layout (logical size = pixels / scale).
+outs = []
+for o in json.loads(run("wlr-randr", "--json").stdout or "[]"):
+    m = next((m for m in o.get("modes", []) if m.get("current")), None)
+    if o.get("enabled") and m:
+        s = o.get("scale", 1) or 1
+        outs.append((o["position"]["x"], o["position"]["y"], m["width"] / s, m["height"] / s))
+if not outs:
+    raise SystemExit
+minx, miny = min(o[0] for o in outs), min(o[1] for o in outs)
+x, y, w, h = min(outs, key=lambda o: (o[0], -(o[1] + o[3])))
+
+run("wlrctl", "pointer", "move", "-100000", "-100000")             # top-left of the layout
+run("wlrctl", "pointer", "move", str(round(x - minx + 30)), str(round(y - miny + h - 15)))   # onto Start
+run("wlrctl", "pointer", "click", "left")
+time.sleep(0.5)
+run("wtype", "-k", "Escape")
+run("wlrctl", "pointer", "move", str(round(w / 2 - 30)), str(round(-h / 2 + 15)))   # middle of that screen

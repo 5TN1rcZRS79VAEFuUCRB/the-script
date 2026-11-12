@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+"""the-script-displays: set up the screens when the LXQt session starts (labwc's autostart runs it).
+
+For each connected screen: its scale and position as KWin last had them (~/.config/kwinoutputconfig.json,
+left from Plasma), or else 1.5 at 4K and 1.25 on a laptop's own screen; and its largest resolution at
+the fastest refresh rate (a 144 Hz monitor can come up at 60). Changes nothing that is already right.
+"""
+import json
+import os
+import subprocess
+
+
+def kwin_settings():
+    try:
+        cfg = {s["name"]: s["data"] for s in json.load(open(os.path.expanduser("~/.config/kwinoutputconfig.json")))}
+    except (OSError, ValueError, KeyError, TypeError):
+        return {}
+    out = {}
+    for setup in cfg.get("setups", []):
+        if setup.get("lidClosed"):
+            continue
+        for o in setup.get("outputs", []):
+            if not o.get("enabled"):
+                continue
+            d = cfg["outputs"][o["outputIndex"]]
+            out.setdefault(d.get("connectorName"), {"scale": d.get("scale", 1), "pos": o.get("position")})
+    return out
+
+
+def main():
+    outs = json.loads(subprocess.run(["wlr-randr", "--json"], capture_output=True, text=True, check=True).stdout)
+    kwin = kwin_settings()
+    for o in outs:
+        if not o.get("enabled") or not o.get("modes"):
+            continue
+        name = o["name"]
+        best = max(o["modes"], key=lambda m: (m["width"] * m["height"], m["refresh"]))
+        k = kwin.get(name)
+        if k:
+            scale = k["scale"]
+        elif best["width"] >= 3840:
+            scale = 1.5
+        elif name.startswith("eDP"):
+            scale = 1.25
+        else:
+            scale = 1
+        args = []
+        cur = next((m for m in o["modes"] if m.get("current")), None)
+        if not cur or (cur["width"], cur["height"]) != (best["width"], best["height"]) or abs(cur["refresh"] - best["refresh"]) > 0.5:
+            args += ["--mode", f'{best["width"]}x{best["height"]}@{best["refresh"]:.3f}Hz']
+        if abs(o.get("scale", 1) - scale) > 0.001:
+            args += ["--scale", f"{scale:g}"]
+        if k and k.get("pos") and (k["pos"]["x"], k["pos"]["y"]) != (o["position"]["x"], o["position"]["y"]):
+            args += ["--pos", f'{k["pos"]["x"]},{k["pos"]["y"]}']
+        if args:
+            subprocess.run(["wlr-randr", "--output", name, *args])
+
+
+if __name__ == "__main__":
+    main()

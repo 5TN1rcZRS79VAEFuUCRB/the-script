@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+"""audio-menu: labwc pipe menu for the sound output and input, mute and volume.
+
+No args: print the menu (labwc runs this each time the menu opens).
+  audio-menu sink NAME    make NAME the output; move playing sound to it
+  audio-menu source NAME  make NAME the input
+"""
+import json, subprocess, sys
+from xml.sax.saxutils import quoteattr
+
+def pactl(*a):
+    return subprocess.run(["pactl", *a], capture_output=True, text=True).stdout.strip()
+
+if len(sys.argv) == 3:
+    kind, name = sys.argv[1:]
+    pactl(f"set-default-{kind}", name)
+    if kind == "sink":
+        for line in pactl("list", "short", "sink-inputs").splitlines():
+            pactl("move-sink-input", line.split()[0], name)
+    sys.exit()
+
+out = ["<openbox_pipe_menu>"]
+for kind, title in (("sink", "Output"), ("source", "Input")):
+    current = pactl(f"get-default-{kind}")
+    out.append(f'<separator label="{title}" />')
+    for d in json.loads(pactl("-f", "json", "list", kind + "s") or "[]"):
+        if d["name"].endswith(".monitor"):
+            continue
+        mark = "● " if d["name"] == current else "  "
+        label = mark + (d.get("description") or d["name"])
+        cmd = f"{sys.argv[0]} {kind} {d['name']}"
+        out.append(f'<item label={quoteattr(label)}><action name="Execute" command={quoteattr(cmd)} /></item>')
+muted = pactl("get-sink-mute", "@DEFAULT_SINK@").endswith("yes")
+vol = pactl("get-sink-volume", "@DEFAULT_SINK@").split("/")[1].strip() if "/" in pactl("get-sink-volume", "@DEFAULT_SINK@") else "?"
+me = sys.argv[0]
+out.append(f'<separator label={quoteattr("Volume " + ("(muted)" if muted else vol))} />')
+out.append(f'<item label={quoteattr("Unmute" if muted else "Mute")}><action name="Execute" command="pactl set-sink-mute @DEFAULT_SINK@ toggle" /></item>')
+for pct in (25, 50, 75, 100):
+    out.append(f'<item label="{pct}%"><action name="Execute" command="sh -c &quot;pactl set-sink-mute @DEFAULT_SINK@ 0; pactl set-sink-volume @DEFAULT_SINK@ {pct}%&quot;" /></item>')
+out.append('<separator />')
+out.append('<item label="Volume Control..."><action name="Execute" command="pavucontrol-qt" /></item>')
+out.append("</openbox_pipe_menu>")
+print("\n".join(out))

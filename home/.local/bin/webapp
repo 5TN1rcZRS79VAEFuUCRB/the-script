@@ -1,0 +1,4 @@
+#!/bin/sh
+# webapp URL: open URL in a new browser window. Web-app launchers (Roleplay, Ask AI) use this
+# so a menu search for the browser's name finds the browser itself, not them.
+exec /usr/lib/librewolf/librewolf --new-window "$@"

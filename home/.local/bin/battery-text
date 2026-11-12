@@ -1,0 +1,16 @@
+#!/bin/sh
+# Battery for the LXQt panel (custom command, "structured" output): icon by level + "85%".
+b=/sys/class/power_supply/BAT0
+c=$(cat $b/capacity 2>/dev/null) || exit 0
+s=$(cat $b/status)
+if   [ "$c" -lt 10 ]; then lvl=caution
+elif [ "$c" -lt 30 ]; then lvl=low
+elif [ "$c" -lt 80 ]; then lvl=good
+else lvl=full; fi
+case $s in
+  Charging) icon=battery-$lvl-charging; tip="Charging" ;;
+  Full|"Not charging") icon=battery-full-charged; tip="Plugged in" ;;
+  *) icon=battery-$lvl; tip="On battery" ;;
+esac
+e() { printf '%s' "$1" | base64 -w0; }
+printf 'text:%s icon:%s tooltip:%s\n' "$(e "$c%")" "$(e "$icon")" "$(e "$tip, $c%")"

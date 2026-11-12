@@ -1,7 +1,8 @@
 # the-script
 
-A one-command setup for my Arch Linux desktop: plain KDE Plasma in Breeze Dark, with a to-do list for
-school on the taskbar, and LibreWolf/KeePassXC/Syncthing/Tailscale/printing set up. Desktop only: nothing from the media server is in here.
+A one-command setup for my Arch Linux desktop: LXQt on the labwc window manager (Wayland), made to
+look like an old-style dark desktop (gray bevelled buttons, navy title bars, a Start button), light
+enough for an old laptop, with a to-do list for school on the taskbar, and LibreWolf/KeePassXC/Syncthing/Tailscale/printing set up. Desktop only: nothing from the media server is in here.
 
 ## Quick start
 
@@ -14,10 +15,15 @@ cd the-script
 ./install.sh
 ```
 
-Then restart: SDDM, Plasma's login screen, comes up. On a machine that had GNOME, the first Plasma
-login also removes GNOME in the background (a notification says if it fails); its settings are left
-alone. A machine still on the Windows 7 desktop loses AeroThemePlasma and keeps Plasma. niri, left over
-from niri-script, is removed too, so Plasma is the only session at the login screen.
+Then restart: a text login (greetd with tuigreet) comes up on the first console. It remembers the last
+user, so you just type your password, and LXQt starts. On a machine that had Plasma (or GNOME), the
+first LXQt login also removes it in the background (a notification says if it fails), and the one after
+the next restart removes SDDM, Plasma's old login screen. Their settings in `~/.config` are left alone.
+niri and AeroThemePlasma leftovers from earlier versions of this repo go too.
+
+Why greetd and not SDDM or LightDM: SDDM is KDE's and pulls in an X server for its own screen, and
+LightDM's greeters are X11 programs as well. greetd is a small login daemon that just starts the
+Wayland session, with no X server and nothing to theme.
 
 ### Options
 
@@ -29,23 +35,28 @@ from niri-script, is removed too, so Plasma is the only session at the login scr
 Re-running the installer is safe. Anything it would overwrite is copied to
 `~/.desktop-backup/<timestamp>/` first.
 
-Text too small (e.g. a 4K or laptop screen)? System Settings > Display & Monitor > Scale (fractional
-scales like 125% are there too). Variable refresh rate (G-SYNC/FreeSync) is in the same place, per
-monitor; on a desktop the first login turns it on always, games included. Games through Proton (X11
-apps) see the monitor's real resolution and refresh rate at any scale, as long as System Settings >
-Display & Monitor > Legacy Applications (X11) stays on "Apply scaling themselves".
+Screens are set up at each login by `the-script-displays`: every screen at its largest resolution and
+fastest refresh rate, at the scale and position Plasma last used (`~/.config/kwinoutputconfig.json`), or
+on a new machine 150% at 4K, 125% on a laptop's own screen and 100% otherwise. To change the scale for
+a session, LXQt's Monitor Settings (or `wlr-randr --output NAME --scale 1.5`); to keep it, edit the
+numbers in `the-script-displays`. On a desktop (no battery) labwc's variable refresh rate
+(G-SYNC/FreeSync) and tearing are on for fullscreen games; the laptop leaves both off.
 
 ## What gets installed
 
 | Piece | Where it goes |
 | --- | --- |
-| KDE Plasma (Plasma, System Settings, Dolphin, Konsole, Kate, Gwenview, Spectacle) | packages (`packages.txt`) |
-| Settings applied at every login by `the-script-plasma` (they need the running session): no hot corner (the top-left corner doesn't open the Overview), Breeze Dark and, on a desktop, variable refresh rate always on (first login only), the wallpaper on the desktop and lock screen and GNOME's black Adwaita cursor (once each; `~/.icons/Adwaita-cursors` makes it show up in Plasma), and once, the taskbar as a floating bar (the launcher with the Arch logo and the open and pinned apps on the left, the to-do widget, tray and clock on the right; the tray shows volume, network, notifications, battery and background apps like Steam and Element, with the rest behind its arrow; the clock in 12 pt text), once, the search: `Meta` opens KRunner in the middle of the screen (apps, settings and the calculator first, then files by name from Desktop, Documents, Music, Pictures and Videos, windows and places, else a DuckDuckGo search; developer tools like Qt Designer and lstopo are hidden from it), and the to-do widget on the taskbar left of the tray, opened by `Meta+T` | `~/.config/autostart/the-script-plasma.desktop` |
+| LXQt (panel, settings, notifications, power management), labwc, PCManFM-Qt (files), QTerminal, FeatherPad (text), LXImage-Qt, pavucontrol-qt, the network and Bluetooth tray icons, swaylock | packages (`packages.txt`) |
+| The ClassicDark look: labwc's window theme (3 px frame, navy gradient title bars, bevelled buttons), the panel theme (raised buttons that sink when pressed), the MATE icons, gray Qt colors and GNOME's black Adwaita cursor; GTK apps in their dark theme | `~/.local/share/themes/ClassicDark/`, `~/.local/share/lxqt/themes/ClassicDark/`, `~/.config/lxqt/lxqt.conf`, `~/.config/gtk-{3,4}.0/settings.ini` |
+| The panel along the bottom: Start (searchable app menu), the open windows, the tray, then text buttons for the to-do list, the battery (laptops only) and the sound, and the clock. The sound button's menu picks the output and input, mutes and sets the volume; scroll on it to change the volume | `~/.config/lxqt/panel.conf`, `~/.local/bin/{todo-count,todo-menu,battery-text,audio-status,audio-menu}`, labwc's `menu.xml` |
+| labwc's keys, menus and session start (`autostart`: the screens, the wallpaper, the session's services, one click on Start so the Super key works) | `~/.config/labwc/` |
+| A patched lxqt-panel (the Start menu opens above the panel instead of over it, with no delay, and arrow keys move through search results) and labwc (a submenu's highlight clears when the pointer leaves it), built from Arch's own recipes plus `pkg/*/*.patch` by `pkg/build-patched.sh`, and again whenever an Arch update replaces them (the-script-update checks every 5 minutes); `wlrctl` from the AUR for the Start click at login | `pkg/` (needs `base-devel`) |
+| `the-script-lxqt`, at every LXQt login: copies your Firefox profile into LibreWolf if that had to wait, and once, removes Plasma (by running the installer again) | `~/.config/autostart/the-script-lxqt.desktop` |
 | Wallpaper: star trails over La Hague lighthouse at sunset, by Antoine Lamielle ([Wikimedia Commons](https://commons.wikimedia.org/wiki/File:2017-04_Circumpolar_trails_sunset_at_La_Hague_lighthouse.jpg), CC BY-SA 4.0), cropped to 3840x2160 | `~/.local/share/wallpapers/the-script.jpg` |
-| The login screen (SDDM): Plasma's Breeze theme with the wallpaper, Breeze Dark colors, the Adwaita cursor and Numlock on, at the same scale as the main screen (read from KWin's settings at each update) | `systemctl enable sddm`, `/etc/sddm.conf.d/10-the-script.conf`, `20-the-script-scale.conf`, `/usr/share/sddm/themes/breeze/theme.conf.user`, `/usr/local/share/the-script/sddm-background.jpg`, `/var/lib/sddm/.config/kdeglobals` (needs sudo) |
+| The login screen: greetd running tuigreet on the first console (time shown, last user remembered), which starts `startlxqtwayland` | `systemctl enable greetd`, `/etc/greetd/config.toml` (needs sudo) |
 | `mouse-dpi`: measures a mouse's real DPI as you slide it 10 cm along a ruler, next to the DPI it is set to (read from a Razer or Endgame Gear mouse), to compare two mice set alike (needs sudo to read the mouse) | `~/.local/bin/mouse-dpi` |
-| School assignments and to-dos on the taskbar (`todo`, `todo-bar`, the `local.todo` Plasma widget) | `~/.local/bin/`, `~/.local/share/plasma/plasmoids/local.todo/`, `~/.config/autostart/todo.desktop` |
-| LibreWolf (Firefox with privacy defaults) settings: follows the desktop's dark mode, tabs in the title bar, no AI or sponsored content, fingerprinting protection that still lets sites see dark mode, and cookies kept when it closes so you stay logged in (`user.js`) | your LibreWolf profile directory |
+| School assignments and to-dos on the taskbar (`todo`, shown by `todo-count`, its list in `todo-menu`) | `~/.local/bin/`, `~/.config/autostart/todo.desktop` |
+| LibreWolf (Firefox with privacy defaults) settings: dark everywhere (LXQt doesn't tell apps it is dark), labwc's title bar above the tabs, no AI or sponsored content, fingerprinting protection that still lets sites see dark mode, and cookies kept when it closes so you stay logged in (`user.js`) | your LibreWolf profile directory |
 | Your Firefox profile (bookmarks, history, site logins, open tabs, extensions) copied into LibreWolf once, by `librewolf-import-firefox`; if a browser is open, at the next login instead. The LibreWolf profile it replaces goes to the backup folder. Firefox stays installed until you remove it (`sudo pacman -Rs firefox`) | `~/.config/librewolf/librewolf/` |
 | LibreWolf as the default browser, so links from other programs open there | `~/.config/mimeapps.list` |
 | LibreWolf extensions: uBlock Origin (comes with LibreWolf) and Violentmonkey, installed by a policy (`policies.json`), which also makes Brave Search the default search engine (Startpage stays available as `@sp`). A policy file in /etc replaces LibreWolf's own, so `librewolf-policies` merges the two, again after each LibreWolf update (a pacman hook) | `/etc/librewolf/policies/`, `/usr/local/libexec/librewolf-policies`, `/etc/pacman.d/hooks/librewolf-policies.hook` (needs sudo) |
@@ -57,8 +68,8 @@ Display & Monitor > Legacy Applications (X11) stays on "Apply scaling themselves
 | Syncthing (keeps the KeePassXC database in sync), started now and at every login | `systemctl --user enable syncthing`. Pair devices and share the folder yourself at http://127.0.0.1:8384; keys are never in this repo |
 | Auto-update: every 5 minutes `the-script-update.timer` pulls this clone and, on a new commit, re-runs `install.sh`. "Update the-script" in the launcher does the same check right away. Failures show a notification (`journalctl --user -u the-script-update`). Needs passwordless sudo, which the installer sets up: anything running as you, and anyone who can push here, gets root | `~/.local/share/applications/the-script-update.desktop`, `~/.local/share/the-script` (link to the clone), `/etc/sudoers.d/10-the-script` (undo: delete it and `systemctl --user disable --now the-script-update.timer`) |
 | Steam's in-game overlay follows the display scale (below) | `~/.local/bin/steam-overlay-scale`, `steam-overlay-scale.path` |
-| Bedtime: the computer is off from 9:30 PM to 6:30 AM every day (an hour without screens before a 10:30 PM bedtime). Warnings 15, 5 and 1 minute before, then it shuts down; turned on before 6:30 AM it shuts down again after a minute's warning. Not on arch-server | `~/.local/bin/bedtime`, `bedtime.service` |
-| `screenshot [file.png]`: saves a screenshot of the whole screen with no dialog, through Spectacle | `~/.local/bin/` |
+| Bedtime (started with the session through `the-script-session.target`, which labwc's autostart starts since LXQt doesn't): the computer is off from 9:30 PM to 6:30 AM every day (an hour without screens before a 10:30 PM bedtime). Warnings 15, 5 and 1 minute before, then it shuts down; turned on before 6:30 AM it shuts down again after a minute's warning. Not on arch-server | `~/.local/bin/bedtime`, `bedtime.service` |
+| `screenshot [file.png]`: saves a screenshot of the whole screen with no dialog (grim) | `~/.local/bin/` |
 | cc-bench: finds which Claude Code model and effort work best for you (only where Claude Code is installed; see below) | `~/.local/bin/ccb`, `~/.local/bin/ccbench`, `cc-bench.timer`, the status line and a SessionStart hook in `~/.claude/settings.json` |
 | `discord-compress video.mp4 [MB]`: re-encodes a video under Discord's upload limit (10 MB by default) | `~/.local/bin/` |
 | git commit name and email (GitHub noreply address) | `~/.gitconfig` (only `user.name` and `user.email`) |
@@ -66,22 +77,28 @@ Display & Monitor > Legacy Applications (X11) stays on "Apply scaling themselves
 
 ## Keys
 
-Plasma's usual keys apply (System Settings > Keyboard > Shortcuts). The ones worth knowing:
+labwc's keys are in `~/.config/labwc/rc.xml` (`Ctrl+Shift+R` reloads it). The ones worth knowing:
 
 | Action | Keys |
 | --- | --- |
-| Search: apps, settings, files, sums, the web (KRunner, in the middle of the screen) | `Meta` (the Windows key), `Alt+Space`, or start typing on the desktop |
-| App menu | click the Arch logo, or `Alt+F1` |
-| To-do list | `Meta+T`, or click its text on the taskbar (KWin's tile editor gives up `Meta+T` for it) |
-| Screenshot | `Print` (Spectacle), `Meta+Shift+S` for an area |
+| Start menu; type to search, arrows and Enter to pick | `Super` (the Windows key) |
+| Run a command | `Alt+F2` |
+| To-do list | `Super+T`, or click its button on the panel |
+| Sound menu | click the sound button; volume keys work too |
+| Switch windows | `Alt+Tab` |
+| Snap a window to a half of the screen (two in a row, like Up then Left: a quarter) | `Super+Left`, `Right`, `Up`, `Down`; `Super+A` maximizes |
+| Show the desktop | `Super+D` |
+| Lock the screen | `Super+L` (swaylock; also before sleep) |
+| Screenshot | `Print` saves the screen to `~/Pictures`, `Super+Shift+S` copies an area |
+| Window menu | `Alt+Space` |
 
 ## School assignments and to-dos
 
 The `todo` daemon puts the next Canvas or Schoology assignment, `todo.txt` task or today's workout on
-the taskbar, left of the tray (title and time left, points and a streak of days in a row with
+the panel, right of the tray (title and time left, points and a streak of days in a row with
 something turned in on time or a finished focus session, where every 7 active days earn a streak
 freeze that saves a missed day; never a count of late work), and sends reminders 3 days, 1 day and 3
-hours before each due date, plus a summary every morning. Click the text or press `Meta+T` for the
+hours before each due date, plus a summary every morning. Click the button or press `Super+T` for the
 list: start a 10-minute focus session (it opens the assignment and counts down on the taskbar with
 the task's name; when it ends, a notification says so and the list offers 10 more minutes, a 5-minute
 break, or stopping for now without finishing; **Finished it** ends a session early and checks the
@@ -170,13 +187,15 @@ your plan it used.
 
 The installer copies files *from* this repo *to* your home directory. To keep the repo current
 after changing your live setup, copy the changed file back into the matching path under
-`home/` or `librewolf/` and commit it.
+`home/` or `librewolf/` and commit it. Files under `seed/home/` (the panel, labwc's keys and menus,
+LXQt's settings) are different: they are put in place only when the repo's copy changes, so changes
+made in LXQt's settings windows stay until then (the old file goes to the backup folder).
 
 History: commit `a8ea1cd` is the last dwm version of this setup, and the repo was `niri-script` (the
 niri window manager) before it became `the-script`. Installing the-script over niri-script retires
 the niri helper scripts and services into the backup folder; niri's own settings in `~/.config` are
 left in place, unused. After that it was a Windows 7-style Plasma desktop (AeroThemePlasma), then plain
-GNOME for a few days (from `cf21cfb`), and now plain Plasma. The to-do data folder keeps its old name, `~/.local/share/dwm-todo`, because
+GNOME for a few days (from `cf21cfb`), then plain Plasma, and now LXQt. The to-do data folder keeps its old name, `~/.local/share/dwm-todo`, because
 Syncthing points at it on every machine.
 
 ## License

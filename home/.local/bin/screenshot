@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 #
-# screenshot: save a screenshot of the whole screen without a dialog, through Spectacle.
+# screenshot: save a screenshot of the whole screen without a dialog (grim).
 #
 #   screenshot [FILE]   save to FILE (default: ./screenshot-<time>.png) and print its path
 
 set -euo pipefail
 
 dest=$(realpath -m "${1:-screenshot-$(date +%Y%m%d-%H%M%S).png}")
-# -b: no window, -n: no notification, -f: all screens.
-spectacle -b -n -f -o "$dest" >/dev/null 2>&1
-[ -s "$dest" ] || { echo "screenshot: Spectacle saved nothing" >&2; exit 1; }
+grim "$dest"
+[ -s "$dest" ] || { echo "screenshot: grim saved nothing" >&2; exit 1; }
 echo "$dest"

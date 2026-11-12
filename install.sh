@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# the-script: recreates this KDE Plasma desktop on an Arch Linux machine. Run as your normal user (it
-# calls sudo where it needs root):  ./install.sh
+# the-script: recreates this LXQt desktop (on labwc, Wayland, in a classic dark look) on an Arch Linux
+# machine. Run as your normal user (it calls sudo where it needs root):  ./install.sh
 # Safe to re-run; anything it would overwrite is backed up first.
 
 set -euo pipefail
@@ -82,6 +82,31 @@ sudo_place() { # src dest
 }
 
 
+# Desktop settings files (LXQt's panel, labwc's keys) are put in place when the repo's copy is new or
+# changed, and otherwise left alone, so changes made in LXQt's own settings windows stay until the repo
+# changes that file. render() makes the machine's version: your home folder in paths, no battery button
+# on a desktop, and on a desktop variable refresh rate and tearing allowed for games.
+HAS_BATTERY=0; compgen -G '/sys/class/power_supply/BAT*' >/dev/null && HAS_BATTERY=1
+render() { # src -> stdout
+	sed "s|/home/gavin/|$HOME/|g" "$1" | if [ "$HAS_BATTERY" -eq 1 ]; then cat; else
+		sed -e 's/^plugins=\(.*\),battery,/plugins=\1,/' \
+			-e 's|<adaptiveSync>no</adaptiveSync>|<adaptiveSync>yes</adaptiveSync>|' \
+			-e 's|<allowTearing>no</allowTearing>|<allowTearing>yes</allowTearing>|'
+	fi
+}
+place_seed() { # src dest
+	local src=$1 dest=$2 tmp sum mark
+	mark="$HOME/.local/state/the-script-seeds/${dest#"$HOME"/}"
+	tmp="$(mktemp)"; render "$src" > "$tmp"
+	sum=$(sha256sum < "$tmp" | cut -c1-32)
+	if [ "$(cat "$mark" 2>/dev/null)" != "$sum" ] || [ ! -e "$dest" ]; then
+		backup_if_different "$dest" "$tmp"
+		install -Dm644 "$tmp" "$dest"
+		mkdir -p "${mark%/*}" && echo "$sum" > "$mark"
+	fi
+	rm -f "$tmp"
+}
+
 # ---------------------------------------------------------------- passwordless sudo
 # the-script-update re-runs this installer unattended when a commit is pushed, so its sudo calls
 # cannot ask for a password. This makes the user root-equivalent without one: anything running as
@@ -135,7 +160,7 @@ fi
 # timeout. So it waits for a run that it did not start.
 [ "$(systemctl --user show -p ActiveState --value niri-update.service 2>/dev/null)" = activating ] \
 	|| retire "$HOME/.config/systemd/user/niri-update.service"
-# niri itself and the packages only its session used, so Plasma is the one session left at the login
+# niri itself and the packages only its session used, so LXQt is the one session left at the login
 # screen. Not while a niri session is running.
 NIRI_PKGS=(niri xwayland-satellite waybar dunst bemenu-wayland bemenu)
 mapfile -t NIRI_HAVE < <(pacman -Qq "${NIRI_PKGS[@]}" 2>/dev/null || true)
@@ -145,8 +170,8 @@ if [ ${#NIRI_HAVE[@]} -gt 0 ] && ! pgrep -x niri >/dev/null; then
 fi
 
 # ---------------------------------------------------------------- leftovers from AeroThemePlasma
-# the-script was a Windows 7-style KDE Plasma desktop (AeroThemePlasma) before GNOME, and is plain Plasma
-# now. A machine that never left the Windows 7 desktop loses its add-ons here; Plasma itself stays.
+# the-script was a Windows 7-style KDE Plasma desktop (AeroThemePlasma) before GNOME and plain Plasma.
+# A machine that never left the Windows 7 desktop loses its add-ons here; Plasma goes below.
 # aeroshell-libplasma-git stands in for libplasma, so libplasma replaces it (--ask=4: yes to the conflict).
 AERO_PKGS=(aeroshell-libplasma-git aeroshell-workspace-git aeroshell-kwin-components-git aeroshell-smod-git
 	aerothemeplasma-desktop-git aerothemeplasma-sounds-git aerothemeplasma-icons-git uac-polkit-agent-git
@@ -172,7 +197,6 @@ if [ ${#AERO_HAVE[@]} -gt 0 ]; then
 		&& [ "$(pacman -Q element-desktop | cut -d' ' -f2)" = "$(pacman -Si element-desktop 2>/dev/null | awk '/^Version/ {print $3}')" ]; then
 		sudo pacman -S --noconfirm element-desktop >/dev/null || warn "could not restore Element's icon"
 	fi
-	# Plasma's own look comes back at the next login (the-script-plasma).
 	kwriteconfig6 --file kdeglobals --group KDE --key DefaultLightLookAndFeel --delete 2>/dev/null || true
 	kwriteconfig6 --file kdeglobals --group KDE --key DefaultDarkLookAndFeel --delete 2>/dev/null || true
 	if printf '%s\n' "${AERO_HAVE[@]}" | grep -qx aeroshell-libplasma-git; then
@@ -185,10 +209,10 @@ if [ ${#AERO_HAVE[@]} -gt 0 ]; then
 fi
 
 # ---------------------------------------------------------------- leftovers from GNOME
-# the-script was GNOME before it went back to Plasma. Its scripts, extensions and the ThinkPad look are
+# the-script was GNOME for a few days between Plasma desktops. Its scripts, extensions and the ThinkPad look are
 # retired now (a running GNOME keeps what it loaded until you log out). Removing GNOME itself with GNOME
-# running would pull the session out from under you, so that waits for a run from Plasma:
-# the-script-plasma starts one at the first Plasma login. GNOME's own settings (dconf) stay, unused.
+# running would pull the session out from under you, so that waits for a run from LXQt:
+# the-script-lxqt starts one at the first LXQt login. GNOME's own settings (dconf) stay, unused.
 retire "$HOME/.local/bin/the-script-gnome" "$HOME/.config/autostart/the-script-gnome.desktop" \
 	"$HOME"/.local/share/gnome-shell/extensions/{todo,volume-percent}@the-script \
 	"$HOME/.local/share/dbus-1/services/org.gnome.Settings.service" \
@@ -211,7 +235,7 @@ GNOME_PKGS=(gnome-shell gdm gnome-control-center gnome-bluetooth-3.0 gnome-shell
 mapfile -t GNOME_HAVE < <(pacman -Qq "${GNOME_PKGS[@]}" 2>/dev/null || true)
 GNOME_PENDING="$HOME/.local/state/the-script-remove-gnome"
 if [ ${#GNOME_HAVE[@]} -gt 0 ] && pgrep -x gnome-shell >/dev/null; then
-	say "GNOME is running: it is removed after you log into Plasma"
+	say "GNOME is running: it is removed after you log into LXQt"
 	mkdir -p "${GNOME_PENDING%/*}" && touch "$GNOME_PENDING"
 elif [ ${#GNOME_HAVE[@]} -gt 0 ]; then
 	say "Removing GNOME"
@@ -225,6 +249,88 @@ elif [ ${#GNOME_HAVE[@]} -gt 0 ]; then
 	fi
 fi
 
+# ---------------------------------------------------------------- leftovers from KDE Plasma
+# the-script was KDE Plasma before LXQt. Its login script, taskbar widget and settings files go now (a
+# running Plasma keeps what it loaded until you log out). Plasma's own packages, SDDM and other desktops'
+# leftovers (openbox, the X server from the dwm days) are removed by a run with no Plasma running:
+# the-script-lxqt starts one at the first LXQt login. SDDM goes once it isn't the login screen in use
+# (after a restart into greetd). Settings of the removed apps in ~/.config stay, unused.
+retire "$HOME/.local/bin/the-script-plasma" "$HOME/.config/autostart/the-script-plasma.desktop" \
+	"$HOME/.local/share/plasma/plasmoids/local.todo" "$HOME/.local/share/plasma/plasmoids/local.niritodo" \
+	"$HOME"/.local/share/applications/{kdesystemsettings,org.kde.kwrite}.desktop \
+	"$HOME/.config/autostart/todo-lxqt.desktop" "$HOME/.icons/Adwaita-cursors"
+rm -f "$HOME"/.local/state/the-script-plasma-*
+# Plasma's GTK colors (gtk.css importing colors.css) would keep GTK apps in Breeze's.
+for f in "$HOME"/.config/gtk-{3,4}.0/gtk.css; do
+	grep -q 'colors.css' "$f" 2>/dev/null && retire "$f" "${f%/*}/colors.css"
+done
+
+KDE_PENDING="$HOME/.local/state/the-script-remove-kde"
+mapfile -t KDE_PKGS < <({ pacman -Qgq plasma kde-applications 2>/dev/null
+	printf '%s\n' plasma-desktop plasma-workspace kwin systemsettings plasma-nm plasma-pa plasma5support powerdevil \
+		power-profiles-daemon bluedevil kscreen breeze breeze-gtk breeze-cursors kde-gtk-config sddm-kcm \
+		xdg-desktop-portal-kde dolphin konsole kate gwenview spectacle kdialog openbox obconf-qt gnome-backgrounds \
+		xorg-server xorg-xinit xf86-video-amdgpu xf86-video-ati xf86-video-intel xf86-video-nouveau \
+		xf86-video-vesa xf86-video-fbdev xf86-input-libinput xf86-input-evdev
+	systemctl is-active -q sddm 2>/dev/null || echo sddm; } | sort -u | xargs -r pacman -Qq 2>/dev/null || true)
+if [ ${#KDE_PKGS[@]} -gt 0 ] && pgrep -x plasmashell >/dev/null; then
+	say "Plasma is running: it is removed after you log into LXQt"
+	mkdir -p "${KDE_PENDING%/*}" && touch "$KDE_PENDING"
+elif [ ${#KDE_PKGS[@]} -gt 0 ]; then
+	say "Removing Plasma, SDDM and other desktops' leftovers"
+	# What packages.txt lists stays even where Plasma pulled it in first.
+	mapfile -t keep < <(pacman -Qq $(listed packages.txt) 2>/dev/null || true)
+	[ ${#keep[@]} -eq 0 ] || sudo pacman -D -q --asexplicit "${keep[@]}" >/dev/null
+	# Only what nothing else installed still needs (LXQt's panel needs layer-shell-qt, from Plasma's group).
+	mapfile -t KDE_PKGS < <(python3 - "${KDE_PKGS[@]}" <<'EOF'
+import subprocess, sys
+cands = set(sys.argv[1:])
+info = subprocess.run(["pacman", "-Qi", *cands], capture_output=True, text=True).stdout
+req, name = {}, None
+for line in info.splitlines():
+    if line.startswith("Name"):
+        name = line.split(":", 1)[1].strip()
+    elif line.startswith("Required By") and name:
+        v = line.split(":", 1)[1].split()
+        req[name] = set() if v == ["None"] else set(v)
+while True:
+    drop = {p for p in cands if req.get(p, set()) - cands}
+    if not drop:
+        break
+    cands -= drop
+for p in sorted(cands):
+    print(p)
+EOF
+)
+	if [ ${#KDE_PKGS[@]} -gt 0 ]; then
+		if ! sudo pacman -Rs --noconfirm "${KDE_PKGS[@]}"; then
+			warn "could not remove Plasma; run: sudo pacman -Rs ${KDE_PKGS[*]}"
+			notify-send -u critical "the-script: Plasma was not removed" "Run: sudo pacman -Rs ${KDE_PKGS[*]}" 2>/dev/null || true
+		fi
+	fi
+	if ! pacman -Qq sddm >/dev/null 2>&1; then   # SDDM's files from the-script
+		sudo rm -f /etc/sddm.conf.d/{10-the-script,20-the-script-scale}.conf /usr/local/share/the-script/sddm-background.jpg \
+			/usr/share/sddm/themes/breeze/theme.conf.user
+		sudo rmdir -p --ignore-fail-on-non-empty /etc/sddm.conf.d /usr/share/sddm/themes/breeze 2>/dev/null || true
+	fi
+	# Done once SDDM (and the X server only it needed) is gone too; until then each LXQt login tries again.
+	if pacman -Qq sddm >/dev/null 2>&1; then touch "$KDE_PENDING"; else rm -f "$KDE_PENDING"; fi
+fi
+
+# With Plasma gone, its apps' settings and caches (and niri's, foot's, Kvantum's and GNOME Shell's)
+# move to the backup folder. KWin's screen settings stay: the-script-displays reads the scale from them.
+if ! pacman -Qq plasma-workspace >/dev/null 2>&1; then
+	retire "$HOME"/.config/{baloofilerc,dolphinrc,kaccessrc,kactivitymanagerdrc,kactivitymanagerd-statsrc,kate,kate-externaltoolspluginrc} \
+		"$HOME"/.config/{katerc,katevirc,kcminputrc,kconf_updaterc,KDE,kded5rc,kded6rc,kdedefaults,kdeglobals,kde-mimeapps.list} \
+		"$HOME"/.config/{kglobalshortcutsrc,konsolerc,konsolesshconfig,krunnerrc,kscreenlockerrc,ksmserverrc,ktimezonedrc} \
+		"$HOME"/.config/{kuriikwsfilterrc,kwalletrc,kwinrc,kwinrulesrc,plasma-localerc,plasmanotifyrc,plasmaparc,plasmashellrc} \
+		"$HOME"/.config/{powerdevilrc,spectaclerc,xsettingsd,session,Kvantum,niri,foot,kxkbrc,ksplashrc,gtkrc,gtkrc-2.0} \
+		"$HOME"/.config/plasma-*-appletsrc "$HOME/.gtkrc-2.0" \
+		"$HOME"/.local/share/{baloo,color-schemes,dolphin,kactivitymanagerd,kate,klipper,konsole,krunnerstaterc,kwalletd} \
+		"$HOME"/.local/share/{plasma,sddm,kxmlgui5,knewstuff3,gnome-shell,niri}
+	rm -rf "$HOME"/.cache/{plasma*,kwin,krunner*,ksycoca6*,ksvg-elements*,dolphin,konsole,kate,org.kde.*,kioexec,icon-cache.kcache}
+fi
+
 # foot was the terminal before Console and Konsole; its settings are retired. The package stays until you
 # remove it (sudo pacman -Rs foot), as a terminal may still be running in it.
 retire "$HOME/.config/foot/foot.ini"
@@ -235,8 +341,9 @@ while IFS= read -r -d '' f; do
 	place "$f" "$HOME/${f#home/}"
 done < <(find home -type f -print0)
 systemctl --user daemon-reload 2>/dev/null || true
-# The Adwaita cursors Plasma can list (~/.icons/Adwaita-cursors/index.theme says why).
-ln -sfn /usr/share/icons/Adwaita/cursors "$HOME/.icons/Adwaita-cursors/cursors"
+while IFS= read -r -d '' f; do
+	place_seed "$f" "$HOME/${f#seed/home/}"
+done < <(find seed/home -type f -print0)
 
 # The todo daemon outlives a logout, so a running one would keep the old code: restart it. The
 # autostart entry at the next login then finds it running. niri-todo is its name from niri-script.
@@ -250,43 +357,25 @@ done
 [ "$was_running" -eq 0 ] || systemd-run --user --collect -q "$HOME/.local/bin/todo" daemon \
 	|| warn "could not restart the todo daemon; run: todo daemon &"
 
-# ---------------------------------------------------------------- Plasma
-# The settings that need a running session (Breeze Dark, the todo widget on the taskbar) are in
-# the-script-plasma, run at every login.
+# ---------------------------------------------------------------- LXQt
+# The look (ClassicDark: the labwc window theme in ~/.local/share/themes, the panel theme in
+# ~/.local/share/lxqt/themes), the panel, keys and menus are files placed above. The panel and labwc are
+# rebuilt with the-script's patches (pkg/build-patched.sh); the-script-update rebuilds them again after
+# an Arch update replaces them.
+if [ "$DO_PACKAGES" -eq 1 ]; then
+	say "LXQt: the patched panel and window manager"
+	./pkg/build-patched.sh || warn "could not build the patched packages; run: $PWD/pkg/build-patched.sh"
+fi
 
 # Black hole wallpapers the-script set for a few minutes.
 rm -f "$HOME"/.local/share/wallpapers/{black-hole,nasa-black-hole}.png
 
-say "Plasma: settings and the login screen"
-if command -v plasmashell >/dev/null && pgrep -x plasmashell >/dev/null; then
-	"$HOME/.local/bin/the-script-plasma" || warn "could not apply the Plasma settings; they apply at the next login"
-fi
-# SDDM takes over at the next boot; a running session is left alone. --force replaces the
-# display-manager link another one (GDM) holds.
-if ! systemctl is-enabled -q sddm 2>/dev/null; then
-	sudo systemctl enable --force sddm || warn "could not enable SDDM; run: sudo systemctl enable --force sddm"
-fi
-# Its look: the Breeze theme with the-script's wallpaper and Plasma's colors (Breeze Dark), drawn at
-# the display scale (SDDM ignores Plasma's, so at 4K it was tiny), picked up again at the next update.
-sudo_place etc/sddm.conf.d/10-the-script.conf /etc/sddm.conf.d/10-the-script.conf
-sudo_place home/.local/share/wallpapers/the-script.jpg /usr/local/share/the-script/sddm-background.jpg
-sudo_place usr/share/sddm/themes/breeze/theme.conf.user /usr/share/sddm/themes/breeze/theme.conf.user
-if [ -f "$HOME/.config/kdeglobals" ] && ! sudo cmp -s "$HOME/.config/kdeglobals" /var/lib/sddm/.config/kdeglobals; then
-	sudo install -d -o sddm -g sddm /var/lib/sddm/.config \
-		&& sudo install -o sddm -g sddm -m644 "$HOME/.config/kdeglobals" /var/lib/sddm/.config/kdeglobals \
-		|| warn "could not give the login screen Plasma's colors"
-fi
-# The scale is KWin's for the main screen (the largest if there were several setups).
-sddm_scale=$(python3 -c 'import json, os, sys
-cfg = {s["name"]: s["data"] for s in json.load(open(os.path.expanduser("~/.config/kwinoutputconfig.json")))}
-s = max((cfg["outputs"][o["outputIndex"]].get("scale", 1) for setup in cfg["setups"] for o in setup["outputs"]
-         if o.get("enabled") and o.get("priority") == 1), default=1)
-s = round(s, 2)
-print(f"[General]\nGreeterEnvironment=QT_SCALE_FACTOR={s:g}\n\n[Theme]\nCursorSize={round(24 * s)}")' 2>/dev/null) || true
-if [ -n "$sddm_scale" ]; then
-	tmp="$(mktemp)"; printf '%s\n' "$sddm_scale" > "$tmp"
-	sudo_place "$tmp" /etc/sddm.conf.d/20-the-script-scale.conf
-	rm -f "$tmp"
+say "Login screen: greetd (a text login that starts LXQt)"
+sudo_place etc/greetd/config.toml /etc/greetd/config.toml
+# greetd takes over at the next boot; a running session is left alone. --force replaces the
+# display-manager link SDDM (or GDM) holds.
+if ! systemctl is-enabled -q greetd 2>/dev/null; then
+	sudo systemctl enable --force greetd || warn "could not enable greetd; run: sudo systemctl enable --force greetd"
 fi
 
 # ---------------------------------------------------------------- LibreWolf
@@ -457,7 +546,7 @@ if [ "$(cat /etc/hostname)" = arch-server ]; then
 else
 	say "Bedtime: computers off from 9:30 PM to 6:30 AM"
 	systemctl --user enable bedtime.service >/dev/null 2>&1 || warn "could not enable bedtime.service"
-	if [ "${XDG_CURRENT_DESKTOP:-}" = KDE ] || systemctl --user -q is-active graphical-session.target 2>/dev/null; then
+	if [ -n "${WAYLAND_DISPLAY:-}" ] || systemctl --user -q is-active graphical-session.target 2>/dev/null; then
 		systemctl --user restart bedtime.service || warn "could not start bedtime; run: systemctl --user restart bedtime"
 	fi
 fi
@@ -475,7 +564,7 @@ fi
 # locks its files while open), and at login. Nothing is blocked.
 say "History cleaner: porn sites removed from LibreWolf's history when it closes"
 systemctl --user enable history-cleaner.service >/dev/null 2>&1 || warn "could not enable history-cleaner.service"
-if [ "${XDG_CURRENT_DESKTOP:-}" = KDE ] || systemctl --user -q is-active graphical-session.target 2>/dev/null; then
+if [ -n "${WAYLAND_DISPLAY:-}" ] || systemctl --user -q is-active graphical-session.target 2>/dev/null; then
 	systemctl --user restart history-cleaner.service || warn "could not start history-cleaner; run: systemctl --user restart history-cleaner"
 fi
 
@@ -515,7 +604,7 @@ fi
 say "Steam overlay: follow the display scale"
 systemctl --user enable --now steam-overlay-scale.path \
 	|| warn "could not start steam-overlay-scale.path; after logging in run: systemctl --user enable --now steam-overlay-scale.path"
-if [ "${XDG_CURRENT_DESKTOP:-}" = KDE ]; then   # the scale can only be read inside the desktop
+if [ -n "${WAYLAND_DISPLAY:-}" ]; then   # the scale can only be read inside the desktop
 	"$HOME/.local/bin/steam-overlay-scale" || warn "could not patch Steam's overlay scale; run steam-overlay-scale to see why"
 fi
 
@@ -562,16 +651,17 @@ if [ ${#REPLACED[@]} -gt 0 ]; then
 	printf '  ~/%s\n' "${REPLACED[@]}" >&2
 fi
 # Installed by the-script-update from an older desktop: say that a restart switches over.
-if { [ "$MIGRATED" -eq 1 ] || [ "$AERO" -eq 1 ] || [ -e "$GNOME_PENDING" ]; } && [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
-	notify-send -u critical "the-script is installed" "Restart to switch to KDE Plasma." 2>/dev/null || true
+if { [ "$MIGRATED" -eq 1 ] || [ "$AERO" -eq 1 ] || [ -e "$GNOME_PENDING" ] || [ -e "$KDE_PENDING" ]; } \
+	&& [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
+	notify-send -u critical "the-script is installed" "Restart to switch to LXQt." 2>/dev/null || true
 fi
 cat <<EOF
 
 Next steps:
-  1. Restart. SDDM comes up; log in and you are in KDE Plasma. Coming from GNOME, the first login
-     also removes GNOME in the background (a notification says if it fails).
-  2. Meta opens the launcher, Meta+T the to-do list. See README.md.
+  1. Restart. A text login (greetd) comes up; type your password and you are in LXQt. Coming from
+     Plasma, the first login also removes Plasma in the background (a notification says if it fails).
+  2. Super opens the Start menu (type to search), Super+T the to-do list. See README.md.
   3. NVIDIA card? Install the driver yourself first (e.g. 'sudo pacman -S nvidia-open'),
      since the right package depends on your GPU and kernel. It is not part of this repo.
-  4. Display too big/small? System Settings > Display & Monitor > Scale.
+  4. Display scale: the-script-displays keeps what Plasma had; to change it, see README.md.
 EOF

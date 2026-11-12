@@ -1,0 +1,7 @@
+# Started by labwc's autostart at each LXQt login. LXQt doesn't start graphical-session.target itself,
+# and bedtime and history-cleaner wait for it.
+[Unit]
+Description=the-script: LXQt session is up
+BindsTo=graphical-session.target
+Wants=graphical-session-pre.target
+After=graphical-session-pre.target

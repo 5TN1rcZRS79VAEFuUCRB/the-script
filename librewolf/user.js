@@ -1,13 +1,14 @@
 // LibreWolf is Firefox with privacy defaults; this file is applied on top of them.
 
-// Follow the desktop's light/dark setting everywhere, including the home page. LibreWolf reads it
-// from the xdg-desktop-portal, which reports GNOME's style (dark, set by the-script-gnome).
-user_pref("browser.theme.toolbar-theme", 2);
-user_pref("browser.theme.content-theme", 2);
-user_pref("layout.css.prefers-color-scheme.content-override", 2);
-// Tabs in the title bar, like other GNOME apps (the Windows 7 desktop had them under its own title bar).
+// Dark everywhere, including the home page and sites that have a dark theme (LXQt doesn't report a
+// light/dark setting to apps, so "follow the system" would mean light).
+user_pref("browser.theme.toolbar-theme", 0);
+user_pref("browser.theme.content-theme", 0);
+user_pref("layout.css.prefers-color-scheme.content-override", 0);
+// Tabs in the title bar where the desktop draws none; in LXQt, labwc's title bar is used instead
+// (MOZ_GTK_TITLEBAR_DECORATION=none in its session settings).
 user_pref("browser.tabs.inTitlebar", 1);
-// Scaling comes from GNOME's per-monitor scale (Settings > Displays). Do not also set
+// Scaling comes from the screen's scale (the-script-displays). Do not also set
 // layout.css.devPixelsPerPx here -- Firefox multiplies the two (2.25x).
 user_pref("layout.css.devPixelsPerPx", "-1.0");
 

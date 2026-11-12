@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+#
+# the-script-lxqt: run at every LXQt login (~/.config/autostart/the-script-lxqt.desktop).
+#
+#   - your Firefox profile copied into LibreWolf, if install.sh could not do it with a browser open
+#   - once, on machines coming from Plasma (or GNOME): the installer runs again now that it isn't
+#     running, to remove it (SDDM goes once the login screen in use is greetd)
+
+set -uo pipefail
+STATE="$HOME/.local/state"
+
+[ -e "$STATE/the-script-librewolf-import-pending" ] && "$HOME/.local/bin/librewolf-import-firefox"
+
+# install.sh leaves Plasma (or GNOME) installed while its session runs. Clearing the installed commit
+# makes the updater run it again now, and that run removes it.
+if { [ -e "$STATE/the-script-remove-kde" ] && ! pgrep -x plasmashell >/dev/null; } \
+	|| { [ -e "$STATE/the-script-remove-gnome" ] && ! pgrep -x gnome-shell >/dev/null; }; then
+	rm -f "$STATE/the-script-installed"
+	systemctl --user start --no-block the-script-update.service
+fi

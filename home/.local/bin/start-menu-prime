@@ -15,11 +15,13 @@ def run(*a):
     return subprocess.run(a, capture_output=True, text=True)
 
 
-# Wait up to 20 s for the panel's menu.
+# Wait up to 20 s for the panel's menu. No panel (hidden, or it didn't start): nothing to click.
 for _ in range(40):
     if "/panel/mainmenu" in run("qdbus6", "org.kde.StatusNotifierWatcher").stdout:
         break
     time.sleep(0.5)
+else:
+    raise SystemExit
 time.sleep(1)
 
 # The panel's screen: the one at the bottom-left of the layout (logical size = pixels / scale).

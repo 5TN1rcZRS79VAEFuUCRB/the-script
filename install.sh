@@ -332,7 +332,7 @@ retire "$HOME/.config/qt6ct"
 grep -q 'the-script' "$HOME/.config/foot/foot.ini" 2>/dev/null && retire "$HOME/.config/foot/foot.ini"
 HYPR_PENDING="$HOME/.local/state/the-script-remove-hyprland"
 mapfile -t HYPR_PKGS < <(pacman -Qq hyprland hyprland-guiutils hyprpm noctalia quickshell xdg-desktop-portal-hyprland \
-	hyprpolkitagent hypridle hyprlock mako greetd greetd-tuigreet foot thunar mousepad imv pavucontrol qt6ct \
+	hyprpolkitagent hypridle hyprlock mako greetd greetd-tuigreet greetd-agreety foot thunar mousepad imv pavucontrol qt6ct \
 	wlr-randr grim slurp xorg-xrandr xorg-xdpyinfo 2>/dev/null || true)
 if [ ${#HYPR_PKGS[@]} -gt 0 ] && pgrep -x Hyprland >/dev/null; then
 	say "Hyprland is running: it is removed after you log into GNOME"

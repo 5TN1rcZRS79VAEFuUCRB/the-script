@@ -14,6 +14,9 @@ end = ["todo", "media", "tray", "notifications", "clipboard", "network", "blueto
 left = "exec qs ipc call overview toggle"
 right = "panel-toggle launcher"
 
+[widget.clock]
+format = "{:%a %b %-d  %-I:%M %p}"
+
 [widget.todo]
 type = "the-script/todo:bar"
 

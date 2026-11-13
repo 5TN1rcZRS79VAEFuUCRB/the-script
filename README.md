@@ -26,8 +26,10 @@ Why GNOME after all: its window handling (title bars, snapping, the overview, Al
 setup kept rebuilding by hand. What made games bad on it before was the display scale: at 125% or 150%,
 X11 games (everything through Proton) get a made-up screen (3072x1920 on a 1920x1200 laptop, about 5K on
 a 4K monitor) that GNOME then shrinks. Stock GNOME 51 still does that at fractional scales; the-script
-uses fractional scales anyway (125% laptop and 1440p, 150% 4K) and is getting a patched mutter that
-gives X11 games the real pixels there, the way KDE does. Variable refresh rate is on by default since GNOME 50. GNOME
+uses fractional scales anyway (125% laptop and 1440p, 150% 4K) with a patched mutter
+(`pkg/mutter`, built by `pkg/build-patched.sh`) that gives X11 games the real pixels there, the way
+KDE does: at 150% on 4K a game sees 3840x2160. After an Arch update brings a stock mutter, the-script-update
+builds the patched one again within minutes. Variable refresh rate is on by default since GNOME 50. GNOME
 still can't let a game tear (turn vsync off in a game for the lowest latency it can get).
 
 ### Options

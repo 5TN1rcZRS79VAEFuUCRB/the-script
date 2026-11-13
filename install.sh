@@ -401,6 +401,14 @@ sudo udevadm control --reload && sudo udevadm trigger --subsystem-match=hidraw \
 gdbus call --session -d org.freedesktop.DBus -o /org/freedesktop/DBus -m org.freedesktop.DBus.ReloadConfig \
 	>/dev/null 2>&1 || true
 
+# GNOME's compositor (mutter) patched so X11 apps and games through Proton get the screen's real pixels
+# at 125% and 150%, not a bigger made-up screen that is then shrunk (pkg/mutter). the-script-update
+# rebuilds it after an Arch update replaces it with the stock one.
+if [ "$DO_PACKAGES" -eq 1 ]; then
+	say "GNOME: the patched mutter, for games at fractional scales (about 10 minutes when it builds)"
+	./pkg/build-patched.sh || warn "could not build the patched mutter; run: $PWD/pkg/build-patched.sh"
+fi
+
 # The login screen. GDM takes over at the next boot; a running session is left alone. --force replaces
 # the display-manager link another one (greetd, SDDM) holds.
 say "Login screen: GDM"

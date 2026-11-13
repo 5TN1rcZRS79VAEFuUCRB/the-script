@@ -1,10 +1,10 @@
 # the-script
 
-A one-command setup for my Arch Linux desktop: the Hyprland window manager (Wayland) with no desktop
-environment: Noctalia as the bar and shell, plus its own Super overview built in Quickshell, set up like
-GNOME without the dock, workspaces or app grid: every window maximized, tap Super to search and see all
-open windows, Alt+Tab to switch. Dark, good for games (sharp at any display scale, variable refresh rate and
-tearing on desktops), with a to-do list for school on the bar, and LibreWolf/KeePassXC/Syncthing/Tailscale/printing set up. Desktop only: nothing from the media server is in here.
+A one-command setup for my Arch Linux desktop: GNOME, kept plain (one workspace, no dash or app grid),
+dark, and set up so games see the screen's real resolution. Title bars with just the close button, drag
+a window to the top edge to maximize it or to a side for half the screen, tap Super to search and see
+every open window, Alt+Tab to switch windows. A to-do list for school on the top bar, and
+LibreWolf/KeePassXC/Syncthing/Tailscale/printing set up. Desktop only: nothing from the media server is in here.
 
 ## Quick start
 
@@ -17,24 +17,18 @@ cd the-script
 ./install.sh
 ```
 
-Then log out or restart: a text login (greetd with tuigreet) comes up on the first console. It
-remembers the last user, so you just type your password, and Hyprland starts. On a machine that had
-LXQt or Plasma (or GNOME), the first Hyprland login also removes it in the background (a notification
-says if it fails); coming from Plasma, the one after the next restart removes SDDM, its login screen.
-niri and AeroThemePlasma leftovers from earlier versions of this repo go too.
+Then restart: GDM, GNOME's login screen, comes up. On a machine that had Hyprland, LXQt or Plasma, the
+first GNOME login also removes it in the background (a notification says if it fails); coming from
+Plasma, the one after the next restart removes SDDM, its login screen. niri and AeroThemePlasma
+leftovers from earlier versions of this repo go too.
 
-Why greetd and not SDDM or LightDM: SDDM is KDE's and pulls in an X server for its own screen, and
-LightDM's greeters are X11 programs as well. greetd is a small login daemon that just starts the
-Wayland session, with no X server and nothing to theme.
-
-Why Hyprland, Noctalia and a home-made overview instead of a desktop: GNOME's layout (bar on top, Super to search
-and see every window) without its dock, workspaces and app grid, and without its weak spots for games
-on Wayland (fractional scaling of X11 games, no tearing). Hyprland renders X11 games at the screen's
-real resolution (`xwayland.force_zero_scaling`) and lets fullscreen games tear and use VRR. Its config
-is Lua, so the "everything maximized" layout is a few lines in `hyprland.lua`. Ready-made shells for
-it either show windows by workspace or stack them where they really are, which with maximized windows
-means one on top of the other, so the overview here lays them out side by side like GNOME's. Noctalia
-(a native shell, not Quickshell) does the rest: the bar, notifications, lock screen, idle and Alt+Tab.
+Why GNOME after all: its window handling (title bars, snapping, the overview, Alt+Tab) is what this
+setup kept rebuilding by hand. What made games bad on it before was the display scale: at 125% or 150%,
+X11 games (everything through Proton) get a made-up screen (3072x1920 on a 1920x1200 laptop, about 5K on
+a 4K monitor) that GNOME then shrinks. GNOME 51 still does that at fractional scales, but at whole ones
+(100%, 200%) X11 games see the screen's real pixels. So the-script uses 100% with Large Text (text at
+125%) on a laptop and 200% on a 4K monitor. Variable refresh rate is on by default since GNOME 50. GNOME
+still can't let a game tear (turn vsync off in a game for the lowest latency it can get).
 
 ### Options
 
@@ -46,32 +40,23 @@ means one on top of the other, so the overview here lays them out side by side l
 Re-running the installer is safe. Anything it would overwrite is copied to
 `~/.desktop-backup/<timestamp>/` first.
 
-Screens are set up at each login (and when one is plugged in) by `the-script-displays`: every screen
-at its largest resolution and fastest refresh rate, at the scale and position Plasma last used
-(`~/.config/kwinoutputconfig.json`), or on a new machine 150% at 4K, 125% on a laptop's own screen and
-100% otherwise. It writes them to `~/.config/hypr/monitors.lua`. To keep a different scale, add a line
-like `hl.monitor({ output = "DP-1", mode = "highrr", position = "auto", scale = 1.25 })` to
-`~/.config/hypr/local.lua` (yours, loaded last; `hyprctl monitors` lists the names). On a desktop (no
-battery) variable refresh rate (G-SYNC/FreeSync), tearing and direct scanout are on for fullscreen
-games; the laptop leaves them off. X11 apps aren't scaled by Hyprland, so games stay sharp; Steam
-scales its own window to match (`STEAM_FORCE_DESKTOPUI_SCALING`).
+Display scale: the-script-gnome sets it once per machine, on the first GNOME login: a fractional scale
+GNOME picked by itself becomes 100% (below 150%) or 200%, and a laptop gets Large Text. Change either in
+Settings > Displays and Settings > Accessibility; a fractional scale there brings back the made-up
+screen for games.
 
 ## What gets installed
 
 | Piece | Where it goes |
 | --- | --- |
-| Hyprland, Noctalia (the bar, notifications, lock screen, idle, wallpaper, volume/brightness popups, password prompts, Alt+Tab), Quickshell (the Super overview), foot (terminal), Thunar (files), Mousepad (text), imv (images), pavucontrol | packages (`packages.txt`) |
-| Hyprland's settings: keys, window rules, the "maxi" layout (every window maximized under the bar, the focused one on top; Super+Left/Right put one on half the screen), square corners, no gaps or blur, VRR/tearing on desktops | `~/.config/hypr/hyprland.lua` (saving it applies it); your own additions in `~/.config/hypr/local.lua` |
-| Noctalia, with its own look (change it in its Settings window, from the bar's control center): the bar, edge to edge, with only the launcher button (click: the overview; right-click: Noctalia's launcher), the window's title, the date and 12-hour time, the to-do count, tray, network, volume, battery and the control center (notifications, Bluetooth, brightness, media, power); no workspaces. Idle: locked after 10 minutes, screens off 30 seconds later, locked before sleep; a fullscreen game or video keeps the screen on. Settings window changes go to `~/.local/state/noctalia/settings.toml` and win over the-script's file | `~/.config/noctalia/the-script.toml` (saving it applies it) |
-| The to-do count on the bar (due today · due this week, or a focus session's countdown): a Noctalia plugin. Click it, or Super+T, for the list in Noctalia's launcher (`todo-pick`) | `~/.local/share/the-script-plugins/todo/`, `~/.local/bin/todo-pick` |
-| The overview (tap Super, or click the launcher button): the wallpaper dimmed, a search box and every open window side by side, live. Type to find apps and windows; Enter opens the first (or the one picked with the arrow keys/Tab); click a window to go to it, or its x (or middle-click) to close it; it takes its colors from Noctalia's theme | `~/.config/quickshell/OverviewWindow.qml` |
-| Alt+Tab (Alt+Shift+Tab backwards): Noctalia's window switcher, most recently used first; let go of Alt to switch | the Alt+Tab binds in `hyprland.lua`, `[shell.window_switcher]` in Noctalia's config |
-| The rest of the look: square windows, Adwaita icons, cursor and font; GTK apps dark (Adwaita-dark), Qt apps dark (Fusion via qt6ct); foot at size 13 | `~/.config/gtk-{3,4}.0/settings.ini`, `~/.config/qt6ct/`, `~/.config/foot/foot.ini` |
-| `the-script-session`, at every Hyprland login: the screens, then Noctalia, the overview, the to-do daemon, the services that wait for a desktop session (bedtime, history-cleaner) and `the-script-login` (copies your Firefox profile into LibreWolf if that had to wait, and once, removes the desktop this machine had before) | `~/.local/bin/the-script-session`, `the-script-login` |
+| GNOME (top bar, Super overview, title bars, snapping), GDM (login screen), Settings, Console (terminal), Files, Text Editor, Image Viewer, the AppIndicator extension (tray icons for Steam, Discord, Syncthing, KeePassXC) | packages (`packages.txt`) |
+| `the-script-gnome`, at every login: dark style and the wallpaper (first login only), one workspace, new windows centered, title bars with just the close button, Alt+Tab through windows (Super+Tab through apps), Super+Enter a terminal and Super+B the browser, the display scale for games (first login only, see above), Steam's overlay scale, and once, removes the desktop this machine had before | `~/.local/bin/the-script-gnome`, `~/.config/autostart/the-script-gnome.desktop` |
+| The plain overview: Super shows the search box and every open window; the dash (dock) and its app grid button are hidden, and with one workspace there is no workspace strip. Type to search apps, files and settings | `~/.local/share/gnome-shell/extensions/plain@the-script/` (turn it off in the Extensions app for the dash) |
+| The to-do button on the top bar (next assignment, points and streak, or a focus session's countdown); click it or press Super+T for the list | `~/.local/share/gnome-shell/extensions/todo@the-script/`, `~/.local/bin/todo-bar` |
+| The volume as a percentage next to the speaker icon, and percentages in the volume and brightness popups | `~/.local/share/gnome-shell/extensions/volume-percent@the-script/` |
 | Wallpaper: star trails over La Hague lighthouse at sunset, by Antoine Lamielle ([Wikimedia Commons](https://commons.wikimedia.org/wiki/File:2017-04_Circumpolar_trails_sunset_at_La_Hague_lighthouse.jpg), CC BY-SA 4.0), cropped to 3840x2160 | `~/.local/share/wallpapers/the-script.jpg` |
-| The login screen: greetd running tuigreet on the first console (time shown, last user remembered), which starts Hyprland (`start-hyprland`) through a login shell, so `~/.bash_profile` puts `~/.local/bin` on PATH. Hyprland's output goes to `~/.cache/hyprland-session.log` | `systemctl enable greetd`, `/etc/greetd/config.toml`, `/etc/greetd/session` (needs sudo) |
 | `mouse-dpi`: measures a mouse's real DPI as you slide it 10 cm along a ruler, next to the DPI it is set to (read from a Razer or Endgame Gear mouse), to compare two mice set alike (needs sudo to read the mouse) | `~/.local/bin/mouse-dpi` |
-| School assignments and to-dos on the bar (`todo`, shown by the Noctalia plugin above) | `~/.local/bin/todo` |
+| School assignments and to-dos on the top bar (`todo`, shown by the to-do extension above) | `~/.local/bin/todo`, `~/.config/autostart/todo.desktop` |
 | LibreWolf (Firefox with privacy defaults) settings: dark everywhere, tabs in the title bar, no AI or sponsored content, fingerprinting protection that still lets sites see dark mode, and cookies kept when it closes so you stay logged in (`user.js`) | your LibreWolf profile directory |
 | Your Firefox profile (bookmarks, history, site logins, open tabs, extensions) copied into LibreWolf once, by `librewolf-import-firefox`; if a browser is open, at the next login instead. The LibreWolf profile it replaces goes to the backup folder. Firefox stays installed until you remove it (`sudo pacman -Rs firefox`) | `~/.config/librewolf/librewolf/` |
 | LibreWolf as the default browser, so links from other programs open there | `~/.config/mimeapps.list` |
@@ -82,10 +67,10 @@ scales its own window to match (`STEAM_FORCE_DESKTOPUI_SCALING`).
 | `.local` hostnames over mDNS (`ssh user@machine.local`): Avahi enabled, `mdns_minimal` added to the `hosts:` line | `/etc/nsswitch.conf` (needs sudo) |
 | Printing: CUPS with the HP DeskJet 2800 as the default printer (driverless, reached as `HP28C5C8E2CA90.local`; added once it is on) and the Canon MX920 (Gutenprint driver, since its own driverless mode fails, reached as `488E78000000.local`) | CUPS, `systemctl enable cups` (needs sudo) |
 | Syncthing (keeps the KeePassXC database in sync), started now and at every login | `systemctl --user enable syncthing`. Pair devices and share the folder yourself at http://127.0.0.1:8384; keys are never in this repo |
-| Auto-update: every 5 minutes `the-script-update.timer` pulls this clone and, on a new commit, re-runs `install.sh`. "Update the-script" in the launcher does the same check right away. Failures show a notification (`journalctl --user -u the-script-update`). Needs passwordless sudo, which the installer sets up: anything running as you, and anyone who can push here, gets root | `~/.local/share/applications/the-script-update.desktop`, `~/.local/share/the-script` (link to the clone), `/etc/sudoers.d/10-the-script` (undo: delete it and `systemctl --user disable --now the-script-update.timer`) |
+| Auto-update: every 5 minutes `the-script-update.timer` pulls this clone and, on a new commit, re-runs `install.sh`. "Update the-script" (search for it in the overview) does the same check right away. Failures show a notification (`journalctl --user -u the-script-update`). Needs passwordless sudo, which the installer sets up: anything running as you, and anyone who can push here, gets root | `~/.local/share/applications/the-script-update.desktop`, `~/.local/share/the-script` (link to the clone), `/etc/sudoers.d/10-the-script` (undo: delete it and `systemctl --user disable --now the-script-update.timer`) |
 | Steam's in-game overlay follows the display scale (below) | `~/.local/bin/steam-overlay-scale`, `steam-overlay-scale.path` |
-| Bedtime (started with the session through `the-script-session.target`, which `the-script-session` starts): the computer is off from 9:30 PM to 6:30 AM every day (an hour without screens before a 10:30 PM bedtime). Warnings 15, 5 and 1 minute before, then it shuts down; turned on before 6:30 AM it shuts down again after a minute's warning. Not on arch-server | `~/.local/bin/bedtime`, `bedtime.service` |
-| `screenshot [file.png]`: saves a screenshot of the whole screen with no dialog (grim) | `~/.local/bin/` |
+| Bedtime (started with the GNOME session): the computer is off from 9:30 PM to 6:30 AM every day (an hour without screens before a 10:30 PM bedtime). Warnings 15, 5 and 1 minute before, then it shuts down; turned on before 6:30 AM it shuts down again after a minute's warning. Not on arch-server | `~/.local/bin/bedtime`, `bedtime.service` |
+| `screenshot [file.png]`: saves a screenshot of the whole screen with no dialog (through the desktop portal, which the-script-gnome allows) | `~/.local/bin/` |
 | cc-bench: finds which Claude Code model and effort work best for you (only where Claude Code is installed; see below) | `~/.local/bin/ccb`, `~/.local/bin/ccbench`, `cc-bench.timer`, the status line and a SessionStart hook in `~/.claude/settings.json` |
 | `discord-compress video.mp4 [MB]`: re-encodes a video under Discord's upload limit (10 MB by default) | `~/.local/bin/` |
 | git commit name and email (GitHub noreply address) | `~/.gitconfig` (only `user.name` and `user.email`) |
@@ -93,21 +78,19 @@ scales its own window to match (`STEAM_FORCE_DESKTOPUI_SCALING`).
 
 ## Keys
 
-Hyprland's keys are in `~/.config/hypr/hyprland.lua` (saving it applies it). The ones worth knowing:
+GNOME's own keys, plus a few from the-script-gnome (Settings > Keyboard > Keyboard Shortcuts lists them all):
 
 | Action | Keys |
 | --- | --- |
-| Overview: search apps and windows, see every open window | tap `Super` (also `Super+Space`, `Super+A`, or click the launcher button at the top left) |
-| Switch windows | `Alt+Tab`, `Alt+Shift+Tab` (hold Alt, let go to switch) |
-| To-do list | `Super+T`, or click its button on the bar |
-| Close a window | `Super+Q` or `Alt+F4` |
-| Put a window on the left/right half; maximize it again | `Super+Left`, `Super+Right`; `Super+Up` |
-| Float a window (or put it back) | `Super+V` or `Super+Down`; move/resize with `Super` + left/right mouse drag |
-| Fullscreen | `Super+F` |
+| Overview: search apps, files and settings, see every open window | tap `Super` |
+| Switch windows | `Alt+Tab`, `Alt+Shift+Tab` (hold Alt, let go to switch); `Super+Tab` switches apps |
+| To-do list | `Super+T`, or click its button on the top bar |
+| Close a window | its ×, or `Alt+F4` |
+| Maximize, left half, right half | drag the title bar to the top edge, left edge or right edge; or `Super+Up`, `Super+Left`, `Super+Right` (`Super+Down` restores). Double-click a title bar to maximize or restore |
+| Move a window | drag its title bar, or `Super` + drag anywhere in it |
 | Terminal, files, browser | `Super+Enter`, `Super+E`, `Super+B` |
-| Lock the screen | `Super+L` (also before sleep, and after 10 minutes idle) |
-| Screenshot | `Print` the whole screen, `Super+Shift+S` an area (Noctalia's) |
-| Volume, brightness, media | their keys; Noctalia shows the volume and brightness |
+| Lock the screen | `Super+L` |
+| Screenshot | `Print` (GNOME's screenshot tool: area, window or screen) |
 
 ## School assignments and to-dos
 
@@ -203,17 +186,19 @@ your plan it used.
 
 The installer copies files *from* this repo *to* your home directory. To keep the repo current
 after changing your live setup, copy the changed file back into the matching path under
-`home/` or `librewolf/` and commit it. Your own Hyprland additions belong in `~/.config/hypr/local.lua`,
-which the-script never touches. Noctalia applies `~/.config/noctalia/*.toml` as soon as it is saved, and Quickshell reloads the
-overview when a `.qml` file is saved.
+`home/` or `librewolf/` and commit it. GNOME's settings live in its settings database, not in files:
+the ones the-script cares about are set by `the-script-gnome`. Changes to an extension apply after
+logging out and back in.
 
 History: commit `a8ea1cd` is the last dwm version of this setup, and the repo was `niri-script` (the
 niri window manager) before it became `the-script`. Installing the-script over niri-script retires
 the niri helper scripts and services into the backup folder; niri's own settings in `~/.config` are
 left in place, unused. After that it was a Windows 7-style Plasma desktop (AeroThemePlasma), then plain
 GNOME for a few days (from `cf21cfb`), then plain Plasma, then LXQt on labwc (a classic Windows
-2000-style look, `6b3af9a` to `433eff4`), then Hyprland with its own Quickshell bar (`34882ed`), and now Hyprland with Noctalia. The to-do data folder keeps its old name, `~/.local/share/dwm-todo`, because
-Syncthing points at it on every machine.
+2000-style look, `6b3af9a` to `433eff4`), then Hyprland with its own Quickshell bar (`34882ed`), then
+Hyprland with Noctalia (`e56405c` to `4e66e73`), and now GNOME again, plain and set up for games. The
+to-do data folder keeps its old name, `~/.local/share/dwm-todo`, because Syncthing points at it on every
+machine.
 
 ## License
 

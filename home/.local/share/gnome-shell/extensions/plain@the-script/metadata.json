@@ -1,0 +1,7 @@
+{
+  "uuid": "plain@the-script",
+  "name": "Plain overview",
+  "description": "The overview without the dash, the app grid button or the workspace strip: Super, type to search, and every open window",
+  "shell-version": ["49", "50", "51", "52", "53"],
+  "version": 1
+}

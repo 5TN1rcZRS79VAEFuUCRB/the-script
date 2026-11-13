@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+#
+# the-script-gnome: GNOME settings, run by install.sh and at every login
+# (~/.config/autostart/the-script-gnome.desktop). Each step checks first, so a run where everything is
+# in place changes nothing.
+#
+#   - dark style, the-script's wallpaper (first run only, so your own choices stay)
+#   - plain GNOME without the parts you don't use: one workspace, no dash or app grid in the overview
+#     (the plain@the-script extension); Super still opens the overview, type to search
+#   - Alt+Tab switches windows (not apps), new windows open centered, title bars with just the close
+#     button, drag a window to the top edge to maximize it or to a side for half the screen
+#   - the AppIndicator extension (tray icons for Steam, Discord, Syncthing, KeePassXC), the to-do
+#     extension and the volume and brightness percentages extension turned on
+#   - the display scale for games: X11 games (everything through Proton) only see the screen's real
+#     pixels at a whole-number scale (100%, 200%), so a laptop gets 100% with Large Text (text at 125%)
+#     instead of 125% (first run only; Settings > Displays and Accessibility change it)
+#   - the volume keys in 5% steps; screenshots through the portal without a dialog (screenshot)
+#   - Steam's overlay follows the display scale (steam-overlay-scale)
+#   - your Firefox profile copied into LibreWolf, if install.sh could not do it with a browser open
+#   - once, on machines coming from Hyprland, LXQt or Plasma: the installer runs again now that the old
+#     desktop isn't running, to remove it
+
+set -uo pipefail
+
+STATE="$HOME/.local/state"
+FIRST="$STATE/the-script-gnome-setup"
+EXTENSIONS=(appindicatorsupport@rgcjonas.gmail.com plain@the-script todo@the-script volume-percent@the-script)
+
+# gsettings without a session bus writes to memory and drops it.
+[ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ] || { echo "the-script-gnome: no session bus; settings not applied" >&2; exit 1; }
+gsettings list-schemas | grep -qx org.gnome.shell || { echo "the-script-gnome: GNOME Shell is not installed" >&2; exit 1; }
+
+# Adds items to a string-list setting, keeping what is there.
+add_to_list() { # schema key items...
+	local schema=$1 key=$2; shift 2
+	local new
+	new=$(python3 -c 'import ast, sys
+cur = ast.literal_eval(sys.argv[1].removeprefix("@as "))
+add = [i for i in sys.argv[2:] if i not in cur]
+print(repr(cur + add) if add else "")' "$(gsettings get "$schema" "$key")" "$@")
+	[ -z "$new" ] || gsettings set "$schema" "$key" "$new"
+}
+# Sets a key only if it differs (gsettings set always notifies GNOME, which can redraw things).
+put() { # schema key value
+	[ "$(gsettings get "$1" "$2")" = "$3" ] || gsettings set "$1" "$2" "$3"
+}
+
+if [ ! -e "$FIRST" ]; then
+	gsettings set org.gnome.desktop.interface color-scheme prefer-dark
+	bg="file://$HOME/.local/share/wallpapers/the-script.jpg"
+	if [ -e "${bg#file://}" ]; then
+		for k in "background picture-uri" "background picture-uri-dark" "screensaver picture-uri"; do
+			gsettings set org.gnome.desktop.${k% *} ${k#* } "$bg"
+		done
+	fi
+	# Laptops (a battery): 100% with Large Text.
+	if compgen -G '/sys/class/power_supply/BAT*' >/dev/null; then
+		gsettings set org.gnome.desktop.interface text-scaling-factor 1.25
+	fi
+	# A fractional scale GNOME picked by itself (no ~/.config/monitors.xml yet) becomes a whole one:
+	# under 150% → 100%, else 200% (a 4K monitor). Saved, so GNOME keeps it.
+	[ -e "$HOME/.config/monitors.xml" ] || python3 - <<-'EOF' || echo "the-script-gnome: display scale left as is" >&2
+	from gi.repository import Gio, GLib
+	bus = Gio.bus_get_sync(Gio.BusType.SESSION)
+	call = lambda m, args=None: bus.call_sync("org.gnome.Mutter.DisplayConfig", "/org/gnome/Mutter/DisplayConfig",
+	    "org.gnome.Mutter.DisplayConfig", m, args, None, Gio.DBusCallFlags.NONE, -1, None).unpack()
+	serial, monitors, logical, props = call("GetCurrentState")
+	if all(float(lm[2]).is_integer() for lm in logical):
+	    raise SystemExit(0)
+	current = {}   # connector -> current mode id
+	for (conn, *_), modes, _p in monitors:
+	    for m in modes:
+	        if m[6].get("is-current"):
+	            current[conn] = m[0]
+	new = []
+	for x, y, scale, transform, primary, mons, _p in logical:
+	    s = 1.0 if scale < 1.5 else 2.0
+	    new.append((int(x / scale * s) if x else 0, int(y / scale * s) if y else 0, s, transform, primary,
+	                [(m[0], current[m[0]], {}) for m in mons]))
+	call("ApplyMonitorsConfig", GLib.Variant("(uua(iiduba(ssa{sv}))a{sv})", (serial, 2, new, {})))
+	EOF
+	mkdir -p "$STATE" && touch "$FIRST"
+fi
+
+gsettings set org.gnome.shell disable-user-extensions false
+add_to_list org.gnome.shell enabled-extensions "${EXTENSIONS[@]}"
+
+# One workspace (the overview then has no workspace strip), new windows centered.
+put org.gnome.mutter dynamic-workspaces false
+put org.gnome.desktop.wm.preferences num-workspaces 1
+put org.gnome.mutter center-new-windows true
+put org.gnome.mutter edge-tiling true
+put org.gnome.desktop.wm.preferences button-layout "'appmenu:close'"
+# Alt+Tab goes through windows, the way the overview shows them; Super+Tab stays apps.
+put org.gnome.desktop.wm.keybindings switch-windows "['<Alt>Tab']"
+put org.gnome.desktop.wm.keybindings switch-windows-backward "['<Shift><Alt>Tab']"
+put org.gnome.desktop.wm.keybindings switch-applications "['<Super>Tab']"
+put org.gnome.desktop.wm.keybindings switch-applications-backward "['<Shift><Super>Tab']"
+# Super+1..9 would open the dash's apps, which aren't shown.
+for i in 1 2 3 4 5 6 7 8 9; do put org.gnome.shell.keybindings switch-to-application-$i "@as []"; done
+
+# Super+Enter a terminal, Super+B the browser (Super+E opens Files in GNOME already).
+custom() { # slot name command binding
+	local path=/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/$1/
+	local schema=org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$path
+	put "$schema" name "'$2'"; put "$schema" command "'$3'"; put "$schema" binding "'$4'"
+	add_to_list org.gnome.settings-daemon.plugins.media-keys custom-keybindings "$path"
+}
+custom the-script-terminal Terminal kgx '<Super>Return'
+custom the-script-browser Browser librewolf '<Super>b'
+put org.gnome.settings-daemon.plugins.media-keys home "['<Super>e']"
+
+# The volume keys in 5% steps (GNOME's default is 6%), so the percentage the extension shows stays round.
+put org.gnome.settings-daemon.plugins.media-keys volume-step 5
+
+# Apps outside Flatpak may take screenshots through the portal without a dialog (~/.local/bin/screenshot).
+# They run as you anyway; Flatpak apps still ask.
+gdbus call --session -d org.freedesktop.impl.portal.PermissionStore -o /org/freedesktop/impl/portal/PermissionStore \
+	-m org.freedesktop.impl.portal.PermissionStore.SetPermission screenshot true screenshot '' "['yes']" >/dev/null
+
+# Steam's overlay at the display scale (the scale can only be read inside the desktop).
+"$HOME/.local/bin/steam-overlay-scale" >/dev/null 2>&1 || true
+
+# install.sh copies the Firefox profile into LibreWolf only with both closed; if one was open, it is done
+# now, before either is started.
+[ -e "$STATE/the-script-librewolf-import-pending" ] && "$HOME/.local/bin/librewolf-import-firefox"
+
+# install.sh leaves the old desktop installed while its session runs. Clearing the installed commit
+# makes the updater run it again now, and that run removes it.
+if { [ -e "$STATE/the-script-remove-hyprland" ] && ! pgrep -x Hyprland >/dev/null; } \
+	|| { [ -e "$STATE/the-script-remove-lxqt" ] && ! pgrep -x lxqt-session >/dev/null; } \
+	|| { [ -e "$STATE/the-script-remove-kde" ] && ! pgrep -x plasmashell >/dev/null; }; then
+	rm -f "$STATE/the-script-installed"
+	systemctl --user start --no-block the-script-update.service
+fi
+exit 0

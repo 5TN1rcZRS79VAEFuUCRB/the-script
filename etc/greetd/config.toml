@@ -1,8 +1,0 @@
-# the-script: the login screen. greetd runs tuigreet, a text login on the first console, which starts
-# Hyprland through /etc/greetd/session, a login shell. It remembers the last user, so normally only the password is asked.
-[terminal]
-vt = 1
-
-[default_session]
-command = "tuigreet --time --remember --asterisks --greeting 'the-script' --cmd /etc/greetd/session"
-user = "greeter"

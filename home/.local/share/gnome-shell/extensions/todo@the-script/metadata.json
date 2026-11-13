@@ -1,0 +1,8 @@
+{
+  "uuid": "todo@the-script",
+  "name": "To-do",
+  "description": "Assignments, focus timer, points and streak from the todo daemon",
+  "shell-version": ["49", "50", "51", "52", "53"],
+  "settings-schema": "org.gnome.shell.extensions.todo",
+  "version": 1
+}

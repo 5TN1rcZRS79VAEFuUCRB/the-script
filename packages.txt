@@ -1,29 +1,23 @@
 # Packages installed by install.sh from the official Arch repos.
 # Blank lines and # comments are ignored.
 
-# --- desktop: Hyprland with Noctalia (bar, notifications, lock, idle, Alt+Tab) and the-script's own
-# Super overview (Quickshell); no desktop environment ---
-hyprland                  # window manager (~/.config/hypr/hyprland.lua)
-noctalia                  # the shell: bar, notifications, lock screen, idle, wallpaper, Alt+Tab (~/.config/noctalia)
-quickshell                # the Super overview (~/.config/quickshell)
-xdg-desktop-portal-hyprland   # screen sharing (Discord, OBS), screenshots for apps
-xdg-desktop-portal-gtk    # file pickers, dark mode for apps
-qt6ct                     # Qt apps (KeePassXC, Anki) dark
-foot                      # terminal (Super+Enter)
-thunar                    # files (Super+E)
-mousepad                  # text editor
-imv                       # image viewer
-pavucontrol               # full volume control
-bluez                     # Bluetooth (Noctalia's Bluetooth button)
+# --- desktop: GNOME, kept plain (one workspace, no dash or app grid; the-script-gnome sets it up) ---
+gnome-shell               # GNOME: top bar, Super overview, title bars, window snapping
+gdm                       # the login screen
+gnome-control-center      # Settings
+gnome-settings-daemon
+xdg-desktop-portal-gnome  # screen sharing (Discord, OBS), screenshots, file pickers
+gnome-shell-extension-appindicator   # tray icons (Steam, Discord, Syncthing, KeePassXC)
+power-profiles-daemon     # power modes in the top bar menu
+bluez                     # Bluetooth (in the top bar menu)
 bluez-utils
-playerctl                 # play/pause keys
+gnome-console             # terminal (Super+Enter)
+nautilus                  # files (Super+E)
+gnome-text-editor         # text editor
+loupe                     # image viewer
 adwaita-icon-theme
-adwaita-cursors           # GNOME's black cursor
+adwaita-cursors
 adwaita-fonts
-wlr-randr                 # steam-overlay-scale reads the screen scale with it
-grim                      # `screenshot` (whole screen, no dialog)
-greetd                    # the login screen: a text login (tuigreet) that starts Hyprland
-greetd-tuigreet
 wl-clipboard              # wl-copy/wl-paste: Claude Code's Ctrl+V
 git
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# the-script: recreates this desktop (Hyprland with its own top bar and Super overview, no desktop
-# environment) on an Arch Linux machine. Run as your normal user (it calls sudo where it needs root):  ./install.sh
+# the-script: recreates this desktop (GNOME, kept plain and set up for games) on an Arch Linux
+# machine. Run as your normal user (it calls sudo where it needs root):  ./install.sh
 # Safe to re-run; anything it would overwrite is backed up first.
 
 set -euo pipefail
@@ -203,53 +203,27 @@ if [ ${#AERO_HAVE[@]} -gt 0 ]; then
 	fi
 fi
 
-# ---------------------------------------------------------------- leftovers from GNOME
-# the-script was GNOME for a few days between Plasma desktops. Its scripts, extensions and the ThinkPad look are
-# retired now (a running GNOME keeps what it loaded until you log out). Removing GNOME itself with GNOME
-# running would pull the session out from under you, so that waits for a run from Hyprland:
-# the-script-login starts one at the first Hyprland login. GNOME's own settings (dconf) stay, unused.
-retire "$HOME/.local/bin/the-script-gnome" "$HOME/.config/autostart/the-script-gnome.desktop" \
-	"$HOME"/.local/share/gnome-shell/extensions/{todo,volume-percent}@the-script \
-	"$HOME/.local/share/dbus-1/services/org.gnome.Settings.service" \
+# ---------------------------------------------------------------- leftovers from the first GNOME
+# the-script was GNOME once before, with a ThinkPad look (gray folders, red accent, square title bars for
+# KeePassXC and OBS through X11) and a patched Settings. Those leftovers go; GNOME itself is the desktop.
+retire "$HOME/.local/share/dbus-1/services/org.gnome.Settings.service" \
 	"$HOME"/.local/share/applications/{org.keepassxc.KeePassXC,com.obsproject.Studio}.desktop \
 	"$HOME"/.local/share/backgrounds/{arch.svg,thinkpad.svg,thinkpad-20-dark.png,thinkpad-20-light.png}
 rm -rf "$HOME/.local/share/icons/Adwaita-ThinkPad"   # made by install.sh, not yours
-# Only the ThinkPad gtk.css: Plasma writes its own there (@import 'colors.css') for GTK apps' colors.
 for f in "$HOME"/.config/gtk-{3,4}.0/gtk.css; do
 	grep -q 'ThinkPad' "$f" 2>/dev/null && retire "$f"
 done
-rm -f "$HOME"/.local/state/the-script-{gnome-first-run,gnome-librewolf-dash,gnome-app-folders,gnome-app-folders-3,kde-pending}
+rm -f "$HOME"/.local/state/the-script-{gnome-first-run,gnome-librewolf-dash,gnome-app-folders,gnome-app-folders-3,kde-pending,remove-gnome}
 sudo rm -f /usr/local/libexec/settings-pointer-speed /etc/udev/rules.d/{70-mouse-dpi,70-dwm-mouse-dpi}.rules
-# display-wake brought a DisplayPort monitor's picture back after a long GNOME sleep; niri and Plasma
-# never needed it.
 systemctl --user disable --now display-wake.service >/dev/null 2>&1 || true
 retire "$HOME/.local/bin/display-wake" "$HOME/.config/systemd/user/display-wake.service"
-
-GNOME_PKGS=(gnome-shell gdm gnome-control-center gnome-bluetooth-3.0 gnome-shell-extension-appindicator
-	xdg-desktop-portal-gnome nautilus loupe gnome-text-editor gnome-console)
-mapfile -t GNOME_HAVE < <(pacman -Qq "${GNOME_PKGS[@]}" 2>/dev/null || true)
-GNOME_PENDING="$HOME/.local/state/the-script-remove-gnome"
-if [ ${#GNOME_HAVE[@]} -gt 0 ] && pgrep -x gnome-shell >/dev/null; then
-	say "GNOME is running: it is removed after you log into Hyprland"
-	mkdir -p "${GNOME_PENDING%/*}" && touch "$GNOME_PENDING"
-elif [ ${#GNOME_HAVE[@]} -gt 0 ]; then
-	say "Removing GNOME"
-	# What packages.txt lists stays even where GNOME pulled it in first.
-	mapfile -t keep < <(pacman -Qq $(listed packages.txt) 2>/dev/null || true)
-	[ ${#keep[@]} -eq 0 ] || sudo pacman -D -q --asexplicit "${keep[@]}" >/dev/null
-	rm -f "$GNOME_PENDING"   # not retried at every login; the notification says how
-	if ! sudo pacman -Rs --noconfirm "${GNOME_HAVE[@]}"; then
-		warn "could not remove GNOME; run: sudo pacman -Rs ${GNOME_HAVE[*]}"
-		notify-send -u critical "the-script: GNOME was not removed" "Run: sudo pacman -Rs ${GNOME_HAVE[*]}" 2>/dev/null || true
-	fi
-fi
 
 # ---------------------------------------------------------------- leftovers from KDE Plasma
 # the-script was KDE Plasma before LXQt. Its login script, taskbar widget and settings files go now (a
 # running Plasma keeps what it loaded until you log out). Plasma's own packages, SDDM and other desktops'
 # leftovers (openbox, the X server from the dwm days) are removed by a run with no Plasma running:
-# the-script-login starts one at the first Hyprland login. SDDM goes once it isn't the login screen in use
-# (after a restart into greetd). Settings of the removed apps in ~/.config stay, unused.
+# the-script-gnome starts one at the first GNOME login. SDDM goes once it isn't the login screen in use
+# (after a restart into GDM). Settings of the removed apps in ~/.config stay, unused.
 retire "$HOME/.local/bin/the-script-plasma" "$HOME/.config/autostart/the-script-plasma.desktop" \
 	"$HOME/.local/share/plasma/plasmoids/local.todo" "$HOME/.local/share/plasma/plasmoids/local.niritodo" \
 	"$HOME"/.local/share/applications/{kdesystemsettings,org.kde.kwrite}.desktop \
@@ -263,20 +237,20 @@ done
 KDE_PENDING="$HOME/.local/state/the-script-remove-kde"
 mapfile -t KDE_PKGS < <({ pacman -Qgq plasma kde-applications 2>/dev/null
 	printf '%s\n' plasma-desktop plasma-workspace kwin systemsettings plasma-nm plasma-pa plasma5support powerdevil \
-		power-profiles-daemon bluedevil kscreen breeze breeze-gtk breeze-cursors kde-gtk-config sddm-kcm \
-		xdg-desktop-portal-kde dolphin konsole kate gwenview spectacle kdialog openbox obconf-qt gnome-backgrounds \
+		bluedevil kscreen breeze breeze-gtk breeze-cursors kde-gtk-config sddm-kcm \
+		xdg-desktop-portal-kde dolphin konsole kate gwenview spectacle kdialog openbox obconf-qt \
 		xorg-server xorg-xinit xf86-video-amdgpu xf86-video-ati xf86-video-intel xf86-video-nouveau \
 		xf86-video-vesa xf86-video-fbdev xf86-input-libinput xf86-input-evdev
 	systemctl is-active -q sddm 2>/dev/null || echo sddm; } | sort -u | xargs -r pacman -Qq 2>/dev/null || true)
 if [ ${#KDE_PKGS[@]} -gt 0 ] && pgrep -x plasmashell >/dev/null; then
-	say "Plasma is running: it is removed after you log into Hyprland"
+	say "Plasma is running: it is removed after you log into GNOME"
 	mkdir -p "${KDE_PENDING%/*}" && touch "$KDE_PENDING"
 elif [ ${#KDE_PKGS[@]} -gt 0 ]; then
 	say "Removing Plasma, SDDM and other desktops' leftovers"
 	# What packages.txt lists stays even where Plasma pulled it in first.
 	mapfile -t keep < <(pacman -Qq $(listed packages.txt) 2>/dev/null || true)
 	[ ${#keep[@]} -eq 0 ] || sudo pacman -D -q --asexplicit "${keep[@]}" >/dev/null
-	# Only what nothing else installed still needs (Quickshell needs layer-shell-qt, from Plasma's group).
+	# Only what nothing else installed still needs.
 	mapfile -t KDE_PKGS < <(unneeded "${KDE_PKGS[@]}")
 	if [ ${#KDE_PKGS[@]} -gt 0 ]; then
 		if ! sudo pacman -Rs --noconfirm "${KDE_PKGS[@]}"; then
@@ -293,8 +267,8 @@ elif [ ${#KDE_PKGS[@]} -gt 0 ]; then
 	if pacman -Qq sddm >/dev/null 2>&1; then touch "$KDE_PENDING"; else rm -f "$KDE_PENDING"; fi
 fi
 
-# With Plasma gone, its apps' settings and caches (and niri's, foot's, Kvantum's and GNOME Shell's)
-# move to the backup folder. KWin's screen settings stay: the-script-displays reads the scale from them.
+# With Plasma gone, its apps' settings and caches (and niri's, foot's and Kvantum's) move to the backup
+# folder.
 if ! pacman -Qq plasma-workspace >/dev/null 2>&1; then
 	retire "$HOME"/.config/{baloofilerc,dolphinrc,kaccessrc,kactivitymanagerdrc,kactivitymanagerd-statsrc,kate,kate-externaltoolspluginrc} \
 		"$HOME"/.config/{katerc,katevirc,kcminputrc,kconf_updaterc,KDE,kded5rc,kded6rc,kdedefaults,kdeglobals,kde-mimeapps.list} \
@@ -303,7 +277,7 @@ if ! pacman -Qq plasma-workspace >/dev/null 2>&1; then
 		"$HOME"/.config/{powerdevilrc,spectaclerc,xsettingsd,session,Kvantum,niri,foot,kxkbrc,ksplashrc,gtkrc,gtkrc-2.0} \
 		"$HOME"/.config/plasma-*-appletsrc "$HOME/.gtkrc-2.0" \
 		"$HOME"/.local/share/{baloo,color-schemes,dolphin,kactivitymanagerd,kate,klipper,konsole,krunnerstaterc,kwalletd} \
-		"$HOME"/.local/share/{plasma,sddm,kxmlgui5,knewstuff3,gnome-shell,niri}
+		"$HOME"/.local/share/{plasma,sddm,kxmlgui5,knewstuff3,niri}
 	rm -rf "$HOME"/.cache/{plasma*,kwin,krunner*,ksycoca6*,ksvg-elements*,dolphin,konsole,kate,org.kde.*,kioexec,icon-cache.kcache}
 fi
 
@@ -311,9 +285,9 @@ fi
 # the-script was LXQt on labwc (the ClassicDark look) before Hyprland. Its scripts, themes and autostart
 # entries go now (a running LXQt keeps what it loaded until you log out). LXQt's packages, labwc (with
 # the-script's patched builds of them) and their apps are removed by a run with no LXQt running:
-# the-script-login starts one at the first Hyprland login. Their settings move to the backup folder then.
+# the-script-gnome starts one at the first GNOME login. Their settings move to the backup folder then.
 retire "$HOME"/.local/bin/{the-script-lxqt,start-menu-prime,audio-menu,audio-status,battery-text,todo-count,todo-menu} \
-	"$HOME"/.config/autostart/{the-script-lxqt,todo,steam-overlay-scale}.desktop \
+	"$HOME"/.config/autostart/{the-script-lxqt,steam-overlay-scale}.desktop \
 	"$HOME/.local/share/themes/ClassicDark" "$HOME/.local/share/lxqt/themes/ClassicDark"
 rm -rf "$HOME/.local/state/the-script-seeds"
 LXQT_PENDING="$HOME/.local/state/the-script-remove-lxqt"
@@ -324,7 +298,7 @@ mapfile -t LXQT_PKGS < <({ pacman -Qgq lxqt 2>/dev/null
 		mate-icon-theme swaybg swaylock wtype wlrctl
 	} | sort -u | xargs -r pacman -Qq 2>/dev/null || true)
 if [ ${#LXQT_PKGS[@]} -gt 0 ] && pgrep -x lxqt-session >/dev/null; then
-	say "LXQt is running: it is removed after you log into Hyprland"
+	say "LXQt is running: it is removed after you log into GNOME"
 	mkdir -p "${LXQT_PENDING%/*}" && touch "$LXQT_PENDING"
 elif [ ${#LXQT_PKGS[@]} -gt 0 ]; then
 	say "Removing LXQt and labwc"
@@ -342,20 +316,40 @@ fi
 rm -rf "$HOME"/.cache/the-script-build-*   # pkg/build-patched.sh's leftover build folders
 sudo rm -f /etc/greetd/lxqt-session
 
-# foot was the terminal in niri-script days, then retired, and is the terminal again; only niri-script's
-# foot.ini is retired.
-grep -qi 'niri' "$HOME/.config/foot/foot.ini" 2>/dev/null && retire "$HOME/.config/foot/foot.ini"
-
-# Noctalia replaced the first Hyprland setup's notifications (mako), idle lock (hypridle, hyprlock),
-# password prompts (hyprpolkitagent) and tray applets; they go along with their settings.
-retire "$HOME"/.config/hypr/{hypridle,hyprlock}.conf "$HOME/.config/mako"
-retire "$HOME"/.config/quickshell/{Bar,Wallpaper,Osd,Switcher,Dropdown,TodoMenu,AudioMenu,PowerMenu,CalendarMenu,BarButton,MenuItem,Separator,Slider}.qml
-mapfile -t OLD_SHELL < <(pacman -Qq mako hypridle hyprlock hyprpolkitagent network-manager-applet blueman slurp 2>/dev/null || true)
-mapfile -t OLD_SHELL < <(unneeded "${OLD_SHELL[@]}")
-if [ ${#OLD_SHELL[@]} -gt 0 ]; then
-	say "Removing what Noctalia replaced: ${OLD_SHELL[*]}"
-	pkill -x mako; pkill -x hypridle; pkill -f "nm-applet|blueman-applet"; true
-	sudo pacman -Rs --noconfirm "${OLD_SHELL[@]}" || warn "could not remove: ${OLD_SHELL[*]}"
+# ---------------------------------------------------------------- leftovers from Hyprland
+# the-script was Hyprland with Noctalia and its own Super overview (Quickshell) before GNOME. Its
+# settings and scripts go now (a running Hyprland keeps what it loaded until you log out). Hyprland,
+# Noctalia, greetd and the apps only it used are removed by a run with no Hyprland running:
+# the-script-gnome starts one at the first GNOME login.
+retire "$HOME"/.config/{hypr,quickshell,noctalia,mako} "$HOME/.local/share/the-script-plugins" \
+	"$HOME"/.local/bin/{the-script-session,the-script-displays,the-script-login,todo-pick} \
+	"$HOME/.config/systemd/user/the-script-session.target" "$HOME/.cache/the-script/noctalia-colors.json"
+# Hyprland's own GTK and Qt settings files; GNOME sets these itself.
+for f in "$HOME"/.config/gtk-{3,4}.0/settings.ini; do
+	grep -q 'gtk-application-prefer-dark-theme=1' "$f" 2>/dev/null && retire "$f"
+done
+retire "$HOME/.config/qt6ct"
+grep -q 'the-script' "$HOME/.config/foot/foot.ini" 2>/dev/null && retire "$HOME/.config/foot/foot.ini"
+HYPR_PENDING="$HOME/.local/state/the-script-remove-hyprland"
+mapfile -t HYPR_PKGS < <(pacman -Qq hyprland hyprland-guiutils hyprpm noctalia quickshell xdg-desktop-portal-hyprland \
+	hyprpolkitagent hypridle hyprlock mako greetd greetd-tuigreet foot thunar mousepad imv pavucontrol qt6ct \
+	wlr-randr grim slurp xorg-xrandr xorg-xdpyinfo 2>/dev/null || true)
+if [ ${#HYPR_PKGS[@]} -gt 0 ] && pgrep -x Hyprland >/dev/null; then
+	say "Hyprland is running: it is removed after you log into GNOME"
+	mkdir -p "${HYPR_PENDING%/*}" && touch "$HYPR_PENDING"
+elif [ ${#HYPR_PKGS[@]} -gt 0 ]; then
+	say "Removing Hyprland, Noctalia and greetd"
+	mapfile -t keep < <(pacman -Qq $(listed packages.txt) 2>/dev/null || true)
+	[ ${#keep[@]} -eq 0 ] || sudo pacman -D -q --asexplicit "${keep[@]}" >/dev/null
+	mapfile -t HYPR_PKGS < <(unneeded "${HYPR_PKGS[@]}")
+	if [ ${#HYPR_PKGS[@]} -gt 0 ] && ! sudo pacman -Rs --noconfirm "${HYPR_PKGS[@]}"; then
+		warn "could not remove Hyprland; run: sudo pacman -Rs ${HYPR_PKGS[*]}"
+		notify-send -u critical "the-script: Hyprland was not removed" "Run: sudo pacman -Rs ${HYPR_PKGS[*]}" 2>/dev/null || true
+	fi
+	rm -f "$HYPR_PENDING"
+	pacman -Qq greetd >/dev/null 2>&1 || sudo rm -rf /etc/greetd
+	retire "$HOME/.local/state/noctalia" "$HOME/.cache/noctalia" "$HOME/.cache/quickshell.log" \
+		"$HOME/.cache/the-script-session.log" "$HOME/.cache/hyprland-session.log"
 fi
 
 # ---------------------------------------------------------------- dotfiles + scripts
@@ -380,13 +374,21 @@ done
 # Black hole wallpapers the-script set for a few minutes.
 rm -f "$HOME"/.local/share/wallpapers/{black-hole,nasa-black-hole}.png
 
-say "Login screen: greetd (a text login that starts Hyprland)"
-sudo_place etc/greetd/session /etc/greetd/session
-sudo_place etc/greetd/config.toml /etc/greetd/config.toml
-# greetd takes over at the next boot; a running session is left alone. --force replaces the
-# display-manager link SDDM (or GDM) holds.
-if ! systemctl is-enabled -q greetd 2>/dev/null; then
-	sudo systemctl enable --force greetd || warn "could not enable greetd; run: sudo systemctl enable --force greetd"
+# ---------------------------------------------------------------- GNOME
+# The settings themselves (dark style, one workspace, Alt+Tab, the extensions, the display scale) are in
+# the-script-gnome, which also runs at every login: gsettings needs the session bus.
+say "GNOME: the extensions and settings"
+glib-compile-schemas "$HOME/.local/share/gnome-shell/extensions/todo@the-script/schemas" \
+	|| warn "could not compile the to-do extension's settings; Super+T will not open it"
+if [ "${XDG_CURRENT_DESKTOP:-}" = GNOME ]; then
+	"$HOME/.local/bin/the-script-gnome" || warn "could not apply the GNOME settings; they apply at the next login"
+fi
+
+# The login screen. GDM takes over at the next boot; a running session is left alone. --force replaces
+# the display-manager link another one (greetd, SDDM) holds.
+say "Login screen: GDM"
+if ! systemctl is-enabled -q gdm 2>/dev/null; then
+	sudo systemctl enable --force gdm || warn "could not enable GDM; run: sudo systemctl enable --force gdm"
 fi
 
 # ---------------------------------------------------------------- LibreWolf
@@ -622,7 +624,7 @@ fi
 say "Steam overlay: follow the display scale"
 systemctl --user enable --now steam-overlay-scale.path \
 	|| warn "could not start steam-overlay-scale.path; after logging in run: systemctl --user enable --now steam-overlay-scale.path"
-if [ -n "${WAYLAND_DISPLAY:-}" ]; then   # the scale can only be read inside the desktop
+if [ "${XDG_CURRENT_DESKTOP:-}" = GNOME ]; then   # the scale can only be read inside GNOME
 	"$HOME/.local/bin/steam-overlay-scale" || warn "could not patch Steam's overlay scale; run steam-overlay-scale to see why"
 fi
 
@@ -669,19 +671,19 @@ if [ ${#REPLACED[@]} -gt 0 ]; then
 	printf '  ~/%s\n' "${REPLACED[@]}" >&2
 fi
 # Installed by the-script-update from an older desktop: say that a restart switches over.
-if { [ "$MIGRATED" -eq 1 ] || [ "$AERO" -eq 1 ] || [ -e "$GNOME_PENDING" ] || [ -e "$KDE_PENDING" ] || [ -e "$LXQT_PENDING" ]; } \
-	&& [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ] && [[ ${XDG_CURRENT_DESKTOP:-} != *Hyprland* ]]; then
-	notify-send -u critical "the-script is installed" "Log out (or restart) to switch to Hyprland." 2>/dev/null || true
+if { [ "$MIGRATED" -eq 1 ] || [ "$AERO" -eq 1 ] || [ -e "$HYPR_PENDING" ] || [ -e "$KDE_PENDING" ] || [ -e "$LXQT_PENDING" ]; } \
+	&& [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ] && [ "${XDG_CURRENT_DESKTOP:-}" != GNOME ]; then
+	notify-send -u critical "the-script is installed" "Restart to switch to GNOME." 2>/dev/null || true
 fi
 cat <<EOF
 
 Next steps:
-  1. Log out or restart. A text login (greetd) comes up; type your password and you are in Hyprland.
-     Coming from LXQt or Plasma, the first login removes it in the background (a notification says if
-     that fails).
-  2. Tap Super for the overview (type to search), Alt+Tab to switch windows, Super+T the to-do list.
-     See README.md.
+  1. Restart. GDM (GNOME's login screen) comes up; log in and you are in GNOME. Coming from Hyprland,
+     LXQt or Plasma, the first login removes it in the background (a notification says if that fails).
+  2. Tap Super for the overview (type to search, every open window), Alt+Tab to switch windows,
+     Super+T the to-do list. Drag a window to the top edge to maximize it, to a side for half the screen.
   3. NVIDIA card? Install the driver yourself first (e.g. 'sudo pacman -S nvidia-open'),
      since the right package depends on your GPU and kernel. It is not part of this repo.
-  4. Display scale: the-script-displays picks it at each login; to change it, see README.md.
+  4. Display scale: games see the screen's real pixels only at 100% or 200% (Settings > Displays);
+     make text bigger in Settings > Accessibility > Large Text instead of 125%/150%.
 EOF

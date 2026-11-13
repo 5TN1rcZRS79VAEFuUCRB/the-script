@@ -1,7 +1,0 @@
-# Started by the-script-session at each Hyprland login (so not by `hyprctl reload`); bedtime and
-# history-cleaner wait for graphical-session.target, which this brings up.
-[Unit]
-Description=the-script: the desktop session is up
-BindsTo=graphical-session.target
-Wants=graphical-session-pre.target
-After=graphical-session-pre.target

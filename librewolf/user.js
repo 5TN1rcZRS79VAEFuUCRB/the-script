@@ -4,9 +4,9 @@
 user_pref("browser.theme.toolbar-theme", 0);
 user_pref("browser.theme.content-theme", 0);
 user_pref("layout.css.prefers-color-scheme.content-override", 0);
-// Tabs in the title bar (Hyprland draws no title bars, so the window has one row less).
+// Tabs in the title bar, GNOME-style (with just the close button, from GNOME's button layout).
 user_pref("browser.tabs.inTitlebar", 1);
-// Scaling comes from the screen's scale (the-script-displays). Do not also set
+// Scaling comes from the screen's scale (GNOME Settings > Displays). Do not also set
 // layout.css.devPixelsPerPx here -- Firefox multiplies the two (2.25x).
 user_pref("layout.css.devPixelsPerPx", "-1.0");
 

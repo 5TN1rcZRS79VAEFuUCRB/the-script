@@ -332,7 +332,7 @@ grep -q 'the-script' "$HOME/.config/foot/foot.ini" 2>/dev/null && retire "$HOME/
 HYPR_PENDING="$HOME/.local/state/the-script-remove-hyprland"
 mapfile -t HYPR_PKGS < <(pacman -Qq hyprland hyprland-guiutils hyprpm noctalia quickshell xdg-desktop-portal-hyprland \
 	hyprpolkitagent hypridle hyprlock mako greetd greetd-tuigreet greetd-agreety foot thunar mousepad imv pavucontrol qt6ct \
-	wlr-randr grim slurp xorg-xrandr xorg-xdpyinfo 2>/dev/null || true)
+	wlr-randr grim slurp xorg-xrandr xorg-xdpyinfo blueman network-manager-applet 2>/dev/null || true)
 if [ ${#HYPR_PKGS[@]} -gt 0 ] && pgrep -x Hyprland >/dev/null; then
 	say "Hyprland is running: it is removed after you log into GNOME"
 	mkdir -p "${HYPR_PENDING%/*}" && touch "$HYPR_PENDING"
@@ -346,7 +346,11 @@ elif [ ${#HYPR_PKGS[@]} -gt 0 ]; then
 		notify-send -u critical "the-script: Hyprland was not removed" "Run: sudo pacman -Rs ${HYPR_PKGS[*]}" 2>/dev/null || true
 	fi
 	rm -f "$HYPR_PENDING"
+	# Their tray icons (GNOME has Bluetooth and Wi-Fi in its own menu) go now, not at the next login.
+	pkill -f '^/usr/bin/python /usr/bin/blueman-' 2>/dev/null || true
+	pkill -x nm-applet 2>/dev/null || true
 	pacman -Qq greetd >/dev/null 2>&1 || sudo rm -rf /etc/greetd
+	retire "$HOME"/.config/autostart/{blueman,nm-applet}.desktop
 	retire "$HOME/.local/state/noctalia" "$HOME/.cache/noctalia" "$HOME/.cache/quickshell.log" \
 		"$HOME/.cache/the-script-session.log" "$HOME/.cache/hyprland-session.log"
 fi

@@ -10,8 +10,15 @@ import Quickshell.Hyprland
 ShellRoot {
     OverviewWindow {}
 
-    // Super (hyprland.lua) reaches the shell as hl.dsp.global("quickshell:overview").
-    GlobalShortcut { name: "overview"; description: "Overview: search and all windows"; onPressed: Overview.toggle() }
+    // Super (hyprland.lua) reaches the shell as hl.dsp.global("quickshell:overview"). A bind on Super's
+    // own release sends only "released"; Super+A sends "pressed" then "released"; hyprctl dispatch
+    // only "pressed". Each toggles once.
+    GlobalShortcut {
+        property bool held: false
+        name: "overview"; description: "Overview: search and all windows"
+        onPressed: { held = true; Overview.toggle(); }
+        onReleased: { if (held) held = false; else Overview.toggle(); }
+    }
 
     // Noctalia's launcher button: qs ipc call overview toggle
     IpcHandler {

@@ -391,6 +391,19 @@ if ! systemctl is-enabled -q gdm 2>/dev/null; then
 	sudo systemctl enable --force gdm || warn "could not enable GDM; run: sudo systemctl enable --force gdm"
 fi
 
+# arch-server is a server: it never suspends. GNOME suspends an idle computer after 15 minutes, and so
+# does GDM's login screen, which is what arch-server shows most of the time. Masking the sleep targets
+# stops every suspend and hibernate, whoever asks; the settings below stop GDM (here) and GNOME
+# (the-script-gnome) from trying. Undo: sudo systemctl unmask sleep.target suspend.target ...
+if [ "$(cat /etc/hostname)" = arch-server ]; then
+	say "arch-server: never suspend"
+	sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target \
+		suspend-then-hibernate.target >/dev/null 2>&1 || warn "could not turn off suspend"
+	sudo_place etc/dconf/profile/gdm /etc/dconf/profile/gdm
+	sudo_place etc/dconf/db/gdm.d/90-the-script-no-suspend /etc/dconf/db/gdm.d/90-the-script-no-suspend
+	sudo dconf update || warn "could not update the login screen's settings; run: sudo dconf update"
+fi
+
 # ---------------------------------------------------------------- LibreWolf
 find_lw_profile() {
 	local base d

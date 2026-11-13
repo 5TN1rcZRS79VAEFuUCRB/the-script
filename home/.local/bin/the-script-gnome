@@ -92,6 +92,13 @@ if [ ! -e "$FIRST" ]; then
 	mkdir -p "$STATE" && touch "$FIRST"
 fi
 
+# arch-server never suspends (install.sh also blocks it system-wide).
+if [ "$(cat /etc/hostname)" = arch-server ]; then
+	for key in sleep-inactive-ac-type sleep-inactive-battery-type power-button-action; do
+		gsettings set org.gnome.settings-daemon.plugins.power $key nothing
+	done
+fi
+
 gsettings set org.gnome.shell disable-user-extensions false
 add_to_list org.gnome.shell enabled-extensions "${EXTENSIONS[@]}"
 

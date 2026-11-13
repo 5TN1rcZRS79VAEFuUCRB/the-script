@@ -1,0 +1,5 @@
+# arch-server only (install.sh): the login screen never suspends the computer.
+[org/gnome/settings-daemon/plugins/power]
+sleep-inactive-ac-type='nothing'
+sleep-inactive-battery-type='nothing'
+power-button-action='nothing'

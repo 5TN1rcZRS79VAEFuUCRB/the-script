@@ -1,8 +1,8 @@
 # the-script: the login screen. greetd runs tuigreet, a text login on the first console, which starts
-# the LXQt session (Wayland, on labwc) through /etc/greetd/lxqt-session, a login shell. It remembers the last user, so normally only the password is asked.
+# Hyprland through /etc/greetd/session, a login shell. It remembers the last user, so normally only the password is asked.
 [terminal]
 vt = 1
 
 [default_session]
-command = "tuigreet --time --remember --asterisks --greeting 'the-script' --cmd /etc/greetd/lxqt-session"
+command = "tuigreet --time --remember --asterisks --greeting 'the-script' --cmd /etc/greetd/session"
 user = "greeter"

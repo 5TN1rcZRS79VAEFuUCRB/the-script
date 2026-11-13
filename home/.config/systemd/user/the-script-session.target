@@ -1,7 +1,7 @@
-# Started by labwc's autostart at each LXQt login. LXQt doesn't start graphical-session.target itself,
-# and bedtime and history-cleaner wait for it.
+# Started by the-script-session at each Hyprland login (so not by `hyprctl reload`); bedtime and
+# history-cleaner wait for graphical-session.target, which this brings up.
 [Unit]
-Description=the-script: LXQt session is up
+Description=the-script: the desktop session is up
 BindsTo=graphical-session.target
 Wants=graphical-session-pre.target
 After=graphical-session-pre.target

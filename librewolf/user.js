@@ -1,12 +1,10 @@
 // LibreWolf is Firefox with privacy defaults; this file is applied on top of them.
 
-// Dark everywhere, including the home page and sites that have a dark theme (LXQt doesn't report a
-// light/dark setting to apps, so "follow the system" would mean light).
+// Dark everywhere, including the home page and sites that have a dark theme, whatever the system says.
 user_pref("browser.theme.toolbar-theme", 0);
 user_pref("browser.theme.content-theme", 0);
 user_pref("layout.css.prefers-color-scheme.content-override", 0);
-// Tabs in the title bar where the desktop draws none; in LXQt, labwc's title bar is used instead
-// (MOZ_GTK_TITLEBAR_DECORATION=none in its session settings).
+// Tabs in the title bar (Hyprland draws no title bars, so the window has one row less).
 user_pref("browser.tabs.inTitlebar", 1);
 // Scaling comes from the screen's scale (the-script-displays). Do not also set
 // layout.css.devPixelsPerPx here -- Firefox multiplies the two (2.25x).

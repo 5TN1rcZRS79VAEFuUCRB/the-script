@@ -1,7 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=the-script desktop setup
-Comment=Login-time steps of the-script (the-script-lxqt)
-Exec=sh -c "exec ~/.local/bin/the-script-lxqt"
-OnlyShowIn=LXQt;
-NoDisplay=true

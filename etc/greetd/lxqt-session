@@ -1,7 +1,0 @@
-#!/bin/bash -l
-# the-script: greetd starts LXQt through this login shell, so the session gets the PATH and other
-# settings from /etc/profile and ~/.bash_profile (~/.local/bin, where claude and ccb are), as SDDM gave it.
-# What labwc and LXQt print goes to ~/.cache/lxqt-session.log (the last session's in .log.old).
-log="$HOME/.cache/lxqt-session.log"
-mkdir -p "${log%/*}" && { [ -e "$log" ] && mv -f "$log" "$log.old"; }
-exec startlxqtwayland >"$log" 2>&1

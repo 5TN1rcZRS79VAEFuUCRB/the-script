@@ -10,7 +10,7 @@
 #
 #   steam-overlay-scale        patch the library if it needs it (nothing is written otherwise)
 #
-# It runs at login (~/.config/autostart/steam-overlay-scale.desktop), and Steam rewrites the library
+# It runs at login (the-script-session), and Steam rewrites the library
 # when it updates, so steam-overlay-scale.path runs it again whenever the file changes. Takes effect for games started
 # afterwards. 32-bit games use another library and are not covered.
 

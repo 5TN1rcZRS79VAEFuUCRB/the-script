@@ -1,45 +1,37 @@
 # Packages installed by install.sh from the official Arch repos.
 # Blank lines and # comments are ignored.
 
-# --- desktop: LXQt on labwc (Wayland), in the-script's ClassicDark look ---
-lxqt-session
-lxqt-wayland-session      # the Wayland session (startlxqtwayland) and its labwc settings
-labwc                     # window manager; pkg/build-patched.sh rebuilds it with the-script's patch
-lxqt-panel                # taskbar; rebuilt with the-script's Start menu patch
-lxqt-config               # settings, brightness keys
-lxqt-qtplugin             # Qt apps follow the LXQt theme and colors
-lxqt-themes
-lxqt-globalkeys
-lxqt-notificationd        # notifications (todo, bedtime)
-lxqt-policykit            # password prompts for apps that need root
-lxqt-powermanagement      # sleep on lid close, low battery warnings, screen off when idle
-lxqt-runner
-qt6-tools                 # qdbus6: LXQt's key helper (lxqt-qdbus) and the Super key open the Start menu through it
-xdg-desktop-portal-lxqt   # file pickers
-xdg-desktop-portal-wlr    # screen sharing (Discord, OBS)
-xdg-desktop-portal-gtk
-pcmanfm-qt                # file manager
-qterminal                 # terminal
-featherpad                # text editor
-lximage-qt                # image viewer
-pavucontrol-qt            # full volume control (Volume Control... in the sound menu)
+# --- desktop: Hyprland with the-script's own bar and overview (Quickshell), no desktop environment ---
+hyprland                  # window manager (~/.config/hypr/hyprland.lua)
+quickshell                # the top bar, Super overview, Alt+Tab switcher (~/.config/quickshell)
+xdg-desktop-portal-hyprland   # screen sharing (Discord, OBS), screenshots for apps
+xdg-desktop-portal-gtk    # file pickers, dark mode for apps
+hyprpolkitagent           # password prompts for apps that need root
+hypridle                  # lock and screens off when idle, lock before sleep
+hyprlock                  # lock screen (Super+L)
+mako                      # notifications (todo, bedtime)
+qt6ct                     # Qt apps (KeePassXC, Anki) dark
+foot                      # terminal (Super+Enter)
+thunar                    # files (Super+E)
+mousepad                  # text editor
+imv                       # image viewer
+pavucontrol               # full volume control (Sound settings in the sound dropdown)
 network-manager-applet    # network in the tray
 blueman                   # Bluetooth in the tray
-mate-icon-theme           # the classic icons
-adwaita-cursors           # GNOME's black cursor, sharp at 150% (it has a 36 px size)
-swaybg                    # wallpaper
-swaylock                  # lock screen (Super+L, and before sleep)
-wlr-randr                 # the-script-displays: scale, position and refresh rate of each screen
-wtype                     # the sound and to-do buttons open their menus through a labwc key
+brightnessctl             # brightness keys
+playerctl                 # play/pause keys
+adwaita-icon-theme
+adwaita-cursors           # GNOME's black cursor
+adwaita-fonts             # GNOME's font (Adwaita Sans)
+wlr-randr                 # steam-overlay-scale reads the screen scale with it
 grim                      # screenshots (Print, screenshot); slurp picks an area (Super+Shift+S)
 slurp
-greetd                    # the login screen: a text login (tuigreet) that starts LXQt
+greetd                    # the login screen: a text login (tuigreet) that starts Hyprland
 greetd-tuigreet
-base-devel                # pkg/build-patched.sh builds the patched panel and labwc, and wlrctl
-wl-clipboard              # wl-paste: terminal apps (Claude Code's Ctrl+V) read pasted screenshots with it
+wl-clipboard              # wl-copy/wl-paste: area screenshots, Claude Code's Ctrl+V
 git
 
-# --- fonts (the taskbar's todo icons come from the Nerd Font symbols) ---
+# --- fonts (the bar's icons come from the Nerd Font symbols) ---
 ttf-dejavu
 ttf-nerd-fonts-symbols-mono
 ttf-nerd-fonts-symbols

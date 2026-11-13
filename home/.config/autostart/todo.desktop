@@ -1,7 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=todo daemon
-Comment=Sync assignments, refresh the taskbar text and send reminders
-Exec=sh -c "exec ~/.local/bin/todo daemon"
-OnlyShowIn=LXQt;
-NoDisplay=true

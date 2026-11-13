@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# the-script: recreates this LXQt desktop (on labwc, Wayland, in a classic dark look) on an Arch Linux
-# machine. Run as your normal user (it calls sudo where it needs root):  ./install.sh
+# the-script: recreates this desktop (Hyprland with its own top bar and Super overview, no desktop
+# environment) on an Arch Linux machine. Run as your normal user (it calls sudo where it needs root):  ./install.sh
 # Safe to re-run; anything it would overwrite is backed up first.
 
 set -euo pipefail
@@ -82,37 +82,6 @@ sudo_place() { # src dest
 }
 
 
-# Desktop settings files (LXQt's panel, labwc's keys) are put in place when the repo's copy is new or
-# changed, and otherwise left alone, so changes made in LXQt's own settings windows stay until the repo
-# changes that file. render() makes the machine's version: your home folder in paths, no battery button
-# on a desktop, and on a desktop variable refresh rate and tearing allowed for games.
-HAS_BATTERY=0; compgen -G '/sys/class/power_supply/BAT*' >/dev/null && HAS_BATTERY=1
-render() { # src -> stdout
-	sed "s|/home/gavin/|$HOME/|g" "$1" | if [ "$HAS_BATTERY" -eq 1 ]; then cat; else
-		sed -e 's/^plugins=\(.*\),battery,/plugins=\1,/' \
-			-e 's|<adaptiveSync>no</adaptiveSync>|<adaptiveSync>yes</adaptiveSync>|' \
-			-e 's|<allowTearing>no</allowTearing>|<allowTearing>yes</allowTearing>|'
-	fi
-}
-place_seed() { # src dest
-	local src=$1 dest=$2 tmp sum mark
-	mark="$HOME/.local/state/the-script-seeds/${dest#"$HOME"/}"
-	tmp="$(mktemp)"; render "$src" > "$tmp"
-	sum=$(sha256sum < "$tmp" | cut -c1-32)
-	# The same apart from comments and LXQt's own timestamp line: only remember it. Rewriting lxqt.conf
-	# makes the running panel and notifications reload their theme, and that reload loses colors.
-	if [ "$(cat "$mark" 2>/dev/null)" != "$sum" ] && [ -e "$dest" ] \
-		&& cmp -s <(grep -v -e '^#' -e '^__theme_updated__=' "$dest") <(grep -v -e '^#' -e '^__theme_updated__=' "$tmp"); then
-		mkdir -p "${mark%/*}" && echo "$sum" > "$mark"
-	fi
-	if [ "$(cat "$mark" 2>/dev/null)" != "$sum" ] || [ ! -e "$dest" ]; then
-		backup_if_different "$dest" "$tmp"
-		install -Dm644 "$tmp" "$dest"
-		mkdir -p "${mark%/*}" && echo "$sum" > "$mark"
-	fi
-	rm -f "$tmp"
-}
-
 # ---------------------------------------------------------------- passwordless sudo
 # the-script-update re-runs this installer unattended when a commit is pushed, so its sudo calls
 # cannot ask for a password. This makes the user root-equivalent without one: anything running as
@@ -130,6 +99,29 @@ sudo test -e "$SUDOERS" && sudo rm -f /etc/sudoers.d/10-niri-update
 
 # ---------------------------------------------------------------- packages
 listed() { sed -e 's/#.*//' -e 's/[[:space:]]*$//' "$1" | grep -v '^$'; }
+# Of the packages named, those nothing else installed still needs (safe to remove together).
+unneeded() {
+	[ $# -gt 0 ] || return 0
+	python3 - "$@" <<'EOF'
+import subprocess, sys
+cands = set(sys.argv[1:])
+info = subprocess.run(["pacman", "-Qi", *cands], capture_output=True, text=True).stdout
+req, name = {}, None
+for line in info.splitlines():
+    if line.startswith("Name"):
+        name = line.split(":", 1)[1].strip()
+    elif line.startswith("Required By") and name:
+        v = line.split(":", 1)[1].split()
+        req[name] = set() if v == ["None"] else set(v)
+while True:
+    drop = {p for p in cands if req.get(p, set()) - cands}
+    if not drop:
+        break
+    cands -= drop
+for p in sorted(cands):
+    print(p)
+EOF
+}
 if [ "$DO_PACKAGES" -eq 1 ]; then
 	say "Installing packages (sudo password may be requested)"
 	mapfile -t PKGS < <(listed packages.txt)
@@ -166,8 +158,7 @@ fi
 # timeout. So it waits for a run that it did not start.
 [ "$(systemctl --user show -p ActiveState --value niri-update.service 2>/dev/null)" = activating ] \
 	|| retire "$HOME/.config/systemd/user/niri-update.service"
-# niri itself and the packages only its session used, so LXQt is the one session left at the login
-# screen. Not while a niri session is running.
+# niri itself and the packages only its session used. Not while a niri session is running.
 NIRI_PKGS=(niri xwayland-satellite waybar dunst bemenu-wayland bemenu)
 mapfile -t NIRI_HAVE < <(pacman -Qq "${NIRI_PKGS[@]}" 2>/dev/null || true)
 if [ ${#NIRI_HAVE[@]} -gt 0 ] && ! pgrep -x niri >/dev/null; then
@@ -215,8 +206,8 @@ fi
 # ---------------------------------------------------------------- leftovers from GNOME
 # the-script was GNOME for a few days between Plasma desktops. Its scripts, extensions and the ThinkPad look are
 # retired now (a running GNOME keeps what it loaded until you log out). Removing GNOME itself with GNOME
-# running would pull the session out from under you, so that waits for a run from LXQt:
-# the-script-lxqt starts one at the first LXQt login. GNOME's own settings (dconf) stay, unused.
+# running would pull the session out from under you, so that waits for a run from Hyprland:
+# the-script-login starts one at the first Hyprland login. GNOME's own settings (dconf) stay, unused.
 retire "$HOME/.local/bin/the-script-gnome" "$HOME/.config/autostart/the-script-gnome.desktop" \
 	"$HOME"/.local/share/gnome-shell/extensions/{todo,volume-percent}@the-script \
 	"$HOME/.local/share/dbus-1/services/org.gnome.Settings.service" \
@@ -239,7 +230,7 @@ GNOME_PKGS=(gnome-shell gdm gnome-control-center gnome-bluetooth-3.0 gnome-shell
 mapfile -t GNOME_HAVE < <(pacman -Qq "${GNOME_PKGS[@]}" 2>/dev/null || true)
 GNOME_PENDING="$HOME/.local/state/the-script-remove-gnome"
 if [ ${#GNOME_HAVE[@]} -gt 0 ] && pgrep -x gnome-shell >/dev/null; then
-	say "GNOME is running: it is removed after you log into LXQt"
+	say "GNOME is running: it is removed after you log into Hyprland"
 	mkdir -p "${GNOME_PENDING%/*}" && touch "$GNOME_PENDING"
 elif [ ${#GNOME_HAVE[@]} -gt 0 ]; then
 	say "Removing GNOME"
@@ -257,7 +248,7 @@ fi
 # the-script was KDE Plasma before LXQt. Its login script, taskbar widget and settings files go now (a
 # running Plasma keeps what it loaded until you log out). Plasma's own packages, SDDM and other desktops'
 # leftovers (openbox, the X server from the dwm days) are removed by a run with no Plasma running:
-# the-script-lxqt starts one at the first LXQt login. SDDM goes once it isn't the login screen in use
+# the-script-login starts one at the first Hyprland login. SDDM goes once it isn't the login screen in use
 # (after a restart into greetd). Settings of the removed apps in ~/.config stay, unused.
 retire "$HOME/.local/bin/the-script-plasma" "$HOME/.config/autostart/the-script-plasma.desktop" \
 	"$HOME/.local/share/plasma/plasmoids/local.todo" "$HOME/.local/share/plasma/plasmoids/local.niritodo" \
@@ -278,34 +269,15 @@ mapfile -t KDE_PKGS < <({ pacman -Qgq plasma kde-applications 2>/dev/null
 		xf86-video-vesa xf86-video-fbdev xf86-input-libinput xf86-input-evdev
 	systemctl is-active -q sddm 2>/dev/null || echo sddm; } | sort -u | xargs -r pacman -Qq 2>/dev/null || true)
 if [ ${#KDE_PKGS[@]} -gt 0 ] && pgrep -x plasmashell >/dev/null; then
-	say "Plasma is running: it is removed after you log into LXQt"
+	say "Plasma is running: it is removed after you log into Hyprland"
 	mkdir -p "${KDE_PENDING%/*}" && touch "$KDE_PENDING"
 elif [ ${#KDE_PKGS[@]} -gt 0 ]; then
 	say "Removing Plasma, SDDM and other desktops' leftovers"
 	# What packages.txt lists stays even where Plasma pulled it in first.
 	mapfile -t keep < <(pacman -Qq $(listed packages.txt) 2>/dev/null || true)
 	[ ${#keep[@]} -eq 0 ] || sudo pacman -D -q --asexplicit "${keep[@]}" >/dev/null
-	# Only what nothing else installed still needs (LXQt's panel needs layer-shell-qt, from Plasma's group).
-	mapfile -t KDE_PKGS < <(python3 - "${KDE_PKGS[@]}" <<'EOF'
-import subprocess, sys
-cands = set(sys.argv[1:])
-info = subprocess.run(["pacman", "-Qi", *cands], capture_output=True, text=True).stdout
-req, name = {}, None
-for line in info.splitlines():
-    if line.startswith("Name"):
-        name = line.split(":", 1)[1].strip()
-    elif line.startswith("Required By") and name:
-        v = line.split(":", 1)[1].split()
-        req[name] = set() if v == ["None"] else set(v)
-while True:
-    drop = {p for p in cands if req.get(p, set()) - cands}
-    if not drop:
-        break
-    cands -= drop
-for p in sorted(cands):
-    print(p)
-EOF
-)
+	# Only what nothing else installed still needs (Quickshell needs layer-shell-qt, from Plasma's group).
+	mapfile -t KDE_PKGS < <(unneeded "${KDE_PKGS[@]}")
 	if [ ${#KDE_PKGS[@]} -gt 0 ]; then
 		if ! sudo pacman -Rs --noconfirm "${KDE_PKGS[@]}"; then
 			warn "could not remove Plasma; run: sudo pacman -Rs ${KDE_PKGS[*]}"
@@ -317,7 +289,7 @@ EOF
 			/usr/share/sddm/themes/breeze/theme.conf.user
 		sudo rmdir -p --ignore-fail-on-non-empty /etc/sddm.conf.d /usr/share/sddm/themes/breeze 2>/dev/null || true
 	fi
-	# Done once SDDM (and the X server only it needed) is gone too; until then each LXQt login tries again.
+	# Done once SDDM (and the X server only it needed) is gone too; until then each login tries again.
 	if pacman -Qq sddm >/dev/null 2>&1; then touch "$KDE_PENDING"; else rm -f "$KDE_PENDING"; fi
 fi
 
@@ -335,9 +307,44 @@ if ! pacman -Qq plasma-workspace >/dev/null 2>&1; then
 	rm -rf "$HOME"/.cache/{plasma*,kwin,krunner*,ksycoca6*,ksvg-elements*,dolphin,konsole,kate,org.kde.*,kioexec,icon-cache.kcache}
 fi
 
-# foot was the terminal before Console and Konsole; its settings are retired. The package stays until you
-# remove it (sudo pacman -Rs foot), as a terminal may still be running in it.
-retire "$HOME/.config/foot/foot.ini"
+# ---------------------------------------------------------------- leftovers from LXQt
+# the-script was LXQt on labwc (the ClassicDark look) before Hyprland. Its scripts, themes and autostart
+# entries go now (a running LXQt keeps what it loaded until you log out). LXQt's packages, labwc (with
+# the-script's patched builds of them) and their apps are removed by a run with no LXQt running:
+# the-script-login starts one at the first Hyprland login. Their settings move to the backup folder then.
+retire "$HOME"/.local/bin/{the-script-lxqt,start-menu-prime,audio-menu,audio-status,battery-text,todo-count,todo-menu} \
+	"$HOME"/.config/autostart/{the-script-lxqt,todo,steam-overlay-scale}.desktop \
+	"$HOME/.local/share/themes/ClassicDark" "$HOME/.local/share/lxqt/themes/ClassicDark"
+rm -rf "$HOME/.local/state/the-script-seeds"
+LXQT_PENDING="$HOME/.local/state/the-script-remove-lxqt"
+mapfile -t LXQT_PKGS < <({ pacman -Qgq lxqt 2>/dev/null
+	printf '%s\n' lxqt-session lxqt-wayland-session labwc lxqt-panel lxqt-config lxqt-qtplugin lxqt-themes \
+		lxqt-globalkeys lxqt-notificationd lxqt-policykit lxqt-powermanagement lxqt-runner \
+		xdg-desktop-portal-lxqt xdg-desktop-portal-wlr pcmanfm-qt qterminal featherpad lximage-qt pavucontrol-qt \
+		mate-icon-theme swaybg swaylock wtype wlrctl
+	} | sort -u | xargs -r pacman -Qq 2>/dev/null || true)
+if [ ${#LXQT_PKGS[@]} -gt 0 ] && pgrep -x lxqt-session >/dev/null; then
+	say "LXQt is running: it is removed after you log into Hyprland"
+	mkdir -p "${LXQT_PENDING%/*}" && touch "$LXQT_PENDING"
+elif [ ${#LXQT_PKGS[@]} -gt 0 ]; then
+	say "Removing LXQt and labwc"
+	# What packages.txt lists stays even where LXQt pulled it in first.
+	mapfile -t keep < <(pacman -Qq $(listed packages.txt) 2>/dev/null || true)
+	[ ${#keep[@]} -eq 0 ] || sudo pacman -D -q --asexplicit "${keep[@]}" >/dev/null
+	mapfile -t LXQT_PKGS < <(unneeded "${LXQT_PKGS[@]}")
+	if [ ${#LXQT_PKGS[@]} -gt 0 ] && ! sudo pacman -Rs --noconfirm "${LXQT_PKGS[@]}"; then
+		warn "could not remove LXQt; run: sudo pacman -Rs ${LXQT_PKGS[*]}"
+		notify-send -u critical "the-script: LXQt was not removed" "Run: sudo pacman -Rs ${LXQT_PKGS[*]}" 2>/dev/null || true
+	fi
+	rm -f "$LXQT_PENDING"
+	retire "$HOME"/.config/{lxqt,labwc,pcmanfm-qt,qterminal.org,featherpad,lximage-qt,pavucontrol-qt}
+fi
+rm -rf "$HOME"/.cache/the-script-build-*   # pkg/build-patched.sh's leftover build folders
+sudo rm -f /etc/greetd/lxqt-session
+
+# foot was the terminal in niri-script days, then retired, and is the terminal again; only niri-script's
+# foot.ini is retired.
+grep -qi 'niri' "$HOME/.config/foot/foot.ini" 2>/dev/null && retire "$HOME/.config/foot/foot.ini"
 
 # ---------------------------------------------------------------- dotfiles + scripts
 say "Installing config files and scripts into $HOME"
@@ -345,9 +352,6 @@ while IFS= read -r -d '' f; do
 	place "$f" "$HOME/${f#home/}"
 done < <(find home -type f -print0)
 systemctl --user daemon-reload 2>/dev/null || true
-while IFS= read -r -d '' f; do
-	place_seed "$f" "$HOME/${f#seed/home/}"
-done < <(find seed/home -type f -print0)
 
 # The todo daemon outlives a logout, so a running one would keep the old code: restart it. The
 # autostart entry at the next login then finds it running. niri-todo is its name from niri-script.
@@ -361,22 +365,12 @@ done
 [ "$was_running" -eq 0 ] || systemd-run --user --collect -q "$HOME/.local/bin/todo" daemon \
 	|| warn "could not restart the todo daemon; run: todo daemon &"
 
-# ---------------------------------------------------------------- LXQt
-# The look (ClassicDark: the labwc window theme in ~/.local/share/themes, the panel theme in
-# ~/.local/share/lxqt/themes), the panel, keys and menus are files placed above. The panel and labwc are
-# rebuilt with the-script's patches (pkg/build-patched.sh); the-script-update rebuilds them again after
-# an Arch update replaces them.
-if [ "$DO_PACKAGES" -eq 1 ]; then
-	say "LXQt: the patched panel and window manager"
-	./pkg/build-patched.sh || warn "could not build the patched packages; run: $PWD/pkg/build-patched.sh"
-fi
-
 # Black hole wallpapers the-script set for a few minutes.
 rm -f "$HOME"/.local/share/wallpapers/{black-hole,nasa-black-hole}.png
 
-say "Login screen: greetd (a text login that starts LXQt)"
+say "Login screen: greetd (a text login that starts Hyprland)"
+sudo_place etc/greetd/session /etc/greetd/session
 sudo_place etc/greetd/config.toml /etc/greetd/config.toml
-sudo_place etc/greetd/lxqt-session /etc/greetd/lxqt-session
 # greetd takes over at the next boot; a running session is left alone. --force replaces the
 # display-manager link SDDM (or GDM) holds.
 if ! systemctl is-enabled -q greetd 2>/dev/null; then
@@ -663,17 +657,19 @@ if [ ${#REPLACED[@]} -gt 0 ]; then
 	printf '  ~/%s\n' "${REPLACED[@]}" >&2
 fi
 # Installed by the-script-update from an older desktop: say that a restart switches over.
-if { [ "$MIGRATED" -eq 1 ] || [ "$AERO" -eq 1 ] || [ -e "$GNOME_PENDING" ] || [ -e "$KDE_PENDING" ]; } \
-	&& [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ] && [[ ${XDG_CURRENT_DESKTOP:-} != *LXQt* ]]; then
-	notify-send -u critical "the-script is installed" "Restart to switch to LXQt." 2>/dev/null || true
+if { [ "$MIGRATED" -eq 1 ] || [ "$AERO" -eq 1 ] || [ -e "$GNOME_PENDING" ] || [ -e "$KDE_PENDING" ] || [ -e "$LXQT_PENDING" ]; } \
+	&& [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ] && [[ ${XDG_CURRENT_DESKTOP:-} != *Hyprland* ]]; then
+	notify-send -u critical "the-script is installed" "Log out (or restart) to switch to Hyprland." 2>/dev/null || true
 fi
 cat <<EOF
 
 Next steps:
-  1. Restart. A text login (greetd) comes up; type your password and you are in LXQt. Coming from
-     Plasma, the first login also removes Plasma in the background (a notification says if it fails).
-  2. Super opens the Start menu (type to search), Super+T the to-do list. See README.md.
+  1. Log out or restart. A text login (greetd) comes up; type your password and you are in Hyprland.
+     Coming from LXQt or Plasma, the first login removes it in the background (a notification says if
+     that fails).
+  2. Tap Super for the overview (type to search), Alt+Tab to switch windows, Super+T the to-do list.
+     See README.md.
   3. NVIDIA card? Install the driver yourself first (e.g. 'sudo pacman -S nvidia-open'),
      since the right package depends on your GPU and kernel. It is not part of this repo.
-  4. Display scale: the-script-displays keeps what Plasma had; to change it, see README.md.
+  4. Display scale: the-script-displays picks it at each login; to change it, see README.md.
 EOF

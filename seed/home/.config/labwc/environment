@@ -1,3 +1,0 @@
-# labwc's environment (LXQt session). Programs labwc starts (key bindings, autostart) get these.
-# LibreWolf: use labwc's classic title bar instead of drawing tabs + KDE-style buttons in it.
-MOZ_GTK_TITLEBAR_DECORATION=none

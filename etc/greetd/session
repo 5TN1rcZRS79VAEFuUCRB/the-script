@@ -1,0 +1,7 @@
+#!/bin/bash -l
+# the-script: greetd starts Hyprland through this login shell, so the session gets the PATH and other
+# settings from /etc/profile and ~/.bash_profile (~/.local/bin, where claude and ccb are).
+# Hyprland's own output goes to ~/.cache/hyprland-session.log (the last session's in .log.old).
+log="$HOME/.cache/hyprland-session.log"
+mkdir -p "${log%/*}" && { [ -e "$log" ] && mv -f "$log" "$log.old"; }
+exec start-hyprland >"$log" 2>&1

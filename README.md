@@ -1,8 +1,10 @@
 # the-script
 
-A one-command setup for my Arch Linux desktop: LXQt on the labwc window manager (Wayland), made to
-look like an old-style dark desktop (gray bevelled buttons, navy title bars, a Start button), light
-enough for an old laptop, with a to-do list for school on the taskbar, and LibreWolf/KeePassXC/Syncthing/Tailscale/printing set up. Desktop only: nothing from the media server is in here.
+A one-command setup for my Arch Linux desktop: the Hyprland window manager (Wayland) with no desktop
+environment, and its own top bar and overview built in Quickshell, set up like GNOME without the dock,
+workspaces or app grid: every window maximized, tap Super to search and see all open windows, Alt+Tab
+to switch. Dark and square, good for games (sharp at any display scale, variable refresh rate and
+tearing on desktops), with a to-do list for school on the bar, and LibreWolf/KeePassXC/Syncthing/Tailscale/printing set up. Desktop only: nothing from the media server is in here.
 
 ## Quick start
 
@@ -15,15 +17,23 @@ cd the-script
 ./install.sh
 ```
 
-Then restart: a text login (greetd with tuigreet) comes up on the first console. It remembers the last
-user, so you just type your password, and LXQt starts. On a machine that had Plasma (or GNOME), the
-first LXQt login also removes it in the background (a notification says if it fails), and the one after
-the next restart removes SDDM, Plasma's old login screen. Their settings in `~/.config` are left alone.
+Then log out or restart: a text login (greetd with tuigreet) comes up on the first console. It
+remembers the last user, so you just type your password, and Hyprland starts. On a machine that had
+LXQt or Plasma (or GNOME), the first Hyprland login also removes it in the background (a notification
+says if it fails); coming from Plasma, the one after the next restart removes SDDM, its login screen.
 niri and AeroThemePlasma leftovers from earlier versions of this repo go too.
 
 Why greetd and not SDDM or LightDM: SDDM is KDE's and pulls in an X server for its own screen, and
 LightDM's greeters are X11 programs as well. greetd is a small login daemon that just starts the
 Wayland session, with no X server and nothing to theme.
+
+Why Hyprland and a home-made shell instead of a desktop: GNOME's layout (bar on top, Super to search
+and see every window) without its dock, workspaces and app grid, and without its weak spots for games
+on Wayland (fractional scaling of X11 games, no tearing). Hyprland renders X11 games at the screen's
+real resolution (`xwayland.force_zero_scaling`) and lets fullscreen games tear and use VRR. Its config
+is Lua, so the "everything maximized" layout is a few lines in `hyprland.lua`. Ready-made shells for
+it either show windows by workspace or stack them where they really are, which with maximized windows
+means one on top of the other, so the overview here lays them out side by side like GNOME's.
 
 ### Options
 
@@ -35,28 +45,33 @@ Wayland session, with no X server and nothing to theme.
 Re-running the installer is safe. Anything it would overwrite is copied to
 `~/.desktop-backup/<timestamp>/` first.
 
-Screens are set up at each login by `the-script-displays`: every screen at its largest resolution and
-fastest refresh rate, at the scale and position Plasma last used (`~/.config/kwinoutputconfig.json`), or
-on a new machine 150% at 4K, 125% on a laptop's own screen and 100% otherwise. To change the scale for
-a session, LXQt's Monitor Settings (or `wlr-randr --output NAME --scale 1.5`); to keep it, edit the
-numbers in `the-script-displays`. On a desktop (no battery) labwc's variable refresh rate
-(G-SYNC/FreeSync) and tearing are on for fullscreen games; the laptop leaves both off.
+Screens are set up at each login (and when one is plugged in) by `the-script-displays`: every screen
+at its largest resolution and fastest refresh rate, at the scale and position Plasma last used
+(`~/.config/kwinoutputconfig.json`), or on a new machine 150% at 4K, 125% on a laptop's own screen and
+100% otherwise. It writes them to `~/.config/hypr/monitors.lua`. To keep a different scale, add a line
+like `hl.monitor({ output = "DP-1", mode = "highrr", position = "auto", scale = 1.25 })` to
+`~/.config/hypr/local.lua` (yours, loaded last; `hyprctl monitors` lists the names). On a desktop (no
+battery) variable refresh rate (G-SYNC/FreeSync), tearing and direct scanout are on for fullscreen
+games; the laptop leaves them off. X11 apps aren't scaled by Hyprland, so games stay sharp; Steam
+scales its own window to match (`STEAM_FORCE_DESKTOPUI_SCALING`).
 
 ## What gets installed
 
 | Piece | Where it goes |
 | --- | --- |
-| LXQt (panel, settings, notifications, power management), labwc, PCManFM-Qt (files), QTerminal, FeatherPad (text), LXImage-Qt, pavucontrol-qt, the network and Bluetooth tray icons, swaylock | packages (`packages.txt`) |
-| The ClassicDark look: labwc's window theme (3 px frame, navy gradient title bars, bevelled buttons), the panel theme (raised buttons that sink when pressed), the MATE icons, gray Qt colors, dark gray notifications, and GNOME's black Adwaita cursor; GTK apps in their dark theme | `~/.local/share/themes/ClassicDark/`, `~/.local/share/lxqt/themes/ClassicDark/`, `~/.config/lxqt/lxqt.conf`, `~/.config/gtk-{3,4}.0/settings.ini` |
-| The panel along the bottom: Start (searchable app menu), the open windows, the tray, then text buttons for the to-do list, the battery (laptops only) and the sound, and the clock. The sound button's menu picks the output and input, mutes and sets the volume; scroll on it to change the volume | `~/.config/lxqt/panel.conf`, `~/.local/bin/{todo-count,todo-menu,battery-text,audio-status,audio-menu}`, labwc's `menu.xml` |
-| labwc's keys, menus and session start (`autostart`: the screens, the wallpaper, the session's services, one click on Start so the Super key works) | `~/.config/labwc/` |
-| A patched lxqt-panel (the Start menu and tray icon menus open above the panel instead of over it, the Start menu with no delay and arrow keys moving through search results, and a left click on a tray icon with no click action of its own, like the network one, opens its menu) and labwc (a submenu's highlight clears when the pointer leaves it), built from Arch's own recipes plus `pkg/*/*.patch` by `pkg/build-patched.sh`, and again whenever an Arch update replaces them (the-script-update checks every 5 minutes); `wlrctl` from the AUR for the Start click at login | `pkg/` (needs `base-devel`) |
-| `the-script-lxqt`, at every LXQt login: copies your Firefox profile into LibreWolf if that had to wait, and once, removes Plasma (by running the installer again) | `~/.config/autostart/the-script-lxqt.desktop` |
+| Hyprland, Quickshell (the bar, overview and switcher), mako (notifications), hypridle and hyprlock (idle lock, lock screen), hyprpolkitagent (password prompts), foot (terminal), Thunar (files), Mousepad (text), imv (images), pavucontrol, the network and Bluetooth tray icons | packages (`packages.txt`) |
+| Hyprland's settings: keys, window rules, the "maxi" layout (every window maximized under the bar, the focused one on top; Super+Left/Right put one on half the screen), square corners, no gaps or blur, VRR/tearing on desktops | `~/.config/hypr/hyprland.lua` (saving it applies it); your own additions in `~/.config/hypr/local.lua` |
+| The top bar: Activities and the window's app on the left, the clock (click: calendar) in the middle, then the to-do count, the tray, sound (click: volume, output and input; scroll: volume), battery (laptops) and power (lock, suspend, log out, restart, shut down). Every button opens a dropdown, not a window | `~/.config/quickshell/Bar.qml` and the `*Menu.qml` next to it |
+| The overview (tap Super, or click Activities): the wallpaper dimmed, a search box and every open window side by side, live. Type to find apps and windows; Enter opens the first (or the one picked with the arrow keys/Tab); click a window to go to it, or its x (or middle-click) to close it | `~/.config/quickshell/OverviewWindow.qml` |
+| Alt+Tab: the open windows with previews, most recently used first; let go of Alt to switch | `~/.config/quickshell/Switcher.qml`, the Alt+Tab binds in `hyprland.lua` |
+| The look: GNOME's dark colors, square corners, Adwaita icons, cursor and font; GTK apps dark (Adwaita-dark), Qt apps dark (Fusion via qt6ct); square dark notifications and lock screen | `~/.config/quickshell/Theme.qml`, `~/.config/gtk-{3,4}.0/settings.ini`, `~/.config/qt6ct/`, `~/.config/mako/config`, `~/.config/hypr/hyprlock.conf` |
+| Idle: locked after 10 minutes, screens off 30 seconds later, locked before sleep; a fullscreen game or video keeps the screen on. A low-battery warning at 10% and 5% | `~/.config/hypr/hypridle.conf`, `shell.qml` |
+| `the-script-session`, at every Hyprland login: the screens, then the bar, notifications, idle lock, tray icons, the to-do daemon, the services that wait for a desktop session (bedtime, history-cleaner) and `the-script-login` (copies your Firefox profile into LibreWolf if that had to wait, and once, removes the desktop this machine had before) | `~/.local/bin/the-script-session`, `the-script-login` |
 | Wallpaper: star trails over La Hague lighthouse at sunset, by Antoine Lamielle ([Wikimedia Commons](https://commons.wikimedia.org/wiki/File:2017-04_Circumpolar_trails_sunset_at_La_Hague_lighthouse.jpg), CC BY-SA 4.0), cropped to 3840x2160 | `~/.local/share/wallpapers/the-script.jpg` |
-| The login screen: greetd running tuigreet on the first console (time shown, last user remembered), which starts `startlxqtwayland` through a login shell, so `~/.bash_profile` puts `~/.local/bin` on PATH | `systemctl enable greetd`, `/etc/greetd/config.toml`, `/etc/greetd/lxqt-session` (needs sudo) |
+| The login screen: greetd running tuigreet on the first console (time shown, last user remembered), which starts Hyprland (`start-hyprland`) through a login shell, so `~/.bash_profile` puts `~/.local/bin` on PATH. Hyprland's output goes to `~/.cache/hyprland-session.log` | `systemctl enable greetd`, `/etc/greetd/config.toml`, `/etc/greetd/session` (needs sudo) |
 | `mouse-dpi`: measures a mouse's real DPI as you slide it 10 cm along a ruler, next to the DPI it is set to (read from a Razer or Endgame Gear mouse), to compare two mice set alike (needs sudo to read the mouse) | `~/.local/bin/mouse-dpi` |
-| School assignments and to-dos on the taskbar (`todo`, shown by `todo-count`, its list in `todo-menu`) | `~/.local/bin/`, `~/.config/autostart/todo.desktop` |
-| LibreWolf (Firefox with privacy defaults) settings: dark everywhere (LXQt doesn't tell apps it is dark), labwc's title bar above the tabs, no AI or sponsored content, fingerprinting protection that still lets sites see dark mode, and cookies kept when it closes so you stay logged in (`user.js`) | your LibreWolf profile directory |
+| School assignments and to-dos on the bar (`todo`, shown by `TodoMenu.qml`) | `~/.local/bin/todo` |
+| LibreWolf (Firefox with privacy defaults) settings: dark everywhere, tabs in the title bar, no AI or sponsored content, fingerprinting protection that still lets sites see dark mode, and cookies kept when it closes so you stay logged in (`user.js`) | your LibreWolf profile directory |
 | Your Firefox profile (bookmarks, history, site logins, open tabs, extensions) copied into LibreWolf once, by `librewolf-import-firefox`; if a browser is open, at the next login instead. The LibreWolf profile it replaces goes to the backup folder. Firefox stays installed until you remove it (`sudo pacman -Rs firefox`) | `~/.config/librewolf/librewolf/` |
 | LibreWolf as the default browser, so links from other programs open there | `~/.config/mimeapps.list` |
 | LibreWolf extensions: uBlock Origin (comes with LibreWolf) and Violentmonkey, installed by a policy (`policies.json`), which also makes Brave Search the default search engine (Startpage stays available as `@sp`). A policy file in /etc replaces LibreWolf's own, so `librewolf-policies` merges the two, again after each LibreWolf update (a pacman hook) | `/etc/librewolf/policies/`, `/usr/local/libexec/librewolf-policies`, `/etc/pacman.d/hooks/librewolf-policies.hook` (needs sudo) |
@@ -68,7 +83,7 @@ numbers in `the-script-displays`. On a desktop (no battery) labwc's variable ref
 | Syncthing (keeps the KeePassXC database in sync), started now and at every login | `systemctl --user enable syncthing`. Pair devices and share the folder yourself at http://127.0.0.1:8384; keys are never in this repo |
 | Auto-update: every 5 minutes `the-script-update.timer` pulls this clone and, on a new commit, re-runs `install.sh`. "Update the-script" in the launcher does the same check right away. Failures show a notification (`journalctl --user -u the-script-update`). Needs passwordless sudo, which the installer sets up: anything running as you, and anyone who can push here, gets root | `~/.local/share/applications/the-script-update.desktop`, `~/.local/share/the-script` (link to the clone), `/etc/sudoers.d/10-the-script` (undo: delete it and `systemctl --user disable --now the-script-update.timer`) |
 | Steam's in-game overlay follows the display scale (below) | `~/.local/bin/steam-overlay-scale`, `steam-overlay-scale.path` |
-| Bedtime (started with the session through `the-script-session.target`, which labwc's autostart starts since LXQt doesn't): the computer is off from 9:30 PM to 6:30 AM every day (an hour without screens before a 10:30 PM bedtime). Warnings 15, 5 and 1 minute before, then it shuts down; turned on before 6:30 AM it shuts down again after a minute's warning. Not on arch-server | `~/.local/bin/bedtime`, `bedtime.service` |
+| Bedtime (started with the session through `the-script-session.target`, which `the-script-session` starts): the computer is off from 9:30 PM to 6:30 AM every day (an hour without screens before a 10:30 PM bedtime). Warnings 15, 5 and 1 minute before, then it shuts down; turned on before 6:30 AM it shuts down again after a minute's warning. Not on arch-server | `~/.local/bin/bedtime`, `bedtime.service` |
 | `screenshot [file.png]`: saves a screenshot of the whole screen with no dialog (grim) | `~/.local/bin/` |
 | cc-bench: finds which Claude Code model and effort work best for you (only where Claude Code is installed; see below) | `~/.local/bin/ccb`, `~/.local/bin/ccbench`, `cc-bench.timer`, the status line and a SessionStart hook in `~/.claude/settings.json` |
 | `discord-compress video.mp4 [MB]`: re-encodes a video under Discord's upload limit (10 MB by default) | `~/.local/bin/` |
@@ -77,30 +92,30 @@ numbers in `the-script-displays`. On a desktop (no battery) labwc's variable ref
 
 ## Keys
 
-labwc's keys are in `~/.config/labwc/rc.xml` (`Ctrl+Shift+R` reloads it). The ones worth knowing:
+Hyprland's keys are in `~/.config/hypr/hyprland.lua` (saving it applies it). The ones worth knowing:
 
 | Action | Keys |
 | --- | --- |
-| Start menu; type to search, arrows and Enter to pick | `Super` (the Windows key) |
-| Run a command | `Alt+F2` |
-| To-do list | `Super+T`, or click its button on the panel |
-| Sound menu | click the sound button; volume keys work too |
-| Switch windows | `Alt+Tab` |
-| Snap a window to a half of the screen (two in a row, like Up then Left: a quarter) | `Super+Left`, `Right`, `Up`, `Down`; `Super+A` maximizes |
-| Show the desktop | `Super+D` |
-| Lock the screen | `Super+L` (swaylock; also before sleep) |
+| Overview: search apps and windows, see every open window | tap `Super` (also `Super+Space`, `Super+A`, or click Activities) |
+| Switch windows | `Alt+Tab`, `Alt+Shift+Tab` (hold Alt, let go to switch) |
+| To-do list | `Super+T`, or click its button on the bar |
+| Close a window | `Super+Q` or `Alt+F4` |
+| Put a window on the left/right half; maximize it again | `Super+Left`, `Super+Right`; `Super+Up` |
+| Float a window (or put it back) | `Super+V` or `Super+Down`; move/resize with `Super` + left/right mouse drag |
+| Fullscreen | `Super+F` |
+| Terminal, files, browser | `Super+Enter`, `Super+E`, `Super+B` |
+| Lock the screen | `Super+L` (also before sleep, and after 10 minutes idle) |
 | Screenshot | `Print` saves the screen to `~/Pictures`, `Super+Shift+S` copies an area |
-| Window menu | `Alt+Space` |
+| Volume, brightness, media | their keys; the volume and brightness show in a box at the bottom |
 
 ## School assignments and to-dos
 
-The `todo` daemon puts the next Canvas or Schoology assignment, `todo.txt` task or today's workout on
-the panel, right of the tray (title and time left, points and a streak of days in a row with
-something turned in on time or a finished focus session, where every 7 active days earn a streak
-freeze that saves a missed day; never a count of late work), and sends reminders 3 days, 1 day and 3
+The `todo` daemon keeps the Canvas and Schoology assignments, `todo.txt` tasks and today's workout,
+and the bar shows how many are due today and in the next 7 days, left of the tray. Its list has the
+points and a streak of days in a row with something turned in on time or a finished focus session
+(every 7 active days earn a streak freeze that saves a missed day; never a count of late work). It sends reminders 3 days, 1 day and 3
 hours before each due date, plus a summary every morning. Click the button or press `Super+T` for the
-list: start a 10-minute focus session (it opens the assignment and counts down on the taskbar with
-the task's name; when it ends, a notification says so and the list offers 10 more minutes, a 5-minute
+list: start a 10-minute focus session (it opens the assignment and counts down on the bar; when it ends, a notification says so and the list offers 10 more minutes, a 5-minute
 break, or stopping for now without finishing; **Finished it** ends a session early and checks the
 task off), open an assignment in the browser, or mark Schoology work done. Click a task for its
 actions.
@@ -117,7 +132,7 @@ work stays listed for a week unless you mark it done (on time or late: you say w
 due before the first sync just gets **Done**, with no points either way. A finished
 focus session is +2. Upcoming work comes first, and on the same day Canvas, then Schoology, then the workout, then Anki; when nothing is
 due within 2 days, late work moves to the top. When nothing is late and nothing is due within 3 days,
-the taskbar shows a break (`free until Sun 10/11`) instead; it ends when the next 3-day reminder fires.
+the list shows a break (`free until Sun 10/11`) instead; it ends when the next 3-day reminder fires.
 
 It needs two things that are never in this repo, both in `~/.local/share/dwm-todo/`:
 
@@ -187,15 +202,15 @@ your plan it used.
 
 The installer copies files *from* this repo *to* your home directory. To keep the repo current
 after changing your live setup, copy the changed file back into the matching path under
-`home/` or `librewolf/` and commit it. Files under `seed/home/` (the panel, labwc's keys and menus,
-LXQt's settings) are different: they are put in place only when the repo's copy changes, so changes
-made in LXQt's settings windows stay until then (the old file goes to the backup folder).
+`home/` or `librewolf/` and commit it. Your own Hyprland additions belong in `~/.config/hypr/local.lua`,
+which the-script never touches. Quickshell reloads the bar as soon as a `.qml` file is saved.
 
 History: commit `a8ea1cd` is the last dwm version of this setup, and the repo was `niri-script` (the
 niri window manager) before it became `the-script`. Installing the-script over niri-script retires
 the niri helper scripts and services into the backup folder; niri's own settings in `~/.config` are
 left in place, unused. After that it was a Windows 7-style Plasma desktop (AeroThemePlasma), then plain
-GNOME for a few days (from `cf21cfb`), then plain Plasma, and now LXQt. The to-do data folder keeps its old name, `~/.local/share/dwm-todo`, because
+GNOME for a few days (from `cf21cfb`), then plain Plasma, then LXQt on labwc (a classic Windows
+2000-style look, `6b3af9a` to `433eff4`), and now Hyprland with its own Quickshell bar. The to-do data folder keeps its old name, `~/.local/share/dwm-todo`, because
 Syncthing points at it on every machine.
 
 ## License

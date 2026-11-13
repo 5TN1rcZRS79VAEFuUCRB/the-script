@@ -32,8 +32,9 @@ dbus-update-activation-environment --systemd WAYLAND_DISPLAY DISPLAY XDG_CURRENT
 systemctl --user restart the-script-session.target &
 systemctl --user start hyprpolkitagent.service &
 
-# The bar and overview; started again if it ever crashes.
-( while true; do qs >"$HOME/.cache/quickshell.log" 2>&1; sleep 2; done ) &
+# The bar and overview; started again if it ever crashes (until Hyprland is gone, at logout).
+sock="$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket.sock"
+( while [ -S "$sock" ]; do qs >"$HOME/.cache/quickshell.log" 2>&1; sleep 2; done ) &
 mako &
 hypridle &
 nm-applet --indicator &

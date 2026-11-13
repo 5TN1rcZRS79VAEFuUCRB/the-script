@@ -25,9 +25,9 @@ leftovers from earlier versions of this repo go too.
 Why GNOME after all: its window handling (title bars, snapping, the overview, Alt+Tab) is what this
 setup kept rebuilding by hand. What made games bad on it before was the display scale: at 125% or 150%,
 X11 games (everything through Proton) get a made-up screen (3072x1920 on a 1920x1200 laptop, about 5K on
-a 4K monitor) that GNOME then shrinks. GNOME 51 still does that at fractional scales, but at whole ones
-(100%, 200%) X11 games see the screen's real pixels. So the-script uses 100% with Large Text (text at
-125%) on a laptop and 200% with text at 75% on a 4K monitor (it reads about like 150%). Variable refresh rate is on by default since GNOME 50. GNOME
+a 4K monitor) that GNOME then shrinks. Stock GNOME 51 still does that at fractional scales; the-script
+uses fractional scales anyway (125% laptop and 1440p, 150% 4K) and is getting a patched mutter that
+gives X11 games the real pixels there, the way KDE does. Variable refresh rate is on by default since GNOME 50. GNOME
 still can't let a game tear (turn vsync off in a game for the lowest latency it can get).
 
 ### Options
@@ -40,11 +40,8 @@ still can't let a game tear (turn vsync off in a game for the lowest latency it 
 Re-running the installer is safe. Anything it would overwrite is copied to
 `~/.desktop-backup/<timestamp>/` first.
 
-Display scale: the-script-gnome sets it once per machine, on the first GNOME login: a 4K monitor gets
-200% with text at 75%, another fractional scale GNOME picked by itself becomes 100%, and a laptop gets
-Large Text. Change either in
-Settings > Displays and Settings > Accessibility; a fractional scale there brings back the made-up
-screen for games.
+Display scale: the-script-gnome sets it once per machine, on the first GNOME login: 125% on a laptop
+or a 1440p monitor, 150% on 4K, text at 100%. Change it in Settings > Displays.
 
 ## What gets installed
 

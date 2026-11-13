@@ -374,6 +374,9 @@ done
 # Black hole wallpapers the-script set for a few minutes.
 rm -f "$HOME"/.local/share/wallpapers/{black-hole,nasa-black-hole}.png
 
+# Plasma's GTK settings (Breeze title-bar buttons, a Breeze settings.ini) override GNOME's look.
+retire "$HOME"/.config/gtk-{3,4}.0/{window_decorations.css,assets,settings.ini} "$HOME"/.config/gtk-4.0/gtk.css
+
 # ---------------------------------------------------------------- GNOME
 # The settings themselves (dark style, one workspace, Alt+Tab, the extensions, the display scale) are in
 # the-script-gnome, which also runs at every login: gsettings needs the session bus.
@@ -457,6 +460,13 @@ fi
 # console-idle keeps them off while it is blanked (a DisplayPort monitor's hotplug on going to sleep
 # would light the console again).
 say "Console: monitors off after 10 minutes idle"
+# The Windows 7 desktop copied Windows Live Messenger's icon over Element's own window icon, and on
+# machines where that desktop was already gone when the fix above came, it stayed. Reinstalling the same
+# version puts Element's icon back (a newer version does it at the next update instead).
+if [ "$(sha256sum /usr/lib/element/build/icon.png 2>/dev/null | cut -c1-16)" = 447b418f54deec6d ] \
+	&& [ "$(pacman -Q element-desktop | cut -d' ' -f2)" = "$(pacman -Si element-desktop 2>/dev/null | awk '/^Version/ {print $3}')" ]; then
+	sudo pacman -S --noconfirm element-desktop >/dev/null || warn "could not restore Element's icon"
+fi
 # Element's tray icon fills its whole square, so it looked bigger than the others in the tray.
 sudo_place usr/local/libexec/element-tray-icon /usr/local/libexec/element-tray-icon
 sudo_place etc/pacman.d/hooks/element-tray-icon.hook /etc/pacman.d/hooks/element-tray-icon.hook

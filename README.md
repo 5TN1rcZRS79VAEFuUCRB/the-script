@@ -1,9 +1,9 @@
 # the-script
 
 A one-command setup for my Arch Linux desktop: the Hyprland window manager (Wayland) with no desktop
-environment, and its own top bar and overview built in Quickshell, set up like GNOME without the dock,
-workspaces or app grid: every window maximized, tap Super to search and see all open windows, Alt+Tab
-to switch. Dark and square, good for games (sharp at any display scale, variable refresh rate and
+environment: Noctalia as the bar and shell, plus its own Super overview built in Quickshell, set up like
+GNOME without the dock, workspaces or app grid: every window maximized, tap Super to search and see all
+open windows, Alt+Tab to switch. Dark, good for games (sharp at any display scale, variable refresh rate and
 tearing on desktops), with a to-do list for school on the bar, and LibreWolf/KeePassXC/Syncthing/Tailscale/printing set up. Desktop only: nothing from the media server is in here.
 
 ## Quick start
@@ -27,13 +27,14 @@ Why greetd and not SDDM or LightDM: SDDM is KDE's and pulls in an X server for i
 LightDM's greeters are X11 programs as well. greetd is a small login daemon that just starts the
 Wayland session, with no X server and nothing to theme.
 
-Why Hyprland and a home-made shell instead of a desktop: GNOME's layout (bar on top, Super to search
+Why Hyprland, Noctalia and a home-made overview instead of a desktop: GNOME's layout (bar on top, Super to search
 and see every window) without its dock, workspaces and app grid, and without its weak spots for games
 on Wayland (fractional scaling of X11 games, no tearing). Hyprland renders X11 games at the screen's
 real resolution (`xwayland.force_zero_scaling`) and lets fullscreen games tear and use VRR. Its config
 is Lua, so the "everything maximized" layout is a few lines in `hyprland.lua`. Ready-made shells for
 it either show windows by workspace or stack them where they really are, which with maximized windows
-means one on top of the other, so the overview here lays them out side by side like GNOME's.
+means one on top of the other, so the overview here lays them out side by side like GNOME's. Noctalia
+(a native shell, not Quickshell) does the rest: the bar, notifications, lock screen, idle and Alt+Tab.
 
 ### Options
 
@@ -59,18 +60,18 @@ scales its own window to match (`STEAM_FORCE_DESKTOPUI_SCALING`).
 
 | Piece | Where it goes |
 | --- | --- |
-| Hyprland, Quickshell (the bar, overview and switcher), mako (notifications), hypridle and hyprlock (idle lock, lock screen), hyprpolkitagent (password prompts), foot (terminal), Thunar (files), Mousepad (text), imv (images), pavucontrol, the network and Bluetooth tray icons | packages (`packages.txt`) |
+| Hyprland, Noctalia (the bar, notifications, lock screen, idle, wallpaper, volume/brightness popups, password prompts, Alt+Tab), Quickshell (the Super overview), foot (terminal), Thunar (files), Mousepad (text), imv (images), pavucontrol | packages (`packages.txt`) |
 | Hyprland's settings: keys, window rules, the "maxi" layout (every window maximized under the bar, the focused one on top; Super+Left/Right put one on half the screen), square corners, no gaps or blur, VRR/tearing on desktops | `~/.config/hypr/hyprland.lua` (saving it applies it); your own additions in `~/.config/hypr/local.lua` |
-| The top bar: Activities and the window's app on the left, the clock (click: calendar) in the middle, then the to-do count, the tray, sound (click: volume, output and input; scroll: volume), battery (laptops) and power (lock, suspend, log out, restart, shut down). Every button opens a dropdown, not a window | `~/.config/quickshell/Bar.qml` and the `*Menu.qml` next to it |
-| The overview (tap Super, or click Activities): the wallpaper dimmed, a search box and every open window side by side, live. Type to find apps and windows; Enter opens the first (or the one picked with the arrow keys/Tab); click a window to go to it, or its x (or middle-click) to close it | `~/.config/quickshell/OverviewWindow.qml` |
-| Alt+Tab: the open windows with previews, most recently used first; let go of Alt to switch | `~/.config/quickshell/Switcher.qml`, the Alt+Tab binds in `hyprland.lua` |
-| The look: GNOME's dark colors, square corners, Adwaita icons, cursor and font; GTK apps dark (Adwaita-dark), Qt apps dark (Fusion via qt6ct); square dark notifications and lock screen | `~/.config/quickshell/Theme.qml`, `~/.config/gtk-{3,4}.0/settings.ini`, `~/.config/qt6ct/`, `~/.config/mako/config`, `~/.config/hypr/hyprlock.conf` |
-| Idle: locked after 10 minutes, screens off 30 seconds later, locked before sleep; a fullscreen game or video keeps the screen on. A low-battery warning at 10% and 5% | `~/.config/hypr/hypridle.conf`, `shell.qml` |
-| `the-script-session`, at every Hyprland login: the screens, then the bar, notifications, idle lock, tray icons, the to-do daemon, the services that wait for a desktop session (bedtime, history-cleaner) and `the-script-login` (copies your Firefox profile into LibreWolf if that had to wait, and once, removes the desktop this machine had before) | `~/.local/bin/the-script-session`, `the-script-login` |
+| Noctalia, with its own look (change it in its Settings window, from the bar's control center): the bar with the launcher button (click: the overview; right-click: Noctalia's launcher), the window's title, a 12-hour clock, the to-do count, media, tray, notifications, clipboard, network, Bluetooth, volume, brightness, battery and the session menu; no workspaces. Idle: locked after 10 minutes, screens off 30 seconds later, locked before sleep; a fullscreen game or video keeps the screen on. Settings window changes go to `~/.local/state/noctalia/settings.toml` and win over the-script's file | `~/.config/noctalia/the-script.toml` (saving it applies it) |
+| The to-do count on the bar (due today · due this week, or a focus session's countdown): a Noctalia plugin. Click it, or Super+T, for the list in Noctalia's launcher (`todo-pick`) | `~/.local/share/the-script-plugins/todo/`, `~/.local/bin/todo-pick` |
+| The overview (tap Super, or click the launcher button): the wallpaper dimmed, a search box and every open window side by side, live. Type to find apps and windows; Enter opens the first (or the one picked with the arrow keys/Tab); click a window to go to it, or its x (or middle-click) to close it; it takes its colors from Noctalia's theme | `~/.config/quickshell/OverviewWindow.qml` |
+| Alt+Tab (Alt+Shift+Tab backwards): Noctalia's window switcher, most recently used first; let go of Alt to switch | the Alt+Tab binds in `hyprland.lua`, `[shell.window_switcher]` in Noctalia's config |
+| The rest of the look: square windows, Adwaita icons, cursor and font; GTK apps dark (Adwaita-dark), Qt apps dark (Fusion via qt6ct); foot at size 11 | `~/.config/gtk-{3,4}.0/settings.ini`, `~/.config/qt6ct/`, `~/.config/foot/foot.ini` |
+| `the-script-session`, at every Hyprland login: the screens, then Noctalia, the overview, the to-do daemon, the services that wait for a desktop session (bedtime, history-cleaner) and `the-script-login` (copies your Firefox profile into LibreWolf if that had to wait, and once, removes the desktop this machine had before) | `~/.local/bin/the-script-session`, `the-script-login` |
 | Wallpaper: star trails over La Hague lighthouse at sunset, by Antoine Lamielle ([Wikimedia Commons](https://commons.wikimedia.org/wiki/File:2017-04_Circumpolar_trails_sunset_at_La_Hague_lighthouse.jpg), CC BY-SA 4.0), cropped to 3840x2160 | `~/.local/share/wallpapers/the-script.jpg` |
 | The login screen: greetd running tuigreet on the first console (time shown, last user remembered), which starts Hyprland (`start-hyprland`) through a login shell, so `~/.bash_profile` puts `~/.local/bin` on PATH. Hyprland's output goes to `~/.cache/hyprland-session.log` | `systemctl enable greetd`, `/etc/greetd/config.toml`, `/etc/greetd/session` (needs sudo) |
 | `mouse-dpi`: measures a mouse's real DPI as you slide it 10 cm along a ruler, next to the DPI it is set to (read from a Razer or Endgame Gear mouse), to compare two mice set alike (needs sudo to read the mouse) | `~/.local/bin/mouse-dpi` |
-| School assignments and to-dos on the bar (`todo`, shown by `TodoMenu.qml`) | `~/.local/bin/todo` |
+| School assignments and to-dos on the bar (`todo`, shown by the Noctalia plugin above) | `~/.local/bin/todo` |
 | LibreWolf (Firefox with privacy defaults) settings: dark everywhere, tabs in the title bar, no AI or sponsored content, fingerprinting protection that still lets sites see dark mode, and cookies kept when it closes so you stay logged in (`user.js`) | your LibreWolf profile directory |
 | Your Firefox profile (bookmarks, history, site logins, open tabs, extensions) copied into LibreWolf once, by `librewolf-import-firefox`; if a browser is open, at the next login instead. The LibreWolf profile it replaces goes to the backup folder. Firefox stays installed until you remove it (`sudo pacman -Rs firefox`) | `~/.config/librewolf/librewolf/` |
 | LibreWolf as the default browser, so links from other programs open there | `~/.config/mimeapps.list` |
@@ -96,7 +97,7 @@ Hyprland's keys are in `~/.config/hypr/hyprland.lua` (saving it applies it). The
 
 | Action | Keys |
 | --- | --- |
-| Overview: search apps and windows, see every open window | tap `Super` (also `Super+Space`, `Super+A`, or click Activities) |
+| Overview: search apps and windows, see every open window | tap `Super` (also `Super+Space`, `Super+A`, or click the launcher button at the top left) |
 | Switch windows | `Alt+Tab`, `Alt+Shift+Tab` (hold Alt, let go to switch) |
 | To-do list | `Super+T`, or click its button on the bar |
 | Close a window | `Super+Q` or `Alt+F4` |
@@ -105,8 +106,8 @@ Hyprland's keys are in `~/.config/hypr/hyprland.lua` (saving it applies it). The
 | Fullscreen | `Super+F` |
 | Terminal, files, browser | `Super+Enter`, `Super+E`, `Super+B` |
 | Lock the screen | `Super+L` (also before sleep, and after 10 minutes idle) |
-| Screenshot | `Print` saves the screen to `~/Pictures`, `Super+Shift+S` copies an area |
-| Volume, brightness, media | their keys; the volume and brightness show in a box at the bottom |
+| Screenshot | `Print` the whole screen, `Super+Shift+S` an area (Noctalia's) |
+| Volume, brightness, media | their keys; Noctalia shows the volume and brightness |
 
 ## School assignments and to-dos
 
@@ -203,14 +204,15 @@ your plan it used.
 The installer copies files *from* this repo *to* your home directory. To keep the repo current
 after changing your live setup, copy the changed file back into the matching path under
 `home/` or `librewolf/` and commit it. Your own Hyprland additions belong in `~/.config/hypr/local.lua`,
-which the-script never touches. Quickshell reloads the bar as soon as a `.qml` file is saved.
+which the-script never touches. Noctalia applies `~/.config/noctalia/*.toml` as soon as it is saved, and Quickshell reloads the
+overview when a `.qml` file is saved.
 
 History: commit `a8ea1cd` is the last dwm version of this setup, and the repo was `niri-script` (the
 niri window manager) before it became `the-script`. Installing the-script over niri-script retires
 the niri helper scripts and services into the backup folder; niri's own settings in `~/.config` are
 left in place, unused. After that it was a Windows 7-style Plasma desktop (AeroThemePlasma), then plain
 GNOME for a few days (from `cf21cfb`), then plain Plasma, then LXQt on labwc (a classic Windows
-2000-style look, `6b3af9a` to `433eff4`), and now Hyprland with its own Quickshell bar. The to-do data folder keeps its old name, `~/.local/share/dwm-todo`, because
+2000-style look, `6b3af9a` to `433eff4`), then Hyprland with its own Quickshell bar (`34882ed`), and now Hyprland with Noctalia. The to-do data folder keeps its old name, `~/.local/share/dwm-todo`, because
 Syncthing points at it on every machine.
 
 ## License

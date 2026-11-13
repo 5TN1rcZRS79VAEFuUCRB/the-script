@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+"""todo-pick: the to-do list in Noctalia's launcher (Super+T, or click the to-do count on the bar).
+
+Pick a task for its actions (start a 10-minute focus session, open it, mark it done...), or one of the
+suggestions at the top. Runs `todo do ACTION ID`, then tells the bar to refresh its count.
+"""
+import json, os, subprocess
+
+TODO = os.path.expanduser("~/.local/bin/todo")
+
+
+def pick(lines, prompt):
+    r = subprocess.run(["noctalia", "dmenu", "-p", prompt], input="\n".join(lines) + "\n",
+                       capture_output=True, text=True)
+    return r.stdout.rstrip("\n") if r.returncode == 0 else None
+
+
+def run(act, tid=None):
+    subprocess.run([TODO, "do", act] + ([tid] if tid else []))
+    subprocess.run(["noctalia", "msg", "plugin", "the-script/todo:bar", "all", "refresh"],
+                   capture_output=True)
+
+
+try:
+    m = json.loads(subprocess.run([TODO, "json"], capture_output=True, text=True, timeout=20).stdout)
+except Exception:
+    subprocess.run(["notify-send", "To-do", "The to-do list couldn't load (todo json failed)."])
+    raise SystemExit(1)
+
+choices = {}   # display line -> what it does
+for t in m.get("top", []):
+    choices[f"▶  {t['text']}"] = ("act", t["act"], t.get("id"))
+for i, t in enumerate(m.get("tasks", [])):
+    when = t["left"] if t.get("late") else "due in " + t["left"]
+    desc = ((t["course"] + " · ") if t.get("course") else "") + when
+    title = ("! " if t.get("late") else "") + t["title"]
+    choices[f"{title}\t{desc}"] = ("task", i, None)
+if not m.get("tasks"):
+    choices["All caught up\tnothing due"] = ("none", None, None)
+choices["Sync now\tfetch Canvas and Schoology"] = ("act", "sync", None)
+
+prompt = f"To-do · {m.get('pts', 0)} points · {m.get('streak', 0)}-day streak · level {m.get('level', 0)}"
+sel = pick(list(choices), prompt)
+what = choices.get(sel or "")
+if not what or what[0] == "none":
+    raise SystemExit(0)
+if what[0] == "act":
+    run(what[1], what[2])
+    raise SystemExit(0)
+
+task = m["tasks"][what[1]]
+acts = {a["text"]: a for a in task.get("actions", [])}
+sel = pick(list(acts), task["title"])
+if sel in acts:
+    run(acts[sel]["act"], acts[sel].get("id"))

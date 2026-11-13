@@ -1,34 +1,30 @@
 # Packages installed by install.sh from the official Arch repos.
 # Blank lines and # comments are ignored.
 
-# --- desktop: Hyprland with the-script's own bar and overview (Quickshell), no desktop environment ---
+# --- desktop: Hyprland with Noctalia (bar, notifications, lock, idle, Alt+Tab) and the-script's own
+# Super overview (Quickshell); no desktop environment ---
 hyprland                  # window manager (~/.config/hypr/hyprland.lua)
-quickshell                # the top bar, Super overview, Alt+Tab switcher (~/.config/quickshell)
+noctalia                  # the shell: bar, notifications, lock screen, idle, wallpaper, Alt+Tab (~/.config/noctalia)
+quickshell                # the Super overview (~/.config/quickshell)
 xdg-desktop-portal-hyprland   # screen sharing (Discord, OBS), screenshots for apps
 xdg-desktop-portal-gtk    # file pickers, dark mode for apps
-hyprpolkitagent           # password prompts for apps that need root
-hypridle                  # lock and screens off when idle, lock before sleep
-hyprlock                  # lock screen (Super+L)
-mako                      # notifications (todo, bedtime)
 qt6ct                     # Qt apps (KeePassXC, Anki) dark
 foot                      # terminal (Super+Enter)
 thunar                    # files (Super+E)
 mousepad                  # text editor
 imv                       # image viewer
-pavucontrol               # full volume control (Sound settings in the sound dropdown)
-network-manager-applet    # network in the tray
-blueman                   # Bluetooth in the tray
-brightnessctl             # brightness keys
+pavucontrol               # full volume control
+bluez                     # Bluetooth (Noctalia's Bluetooth button)
+bluez-utils
 playerctl                 # play/pause keys
 adwaita-icon-theme
 adwaita-cursors           # GNOME's black cursor
-adwaita-fonts             # GNOME's font (Adwaita Sans)
+adwaita-fonts
 wlr-randr                 # steam-overlay-scale reads the screen scale with it
-grim                      # screenshots (Print, screenshot); slurp picks an area (Super+Shift+S)
-slurp
+grim                      # `screenshot` (whole screen, no dialog)
 greetd                    # the login screen: a text login (tuigreet) that starts Hyprland
 greetd-tuigreet
-wl-clipboard              # wl-copy/wl-paste: area screenshots, Claude Code's Ctrl+V
+wl-clipboard              # wl-copy/wl-paste: Claude Code's Ctrl+V
 git
 
 # --- fonts (the bar's icons come from the Nerd Font symbols) ---

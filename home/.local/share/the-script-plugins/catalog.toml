@@ -1,0 +1,12 @@
+# the-script's local Noctalia plugin source (kind = "path" in ~/.config/noctalia/the-script.toml).
+
+[[plugin]]
+id = "the-script/todo"
+name = "To-do"
+version = "1.0.0"
+author = "the-script"
+license = "GPL-3.0-or-later"
+icon = "checklist"
+description = "Assignments and to-dos from the-script's todo, with the list in the launcher."
+plugin_api = 43
+tags = ["productivity"]

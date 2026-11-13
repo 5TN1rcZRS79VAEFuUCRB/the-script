@@ -1,9 +1,10 @@
 -- the-script: Hyprland, set up like GNOME without the dock, workspaces or app grid.
 --
 --   * every window opens maximized under the top bar (the "maxi" layout below); dialogs float
+--   * Noctalia is the bar, notifications, lock screen and idle (~/.config/noctalia)
 --   * Super (tap) opens the overview: a search box over all open windows (Quickshell, ~/.config/quickshell)
---   * Alt+Tab / Alt+Shift+Tab switch windows (most recently used first), Super+Left/Right snap a
---     window to half the screen, Super+Up maximizes it again
+--   * Alt+Tab / Alt+Shift+Tab switch windows (Noctalia's switcher, most recently used first),
+--     Super+Left/Right snap a window to half the screen, Super+Up maximizes it again
 --   * desktops (no battery): variable refresh rate and tearing for fullscreen games
 --
 -- Changes here apply as soon as the file is saved. Personal additions go in ~/.config/hypr/local.lua
@@ -178,9 +179,15 @@ hl.window_rule({
     no_focus = true,
 })
 
--- The overview and switcher fade; the bar never animates.
-hl.layer_rule({ match = { namespace = "^the-script-(bar|wallpaper)$" }, no_anim = true })
-hl.layer_rule({ match = { namespace = "^the-script-(overview|switcher|popup|osd)$" }, animation = "fade" })
+-- Noctalia's settings window floats; its bar, panels and popups animate themselves (Noctalia's docs
+-- say Hyprland's own layer animation makes them glitch). The overview fades.
+hl.window_rule({ match = { class = "^dev\\.noctalia\\.Noctalia$" }, float = true, size = { 1080, 920 }, center = true })
+hl.layer_rule({
+    name = "noctalia-no-anim",
+    match = { namespace = "^noctalia-(bar-.+|notification|dock|panel|attached-panel|osd|window-switcher)$" },
+    no_anim = true,
+})
+hl.layer_rule({ match = { namespace = "^the-script-overview$" }, animation = "fade" })
 
 ------------------------------------------------------------------ keys
 local function sh(cmd) return hl.dsp.exec_cmd(cmd) end
@@ -192,27 +199,13 @@ hl.bind("Super_R", qs("overview"), { release = true })
 hl.bind("SUPER + A", qs("overview"))
 hl.bind("SUPER + Space", qs("overview"))
 
--- Alt+Tab: the switcher shows while Alt is held; letting go of Alt picks the highlighted window.
-local altWatch = nil
-local function switch(dir)
-    return function()
-        hl.dispatch(qs("switcher-" .. dir))
-        if altWatch then return end
-        altWatch = hl.timer(function()
-            if not (hl.is_key_down("Alt_L") or hl.is_key_down("Alt_R")) then
-                altWatch:set_enabled(false)
-                altWatch = nil
-                hl.dispatch(qs("switcher-commit"))
-            end
-        end, { timeout = 25, type = "repeat" })
-    end
-end
-hl.bind("ALT + Tab", switch("next"))
-hl.bind("ALT + SHIFT + Tab", switch("prev"))
-hl.bind("ALT + grave", switch("next"))
+-- Alt+Tab: Noctalia's window switcher, most recently used first; let go of Alt to switch.
+local noct = "noctalia msg "
+hl.bind("ALT + Tab", sh(noct .. "window-switcher hold"))
+hl.bind("ALT + SHIFT + Tab", sh(noct .. "window-switcher hold reverse"))
 
 hl.bind("SUPER + Return", sh("foot"))
-hl.bind("SUPER + T", qs("todo"))
+hl.bind("SUPER + T", sh(BIN .. "todo-pick"))
 hl.bind("SUPER + E", sh("thunar"))
 hl.bind("SUPER + B", sh("librewolf"))
 hl.bind("SUPER + Q", hl.dsp.window.close())
@@ -223,28 +216,28 @@ hl.bind("SUPER + Left", snap("left"))
 hl.bind("SUPER + Right", snap("right"))
 hl.bind("SUPER + Up", snap("max"))
 hl.bind("SUPER + Down", hl.dsp.window.float({ action = "toggle" }))
-hl.bind("SUPER + L", sh("loginctl lock-session"))
+hl.bind("SUPER + L", sh(noct .. "session lock"))
 hl.bind("SUPER + mouse:272", hl.dsp.window.drag(), { mouse = true })
 hl.bind("SUPER + mouse:273", hl.dsp.window.resize(), { mouse = true })
 
--- Screenshots: Print saves the screen to ~/Pictures, Super+Shift+S copies an area.
-hl.bind("Print", sh("mkdir -p ~/Pictures && grim ~/Pictures/Screenshot-$(date +%Y-%m-%d_%H-%M-%S).png"))
-hl.bind("SUPER + SHIFT + S", sh("grim -g \"$(slurp -b 00000088 -c ffffff)\" - | wl-copy --type image/png"))
+-- Screenshots (Noctalia): Print the screen, Super+Shift+S an area; saved to ~/Pictures and copied.
+hl.bind("Print", sh(noct .. "screenshot-fullscreen"))
+hl.bind("SUPER + SHIFT + S", sh(noct .. "screenshot-region"))
 
--- Volume and brightness keys (the bar shows the change).
-hl.bind("XF86AudioRaiseVolume", sh("wpctl set-mute @DEFAULT_AUDIO_SINK@ 0; wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+"), { locked = true, repeating = true })
-hl.bind("XF86AudioLowerVolume", sh("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"), { locked = true, repeating = true })
-hl.bind("XF86AudioMute", sh("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"), { locked = true })
-hl.bind("XF86AudioMicMute", sh("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"), { locked = true })
-hl.bind("XF86MonBrightnessUp", sh("brightnessctl -q -e4 -n2 set 5%+ && qs ipc call osd brightness"), { locked = true, repeating = true })
-hl.bind("XF86MonBrightnessDown", sh("brightnessctl -q -e4 -n2 set 5%- && qs ipc call osd brightness"), { locked = true, repeating = true })
+-- Volume and brightness keys (Noctalia shows the change).
+hl.bind("XF86AudioRaiseVolume", sh(noct .. "volume-up"), { locked = true, repeating = true })
+hl.bind("XF86AudioLowerVolume", sh(noct .. "volume-down"), { locked = true, repeating = true })
+hl.bind("XF86AudioMute", sh(noct .. "volume-mute"), { locked = true })
+hl.bind("XF86AudioMicMute", sh(noct .. "mic-mute"), { locked = true })
+hl.bind("XF86MonBrightnessUp", sh(noct .. "brightness-up"), { locked = true, repeating = true })
+hl.bind("XF86MonBrightnessDown", sh(noct .. "brightness-down"), { locked = true, repeating = true })
 hl.bind("XF86AudioPlay", sh("playerctl play-pause"), { locked = true })
 hl.bind("XF86AudioPause", sh("playerctl play-pause"), { locked = true })
 hl.bind("XF86AudioNext", sh("playerctl next"), { locked = true })
 hl.bind("XF86AudioPrev", sh("playerctl previous"), { locked = true })
 
 ------------------------------------------------------------------ session start
--- the-script-session starts the bar/overview, notifications, idle lock, tray apps and the services
+-- the-script-session starts Noctalia (bar, notifications, lock, idle), the overview and the services
 -- that wait for a graphical session (bedtime, history-cleaner).
 hl.on("hyprland.start", function()
     if os.getenv("THE_SCRIPT_TEST") then return end

@@ -346,6 +346,18 @@ sudo rm -f /etc/greetd/lxqt-session
 # foot.ini is retired.
 grep -qi 'niri' "$HOME/.config/foot/foot.ini" 2>/dev/null && retire "$HOME/.config/foot/foot.ini"
 
+# Noctalia replaced the first Hyprland setup's notifications (mako), idle lock (hypridle, hyprlock),
+# password prompts (hyprpolkitagent) and tray applets; they go along with their settings.
+retire "$HOME"/.config/hypr/{hypridle,hyprlock}.conf "$HOME/.config/mako"
+retire "$HOME"/.config/quickshell/{Bar,Wallpaper,Osd,Switcher,Dropdown,TodoMenu,AudioMenu,PowerMenu,CalendarMenu,BarButton,MenuItem,Separator,Slider}.qml
+mapfile -t OLD_SHELL < <(pacman -Qq mako hypridle hyprlock hyprpolkitagent network-manager-applet blueman slurp 2>/dev/null || true)
+mapfile -t OLD_SHELL < <(unneeded "${OLD_SHELL[@]}")
+if [ ${#OLD_SHELL[@]} -gt 0 ]; then
+	say "Removing what Noctalia replaced: ${OLD_SHELL[*]}"
+	pkill -x mako; pkill -x hypridle; pkill -f "nm-applet|blueman-applet"; true
+	sudo pacman -Rs --noconfirm "${OLD_SHELL[@]}" || warn "could not remove: ${OLD_SHELL[*]}"
+fi
+
 # ---------------------------------------------------------------- dotfiles + scripts
 say "Installing config files and scripts into $HOME"
 while IFS= read -r -d '' f; do

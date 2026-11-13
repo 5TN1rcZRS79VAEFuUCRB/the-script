@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
 # the-script-session: started by Hyprland at login (~/.config/hypr/hyprland.lua). Sets up the screens,
-# then starts the desktop's parts: the bar/overview (Quickshell), notifications (mako), the idle lock
-# (hypridle), password prompts (hyprpolkitagent), the network and Bluetooth tray icons, the to-do
-# daemon, and the services that wait for a graphical session (bedtime, history-cleaner).
+# then starts the desktop's parts: Noctalia (bar, notifications, lock screen, idle, password prompts,
+# Alt+Tab), the Super overview (Quickshell), the to-do daemon, and the services that wait for a
+# graphical session (bedtime, history-cleaner).
 # Output goes to ~/.cache/the-script-session.log.
 
 exec >"$HOME/.cache/the-script-session.log" 2>&1
@@ -30,15 +30,12 @@ dbus-update-activation-environment --systemd WAYLAND_DISPLAY DISPLAY XDG_CURRENT
 	HYPRLAND_INSTANCE_SIGNATURE QT_QPA_PLATFORMTHEME QT_QPA_PLATFORM XCURSOR_THEME XCURSOR_SIZE \
 	ELECTRON_OZONE_PLATFORM_HINT MOZ_ENABLE_WAYLAND STEAM_FORCE_DESKTOPUI_SCALING
 systemctl --user restart the-script-session.target &
-systemctl --user start hyprpolkitagent.service &
 
-# The bar and overview; started again if it ever crashes (until Hyprland is gone, at logout).
+# Noctalia and the overview; each started again if it ever crashes (until Hyprland is gone, at logout).
+# Noctalia logs to ~/.cache/noctalia/noctalia.log.
 sock="$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket.sock"
+( while [ -S "$sock" ]; do noctalia >/dev/null 2>&1; sleep 2; done ) &
 ( while [ -S "$sock" ]; do qs >"$HOME/.cache/quickshell.log" 2>&1; sleep 2; done ) &
-mako &
-hypridle &
-nm-applet --indicator &
-blueman-applet &
 pgrep -f '/\.local/bin/todo daemon' >/dev/null || "$B/todo" daemon &
 "$B/steam-overlay-scale" &
 "$B/the-script-login" &

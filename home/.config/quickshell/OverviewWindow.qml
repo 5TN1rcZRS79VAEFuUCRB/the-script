@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
+import Quickshell.Io
 
 // Super: a search box over every open window, like GNOME's Activities overview (without the dock,
 // workspaces and app grid). Type to find apps and windows; Enter opens the highlighted one, the arrow
@@ -18,6 +19,16 @@ PanelWindow {
 
     property string query: ""
     property int selected: -1
+    property string wallpaper: Theme.wallpaper
+
+    // The wallpaper Noctalia shows right now, behind the dimmed overview.
+    Process {
+        id: wallGet
+        command: ["noctalia", "msg", "wallpaper-get"]
+        stdout: StdioCollector {
+            onStreamFinished: { const p = this.text.trim(); if (p.startsWith("/")) win.wallpaper = p; }
+        }
+    }
 
     readonly property var apps: {
         const q = query.trim().toLowerCase();
@@ -54,6 +65,7 @@ PanelWindow {
                 search.text = "";
                 win.selected = -1;
                 search.forceActiveFocus();
+                wallGet.running = true;
             }
         }
     }
@@ -73,7 +85,7 @@ PanelWindow {
     // Dimmed wallpaper behind everything; clicking it closes the overview.
     Image {
         anchors.fill: parent
-        source: "file://" + Theme.wallpaper
+        source: "file://" + win.wallpaper
         fillMode: Image.PreserveAspectCrop
         sourceSize.width: width
         sourceSize.height: height
@@ -84,6 +96,7 @@ PanelWindow {
 
     // ---------------------------------------------------------------- search box
     Rectangle {
+        radius: Theme.radius
         id: box
         width: Math.min(560, parent.width - 40)
         height: 44
@@ -141,6 +154,7 @@ PanelWindow {
         Repeater {
             model: win.apps
             Rectangle {
+                radius: Theme.radius
                 required property var modelData
                 required property int index
                 readonly property bool sel: win.selected === index
@@ -222,6 +236,7 @@ PanelWindow {
                     height: area.fit.w / area.ratio + area.labelH
 
                     Rectangle {
+                        radius: Theme.radius
                         id: frame
                         width: parent.width
                         height: parent.width / area.ratio
@@ -241,6 +256,7 @@ PanelWindow {
                             anchors.top: parent.top
                             anchors.margins: 6
                             width: 26; height: 26
+                            radius: 13
                             color: cma.containsMouse ? Theme.bad : Theme.raised
                             border.color: Theme.border
                             Glyph { anchors.centerIn: parent; text: ""; font.pixelSize: Theme.fontSize - 1 }

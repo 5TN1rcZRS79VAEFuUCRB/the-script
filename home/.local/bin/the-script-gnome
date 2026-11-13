@@ -85,6 +85,13 @@ fi
 gsettings set org.gnome.shell disable-user-extensions false
 add_to_list org.gnome.shell enabled-extensions "${EXTENSIONS[@]}"
 
+# A font setting left by an older desktop (Plasma set the monospace font to Hack) whose font isn't
+# installed makes GNOME fall back to a proportional one: the terminal spaces every letter apart.
+for key in font-name document-font-name monospace-font-name; do
+	font=$(gsettings get org.gnome.desktop.interface $key | tr -d "'" | sed 's/ *[0-9.]*$//')
+	[ -n "$(fc-list "$font" family)" ] || gsettings reset org.gnome.desktop.interface $key
+done
+
 # One workspace (the overview then has no workspace strip), new windows centered.
 put org.gnome.mutter dynamic-workspaces false
 put org.gnome.desktop.wm.preferences num-workspaces 1

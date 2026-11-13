@@ -141,6 +141,11 @@ hl.layout.register("maxi", {
     end,
 })
 hl.on("window.destroy", function(w) if w then snapped[w.address] = nil end end)
+-- A window that gets focus comes to the top, however it was focused (Noctalia's Alt+Tab only focuses
+-- it; left under another maximized window, the next mouse move would focus the one on top again).
+hl.on("window.active", function(w)
+    if w and not w.floating then hl.dispatch(hl.dsp.window.bring_to_top()) end
+end)
 
 -- Super+Left/Right/Up on a floating window: make it a normal window first.
 local function snap(side)

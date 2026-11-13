@@ -4,11 +4,18 @@
 # Every *.toml in this folder is read; saving applies it.
 
 [bar.default]
-# No workspaces (the-script uses one). The launcher button opens the-script's overview (left click)
-# or Noctalia's own launcher (right click); the to-do count is the-script's todo plugin.
-start = ["launcher", "wallpaper", "active_window"]
+# Edge to edge, square, and only the essentials; the control center (right end) has notifications,
+# Bluetooth, brightness, media and the power menu. No workspaces (the-script uses one). The launcher
+# button opens the-script's overview (left click) or Noctalia's own launcher (right click).
+margin_ends = 0
+radius = 0
+radius_top_left = 0
+radius_top_right = 0
+radius_bottom_left = 0
+radius_bottom_right = 0
+start = ["launcher", "active_window"]
 center = ["clock"]
-end = ["todo", "media", "tray", "notifications", "clipboard", "network", "bluetooth", "volume", "brightness", "battery", "control-center", "session"]
+end = ["todo", "tray", "network", "volume", "battery", "control-center"]
 
 [widget.launcher.actions]
 left = "exec qs ipc call overview toggle"

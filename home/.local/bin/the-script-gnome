@@ -96,6 +96,13 @@ if [ ! -e "$STATE/the-script-gnome-text-reset" ]; then
 	mkdir -p "$STATE" && touch "$STATE/the-script-gnome-text-reset"
 fi
 
+# The red accent the first GNOME setup (its ThinkPad look) chose, once; GNOME's default is blue.
+if [ ! -e "$STATE/the-script-gnome-accent-reset" ]; then
+	[ "$(gsettings get org.gnome.desktop.interface accent-color)" = "'red'" ] \
+		&& gsettings reset org.gnome.desktop.interface accent-color
+	mkdir -p "$STATE" && touch "$STATE/the-script-gnome-accent-reset"
+fi
+
 # GNOME's own look: an older desktop (Plasma) left its theme names (Breeze, breeze-dark), which made
 # title bars white and icons missing or odd.
 for key in gtk-theme icon-theme cursor-theme; do

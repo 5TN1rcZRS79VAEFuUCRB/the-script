@@ -205,16 +205,15 @@ fi
 
 # ---------------------------------------------------------------- leftovers from the first GNOME
 # the-script was GNOME once before, with a ThinkPad look (gray folders, red accent, square title bars for
-# KeePassXC and OBS through X11) and a patched Settings. Those leftovers go; GNOME itself is the desktop.
-retire "$HOME/.local/share/dbus-1/services/org.gnome.Settings.service" \
-	"$HOME"/.local/share/applications/{org.keepassxc.KeePassXC,com.obsproject.Studio}.desktop \
+# KeePassXC and OBS through X11). Those leftovers go; GNOME itself is the desktop.
+retire "$HOME"/.local/share/applications/{org.keepassxc.KeePassXC,com.obsproject.Studio}.desktop \
 	"$HOME"/.local/share/backgrounds/{arch.svg,thinkpad.svg,thinkpad-20-dark.png,thinkpad-20-light.png}
 rm -rf "$HOME/.local/share/icons/Adwaita-ThinkPad"   # made by install.sh, not yours
 for f in "$HOME"/.config/gtk-{3,4}.0/gtk.css; do
 	grep -q 'ThinkPad' "$f" 2>/dev/null && retire "$f"
 done
 rm -f "$HOME"/.local/state/the-script-{gnome-first-run,gnome-librewolf-dash,gnome-app-folders,gnome-app-folders-3,kde-pending,remove-gnome}
-sudo rm -f /usr/local/libexec/settings-pointer-speed /etc/udev/rules.d/{70-mouse-dpi,70-dwm-mouse-dpi}.rules
+sudo rm -f /etc/udev/rules.d/70-dwm-mouse-dpi.rules
 systemctl --user disable --now display-wake.service >/dev/null 2>&1 || true
 retire "$HOME/.local/bin/display-wake" "$HOME/.config/systemd/user/display-wake.service"
 
@@ -375,7 +374,7 @@ done
 rm -f "$HOME"/.local/share/wallpapers/{black-hole,nasa-black-hole}.png
 
 # Plasma's GTK settings (Breeze title-bar buttons, a Breeze settings.ini) override GNOME's look.
-retire "$HOME"/.config/gtk-{3,4}.0/{window_decorations.css,assets,settings.ini} "$HOME"/.config/gtk-4.0/gtk.css
+retire "$HOME"/.config/gtk-{3,4}.0/{window_decorations.css,assets,settings.ini}
 
 # ---------------------------------------------------------------- GNOME
 # The settings themselves (dark style, one workspace, Alt+Tab, the extensions, the display scale) are in
@@ -386,6 +385,17 @@ glib-compile-schemas "$HOME/.local/share/gnome-shell/extensions/todo@the-script/
 if [ "${XDG_CURRENT_DESKTOP:-}" = GNOME ]; then
 	"$HOME/.local/bin/the-script-gnome" || warn "could not apply the GNOME settings; they apply at the next login"
 fi
+
+# Settings' pointer speed sliders show their value, and the mouse's DPI under them:
+# ~/.local/share/dbus-1/services/org.gnome.Settings.service starts Settings through
+# settings-pointer-speed. The udev rule lets it read the DPI from a Razer or Endgame Gear mouse.
+sudo_place usr/local/libexec/settings-pointer-speed /usr/local/libexec/settings-pointer-speed
+sudo_place etc/udev/rules.d/70-mouse-dpi.rules /etc/udev/rules.d/70-mouse-dpi.rules
+sudo udevadm control --reload && sudo udevadm trigger --subsystem-match=hidraw \
+	|| warn "could not reload udev rules; the DPI shows after a reboot"
+# The session bus reads service files at its start; this picks up the Settings one now.
+gdbus call --session -d org.freedesktop.DBus -o /org/freedesktop/DBus -m org.freedesktop.DBus.ReloadConfig \
+	>/dev/null 2>&1 || true
 
 # The login screen. GDM takes over at the next boot; a running session is left alone. --force replaces
 # the display-manager link another one (greetd, SDDM) holds.

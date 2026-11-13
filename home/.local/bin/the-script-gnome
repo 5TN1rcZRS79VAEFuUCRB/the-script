@@ -13,7 +13,8 @@
 #     extension and the volume and brightness percentages extension turned on
 #   - the display scale for games: X11 games (everything through Proton) only see the screen's real
 #     pixels at a whole-number scale (100%, 200%), so a laptop gets 100% with Large Text (text at 125%)
-#     instead of 125% (first run only; Settings > Displays and Accessibility change it)
+#     and a 4K monitor 200% with text at 75% (first run only; Settings > Displays and Accessibility
+#     change them)
 #   - the volume keys in 5% steps; screenshots through the portal without a dialog (screenshot)
 #   - Steam's overlay follows the display scale (steam-overlay-scale)
 #   - your Firefox profile copied into LibreWolf, if install.sh could not do it with a browser open
@@ -57,28 +58,37 @@ if [ ! -e "$FIRST" ]; then
 	if compgen -G '/sys/class/power_supply/BAT*' >/dev/null; then
 		gsettings set org.gnome.desktop.interface text-scaling-factor 1.25
 	fi
-	# A fractional scale GNOME picked by itself (no ~/.config/monitors.xml yet) becomes a whole one:
-	# under 150% → 100%, else 200% (a 4K monitor). Saved, so GNOME keeps it.
-	[ -e "$HOME/.config/monitors.xml" ] || python3 - <<-'EOF' || echo "the-script-gnome: display scale left as is" >&2
-	from gi.repository import Gio, GLib
-	bus = Gio.bus_get_sync(Gio.BusType.SESSION)
-	call = lambda m, args=None: bus.call_sync("org.gnome.Mutter.DisplayConfig", "/org/gnome/Mutter/DisplayConfig",
-	    "org.gnome.Mutter.DisplayConfig", m, args, None, Gio.DBusCallFlags.NONE, -1, None).unpack()
-	serial, monitors, logical, props = call("GetCurrentState")
-	if all(float(lm[2]).is_integer() for lm in logical):
-	    raise SystemExit(0)
-	current = {}   # connector -> current mode id
-	for (conn, *_), modes, _p in monitors:
-	    for m in modes:
-	        if m[6].get("is-current"):
-	            current[conn] = m[0]
-	new = []
-	for x, y, scale, transform, primary, mons, _p in logical:
-	    s = 1.0 if scale < 1.5 else 2.0
-	    new.append((int(x / scale * s) if x else 0, int(y / scale * s) if y else 0, s, transform, primary,
-	                [(m[0], current[m[0]], {}) for m in mons]))
-	call("ApplyMonitorsConfig", GLib.Variant("(uua(iiduba(ssa{sv}))a{sv})", (serial, 2, new, {})))
-	EOF
+	# Games through Proton see the screen's real pixels only at a whole-number scale, so a 4K monitor
+	# runs at 200% with text at 75% (it reads like 150%), and any other fractional scale GNOME picked
+	# becomes 100%. Only while you haven't set a scale yourself (no ~/.config/monitors.xml); saved, so
+	# GNOME keeps it.
+	if [ ! -e "$HOME/.config/monitors.xml" ]; then
+		read -r -d '' fix <<-'EOF'
+		from gi.repository import Gio, GLib
+		bus = Gio.bus_get_sync(Gio.BusType.SESSION)
+		call = lambda m, args=None: bus.call_sync("org.gnome.Mutter.DisplayConfig", "/org/gnome/Mutter/DisplayConfig",
+		    "org.gnome.Mutter.DisplayConfig", m, args, None, Gio.DBusCallFlags.NONE, -1, None).unpack()
+		serial, monitors, logical, props = call("GetCurrentState")
+		current, width = {}, {}   # connector -> current mode id, its width in pixels
+		for (conn, *_), modes, _p in monitors:
+		    for m in modes:
+		        if m[6].get("is-current"):
+		            current[conn], width[conn] = m[0], m[1]
+		new, uhd, changed = [], False, False
+		for x, y, scale, transform, primary, mons, _p in logical:
+		    big = any(width.get(m[0], 0) >= 3840 for m in mons)
+		    uhd |= big
+		    s = 2.0 if big else (scale if float(scale).is_integer() else 1.0)
+		    changed |= s != scale
+		    new.append((int(x / scale * s) if x else 0, int(y / scale * s) if y else 0, s, transform, primary,
+		                [(m[0], current[m[0]], {}) for m in mons]))
+		if changed:
+		    call("ApplyMonitorsConfig", GLib.Variant("(uua(iiduba(ssa{sv}))a{sv})", (serial, 2, new, {})))
+		print("0.75" if uhd else "")
+		EOF
+		text=$(python3 -c "$fix") || echo "the-script-gnome: display scale left as is" >&2
+		[ -n "$text" ] && gsettings set org.gnome.desktop.interface text-scaling-factor "$text"
+	fi
 	mkdir -p "$STATE" && touch "$FIRST"
 fi
 

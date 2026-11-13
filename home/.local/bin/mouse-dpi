@@ -3,33 +3,84 @@
 mouse-dpi [cm]: measures a mouse's real DPI. Slide it along a ruler (10 cm unless given) three times;
 the raw counts the sensor sent over that distance are its actual DPI, which can be a few percent off
 the DPI it is set to. Two mice set to the same DPI then show whether one really moves the cursor
-further. Next to it is the set DPI, read from a Razer or Endgame Gear mouse by settings-pointer-speed.
+further. Next to it is the set DPI, read from a Razer or Endgame Gear mouse.
 
 Reading /dev/input needs root, so it restarts itself with sudo. The cursor moves as usual meanwhile.
 """
+import fcntl
 import glob
-import importlib.machinery
-import importlib.util
 import math
 import os
 import select
 import struct
 import sys
+import time
 
 ROUNDS = 3
 EVENT = struct.Struct("llHHi")  # struct input_event: time, type, code, value
 EV_REL, REL_X, REL_Y = 2, 0, 1
-SETTINGS = "/usr/local/libexec/settings-pointer-speed"
+
+
+# DPI as the mouse itself reports it over hidraw. Razer: Razer's 90-byte feature report, get DPI =
+# class 0x04, id 0x85. Endgame Gear 8k (OP1 8k v2 etc.): LOAD (0x12) on report 0xA1, then report
+# 0xA0 returns the 1024-byte settings block at offset 16 (layout from github.com/Janlhin/
+# Endgame_Gear_Web_Configurator). Both are read-only. None for other mice or a sleeping wireless one.
+def feature(n, size):
+    return (3 << 30) | (size << 16) | (ord('H') << 8) | n  # HIDIOCSFEATURE(6)/HIDIOCGFEATURE(7)
+
+
+def dpi_text(x, y):
+    return str(x) if x == y else f"{x}x{y}"
+
+
+def razer(fd):
+    for tid in (0x1f, 0x3f, 0xff):  # transaction id differs between Razer models
+        r = bytearray(91)  # report number 0, then the 90-byte report
+        r[2], r[6], r[7], r[8] = tid, 0x07, 0x04, 0x85
+        for b in r[3:89]:
+            r[89] ^= b
+        fcntl.ioctl(fd, feature(6, 91), bytes(r))
+        time.sleep(0.06)
+        fcntl.ioctl(fd, feature(7, 91), r)
+        if r[1] == 0x02 and r[7:9] == b'\x04\x85':  # status 2 = ok
+            return dpi_text(r[10] << 8 | r[11], r[12] << 8 | r[13])
+
+
+def endgame(fd):
+    cmd = bytearray(64)
+    cmd[0], cmd[1] = 0xA1, 0x12
+    fcntl.ioctl(fd, feature(6, 64), bytes(cmd))
+    for _ in range(5):
+        time.sleep(0.08)
+        r = bytearray(1041)
+        r[0] = 0xA0
+        fcntl.ioctl(fd, feature(7, 1041), r)
+        b = r[16:]
+        if r[1] == 0x01 and b[0x0D] < b[0x0E] <= 4:  # status 1 = ok; active stage < stage count
+            o = 0x23 + 5 * b[0x0D]  # per stage: [separate Y flag][X u16 LE][Y u16 LE]
+            x = b[o + 1] | b[o + 2] << 8
+            return dpi_text(x, b[o + 3] | b[o + 4] << 8 if b[o] else x)
 
 
 def set_dpi():
-    try:
-        loader = importlib.machinery.SourceFileLoader("settings_pointer_speed", SETTINGS)
-        module = importlib.util.module_from_spec(importlib.util.spec_from_loader(loader.name, loader))
-        loader.exec_module(module)
-        return module.dpi()
-    except Exception:
-        return None
+    for node in glob.glob('/sys/class/hidraw/hidraw*'):
+        try:
+            uevent = open(node + '/device/uevent').read()
+            if ':00001532:' in uevent:
+                read = razer
+            elif ':00003367:' in uevent and b'\x85\xa0' in open(node + '/device/report_descriptor', 'rb').read():
+                read = endgame  # only the interface that has the config reports
+            else:
+                continue
+            fd = os.open('/dev/' + os.path.basename(node), os.O_RDWR)
+            try:
+                found = read(fd)
+            finally:
+                os.close(fd)
+            if found:
+                return found
+        except OSError:
+            continue  # no access, or not the control interface
 
 
 def mice():

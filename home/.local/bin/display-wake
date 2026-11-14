@@ -20,7 +20,7 @@ BUS = "org.gnome.Mutter.DisplayConfig"
 PATH = "/org/gnome/Mutter/DisplayConfig"
 MIN_SLEEP = 60      # seconds; a shorter sleep wakes fine
 SETTLE = 2          # seconds to let GNOME finish its own wake, and between the two mode changes
-PERSISTENT = 2      # ApplyMonitorsConfig method; "temporary" would ask "Keep these settings?"
+TEMPORARY = 1       # ApplyMonitorsConfig method; "persistent" (2) asks "Keep these display settings?"
 
 bus = Gio.bus_get_sync(Gio.BusType.SESSION)
 slept_at = None
@@ -50,7 +50,7 @@ def apply(serial, logical, props, swap):
                [(conn, swap.get(conn, mode), {}) for conn, mode in monitors])
               for x, y, scale, transform, primary, monitors in logical]
     call("ApplyMonitorsConfig", GLib.Variant("(uua(iiduba(ssa{sv}))a{sv})",
-                                              (serial, PERSISTENT, config, props)))
+                                              (serial, TEMPORARY, config, props)))
 
 
 def retrain():

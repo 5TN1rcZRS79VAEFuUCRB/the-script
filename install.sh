@@ -624,6 +624,19 @@ if pacman -Qq swayidle >/dev/null 2>&1; then   # only presence used it
 	sudo pacman -Rs --noconfirm swayidle >/dev/null || warn "could not remove swayidle; run: sudo pacman -Rs swayidle"
 fi
 
+# ---------------------------------------------------------------- display wake
+# arch-server's Odyssey G8 (4K 240 Hz, DSC over DisplayPort, NVIDIA) can wake from a long sleep with no
+# signal; display-wake switches it to 60 Hz and back after every such wake. Only arch-server has it.
+if [ "$(cat /etc/hostname)" = arch-server ]; then
+	say "Display wake: bring the picture back after a long monitor sleep"
+	systemctl --user enable display-wake.service >/dev/null 2>&1 || warn "could not enable display-wake.service"
+	if [ -n "${WAYLAND_DISPLAY:-}" ] || systemctl --user -q is-active graphical-session.target 2>/dev/null; then
+		systemctl --user restart display-wake.service || warn "could not start display-wake; run: systemctl --user restart display-wake"
+	fi
+else
+	systemctl --user disable --now display-wake.service >/dev/null 2>&1 || true
+fi
+
 # ---------------------------------------------------------------- history cleaner
 # Deletes porn sites from LibreWolf's history, cookies and closed tabs each time it closes (it
 # locks its files while open), and at login. Nothing is blocked.

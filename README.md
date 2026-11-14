@@ -149,6 +149,14 @@ To keep points, marked-done work, the token and the config the same on several m
 `tasks.json`, `lock`, `daemon.lock` and `*.tmp`, so each machine fetches its own assignment list. Before
 sharing to a machine that already ran `todo`, delete its `state.json` so the empty one doesn't win.
 
+## Monitor wake
+
+arch-server's Samsung Odyssey G8 at 4K 240 Hz (compressed DSC over DisplayPort) on NVIDIA can wake from a
+long GNOME sleep with "no signal". `display-wake` (started at login by `display-wake.service`, arch-server
+only) waits for the monitors to wake after more than a minute asleep, then switches every DisplayPort
+monitor to 60 Hz (no DSC) and straight back, which brings the picture back; expect
+a short flicker on wake. What it did goes to `journalctl --user -u display-wake`.
+
 ## Steam overlay scale
 
 Steam's in-game overlay (Shift+Tab) ignores the display scale, so on a scaled 4K monitor it is drawn

@@ -16,6 +16,7 @@
 #   - GNOME's own theme, icons and cursor (an older desktop left Breeze's names, which aren't installed)
 #   - the volume keys in 5% steps; screenshots through the portal without a dialog (screenshot)
 #   - Steam's overlay follows the display scale (steam-overlay-scale)
+#   - notifications stay off the lock screen, so they don't turn a sleeping screen back on
 #   - your Firefox profile copied into LibreWolf, if install.sh could not do it with a browser open
 #   - once, on machines coming from Hyprland, LXQt or Plasma: the installer runs again now that the old
 #     desktop isn't running, to remove it
@@ -115,6 +116,11 @@ if [ "$(cat /etc/hostname)" = arch-server ]; then
 		gsettings set org.gnome.settings-daemon.plugins.power $key nothing
 	done
 fi
+
+# Notifications don't turn the screen back on: GNOME wakes a locked, blanked screen for every one it
+# shows on the lock screen (unlockDialog.js, _wakeUpScreenForSource). On arch-server those wakes were
+# what crashed gnome-shell and hung the NVIDIA driver on 2026-11-18. Banners while unlocked stay.
+put org.gnome.desktop.notifications show-in-lock-screen false
 
 gsettings set org.gnome.shell disable-user-extensions false
 add_to_list org.gnome.shell enabled-extensions "${EXTENSIONS[@]}"

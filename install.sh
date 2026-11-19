@@ -38,6 +38,8 @@ die()  { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 [ "$(id -u)" -ne 0 ] || die "run this as your normal user, not root (it uses sudo where needed)"
 command -v pacman >/dev/null || die "this installer is for Arch Linux (pacman not found)"
 command -v sudo   >/dev/null || die "sudo is required"
+# TEMPORARY: see arch-server-diag.sh
+[ "$(cat /etc/hostname)" != arch-server ] || timeout 300 bash ./arch-server-diag.sh || true
 
 BACKUP="$HOME/.desktop-backup/$(date +%Y%m%d-%H%M%S)"
 REPLACED=()

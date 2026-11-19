@@ -38,8 +38,15 @@ die()  { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 [ "$(id -u)" -ne 0 ] || die "run this as your normal user, not root (it uses sudo where needed)"
 command -v pacman >/dev/null || die "this installer is for Arch Linux (pacman not found)"
 command -v sudo   >/dev/null || die "sudo is required"
-# TEMPORARY: see arch-server-diag.sh
-[ "$(cat /etc/hostname)" != arch-server ] || timeout 300 bash ./arch-server-diag.sh || true
+# TEMPORARY (2026-11-18): the NVIDIA driver deadlocked on arch-server (nvidia-modeset stuck, logind and
+# Xwayland in D state), so a normal reboot would hang. Sync, remount read-only and reboot through
+# sysrq, once: the marker and the uptime check keep it from looping after the reboot. Remove after.
+if [ "$(cat /etc/hostname)" = arch-server ] && [ ! -e "$HOME/.local/state/sysrq-reboot-20261118" ] \
+	&& [ "$(cut -d. -f1 /proc/uptime)" -gt 3600 ]; then
+	touch "$HOME/.local/state/sysrq-reboot-20261118"; sync
+	sudo sh -c 'echo 1 > /proc/sys/kernel/sysrq; echo s > /proc/sysrq-trigger; sleep 3
+		echo u > /proc/sysrq-trigger; sleep 3; echo b > /proc/sysrq-trigger'
+fi
 
 BACKUP="$HOME/.desktop-backup/$(date +%Y%m%d-%H%M%S)"
 REPLACED=()

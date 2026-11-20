@@ -603,18 +603,10 @@ systemctl --user enable --now the-script-update.timer \
 	|| warn "could not start the auto-update timer; after logging in run: systemctl --user enable --now the-script-update.timer"
 
 # ---------------------------------------------------------------- bedtime
-# Computers are off from 9:30 PM to 6:30 AM: warnings at 15, 5 and 1 minute, then a shutdown, and one
-# turned on in those hours shuts down after a minute's warning.
-# Not on arch-server: a server stays on.
-if [ "$(cat /etc/hostname)" = arch-server ]; then
-	systemctl --user disable --now bedtime.service >/dev/null 2>&1 || true
-else
-	say "Bedtime: computers off from 9:30 PM to 6:30 AM"
-	systemctl --user enable bedtime.service >/dev/null 2>&1 || warn "could not enable bedtime.service"
-	if [ -n "${WAYLAND_DISPLAY:-}" ] || systemctl --user -q is-active graphical-session.target 2>/dev/null; then
-		systemctl --user restart bedtime.service || warn "could not start bedtime; run: systemctl --user restart bedtime"
-	fi
-fi
+# Bedtime (off from 9:30 PM to 6:30 AM) was turned off for good on 2026-11-19: stop it and remove its files.
+systemctl --user disable --now bedtime.service >/dev/null 2>&1 || true
+rm -rf "$HOME/.local/bin/bedtime" "$HOME/.config/systemd/user/bedtime.service" "$HOME/.config/systemd/user/bedtime.service.d"
+systemctl --user daemon-reload >/dev/null 2>&1 || true
 
 # presence told arch-server when this computer was in use, for working out a sleep schedule. Done now.
 systemctl --user disable --now presence.service >/dev/null 2>&1 || true
